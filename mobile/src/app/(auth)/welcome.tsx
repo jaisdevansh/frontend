@@ -22,21 +22,14 @@ const SLIDES = [
         id: '1',
         title: 'Curated Nightlife',
         subtitle: "Discover the city's most exclusive venues, handpicked for the discerning few.",
-        image: 'https://images.unsplash.com/photo-1566737236500-c8ac43014a67?q=80&w=1000&auto=format&fit=crop',
-        isLocal: false
+        image: require('../../assets/images/welcome1.jpg'),
+        isLocal: true
     },
     {
         id: '2',
         title: 'Exclusive Access',
         subtitle: 'Experience the pinnacle of nightlife. Skip the lines and walk right into the most sought-after events.',
-        image: require('../../assets/images/slide2.png'),
-        isLocal: true
-    },
-    {
-        id: '3',
-        title: 'VIP Treatment',
-        subtitle: 'Elevate your nights with premium table service and bespoke experiences crafted just for you.',
-        image: require('../../assets/images/slide3.png'),
+        image: require('../../assets/images/welcome2.jpg'),
         isLocal: true
     }
 ];
