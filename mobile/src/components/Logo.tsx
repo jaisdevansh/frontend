@@ -70,13 +70,16 @@ export const Logo: React.FC<LogoProps> = ({
                     style={StyleSheet.absoluteFill}
                 />
 
-                {/* 4. Center 'EC' Text - Ultra Thin */}
+                {/* 4. Center 'EC' Text - Brightened */}
                 <Text style={[
                     styles.logoEC, 
                     { 
                         fontSize: ecFontSize, 
                         letterSpacing: ecLetterSpacing,
-                        fontWeight: '200',
+                        fontWeight: '500', // Thickened so it's fully visible
+                        textShadowColor: 'rgba(255, 255, 255, 0.4)', // White glow
+                        textShadowOffset: { width: 0, height: 0 },
+                        textShadowRadius: 6,
                     }
                 ]}>
                     E C
