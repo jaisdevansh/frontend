@@ -92,6 +92,20 @@ export interface RevenueTrend {
     revenue: number;
 }
 
+export interface TopItem {
+    name: string;
+    totalSold: number;
+    revenue: number;
+}
+
+export interface TopUser {
+    id: string;
+    name: string;
+    profileImage: string;
+    totalSpent: number;
+}
+
+
 export type AdminHost = PendingHost;
 
 const adminService = {
@@ -106,6 +120,15 @@ const adminService = {
         return response.data.data;
     },
 
+    getTopItems: async (): Promise<TopItem[]> => {
+        const response = await apiClient.get('/analytics/top-items');
+        return response.data.data;
+    },
+
+    getTopUsers: async (): Promise<TopUser[]> => {
+        const response = await apiClient.get('/analytics/top-users');
+        return response.data.data;
+    },
 
     // Hosts
     getHosts: async (page = 1, limit = 25, search = '', status = ''): Promise<{ data: PendingHost[], total: number, pages: number, page: number }> => {

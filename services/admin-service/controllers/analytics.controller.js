@@ -167,7 +167,7 @@ export const getTopUsers = async (req, res, next) => {
             .map(([uId, spent]) => ({ id: uId, spent }));
 
         // POPULATE users efficiently in one query
-        const { User } = await import('../models/user.model.js');
+        const { User } = await import('../../../shared/models/user.model.js');
         const userInfos = await User.find({ _id: { $in: sortedIds.map(s => s.id) } })
             .select('name profileImage email')
             .lean();

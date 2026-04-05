@@ -264,11 +264,15 @@ export default function EditProfile() {
             };
 
             if (isStaff) {
-                payload.name = name.trim();
+                const trimmed = name.trim();
+                if (trimmed) payload.name = trimmed;
             } else {
-                payload.firstName = firstName.trim();
-                payload.lastName = lastName.trim();
-                payload.name = `${firstName.trim()} ${lastName.trim()}`;
+                const fTrim = firstName.trim();
+                const lTrim = lastName.trim();
+                if (fTrim) payload.firstName = fTrim;
+                if (lTrim) payload.lastName = lTrim;
+                // Only build full name if at least first name is present
+                if (fTrim) payload.name = `${fTrim}${lTrim ? ' ' + lTrim : ''}`;
                 if (dob) payload.dob = dob;
                 if (location) payload.location = location.trim();
                 payload.gender = gender;

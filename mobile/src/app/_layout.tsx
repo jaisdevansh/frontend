@@ -211,6 +211,7 @@ function RootLayoutNav() {
     if (role === 'user' && ['(host)', 'admin', '(staff)'].includes(s0)) return navigateTo(targetHome);
     if (role === 'host' && ['admin', '(staff)'].includes(s0)) return navigateTo(targetHome);
     if (role === 'staff' && ['(host)', 'admin', '(user)'].includes(s0)) return navigateTo(targetHome);
+    if (role === 'admin' && ['(host)', '(user)', '(staff)'].includes(s0)) return navigateTo(targetHome);
   }, [token, role, hostId, user, isLoading, segments, onboardingCompleted]);
 
   // 🛡️ RENDER BLOCKING (MANDATORY)

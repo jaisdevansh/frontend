@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 const userSchema = new mongoose.Schema({
-    name: { type: String, default: 'Club Member' },
+    name: { type: String, default: '' },
     gender: { type: String, enum: ['Male', 'Female', 'Other', ''], default: '' },
     email: { type: String, unique: true, sparse: true },
     password: { type: String },

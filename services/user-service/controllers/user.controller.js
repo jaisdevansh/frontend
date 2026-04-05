@@ -88,8 +88,31 @@ export const updateProfile = async (req, res, next) => {
 export const checkUsername = async (req, res, next) => {
     try {
         const { username } = req.body;
-        const exists = await User.exists({ username: username.toLowerCase() });
-        res.status(200).json({ success: true, available: !exists });
+        if (!username) return res.status(400).json({ success: false, message: 'Username required' });
+
+        const clean = username.toLowerCase().replace(/[^a-z0-9_.]/g, '');
+        const exists = await User.exists({ username: clean });
+
+        if (!exists) {
+            return res.status(200).json({ success: true, available: true, suggestions: [] });
+        }
+
+        // Generate smart suggestions and check availability in parallel
+        const year = new Date().getFullYear().toString().slice(-2);
+        const rand = () => Math.floor(10 + Math.random() * 990);
+        const candidates = [
+            `${clean}${rand()}`,
+            `${clean}_${rand()}`,
+            `${clean}${year}`,
+            `_${clean}${rand()}`,
+            `${clean}.x`,
+        ];
+
+        const taken = await User.find({ username: { $in: candidates } }).select('username').lean();
+        const takenSet = new Set(taken.map(u => u.username));
+        const suggestions = candidates.filter(s => !takenSet.has(s)).slice(0, 4);
+
+        return res.status(200).json({ success: true, available: false, suggestions });
     } catch (err) { next(err); }
 };
 

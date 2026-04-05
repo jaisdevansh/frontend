@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -74,6 +74,15 @@ export default function UserProfile() {
     // We start seamlessly with whatever authUser we have to completely eliminate loading spinners
     const [profile, setProfile] = useState<any>(authUser || null);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+    // 🔥 KEY FIX: When AuthContext updates (e.g. after onboarding or edit-profile saves),
+    // sync local profile state immediately — name/image appear without extra fetch
+    useEffect(() => {
+        if (authUser) {
+            setProfile((prev: any) => prev ? { ...prev, ...authUser } : authUser);
+        }
+    }, [authUser]);
+
 
     useFocusEffect(
         useCallback(() => {

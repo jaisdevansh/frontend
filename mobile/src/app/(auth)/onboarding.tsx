@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -37,6 +37,32 @@ export default function OnboardingScreen() {
     const { showToast } = useToast();
     const { showAlert } = useAlert();
     const queryClient = useQueryClient();
+
+    // Username recommendation system
+    const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
+    const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([]);
+
+    useEffect(() => {
+        if (!username || username.length < 3) {
+            setUsernameStatus('idle');
+            setUsernameSuggestions([]);
+            return;
+        }
+        setUsernameStatus('checking');
+        const t = setTimeout(async () => {
+            try {
+                const res = await userService.checkUsername(username);
+                if (res.available) {
+                    setUsernameStatus('available');
+                    setUsernameSuggestions([]);
+                } else {
+                    setUsernameStatus('taken');
+                    setUsernameSuggestions(res.suggestions || []);
+                }
+            } catch { setUsernameStatus('idle'); }
+        }, 600);
+        return () => clearTimeout(t);
+    }, [username]);
 
     const pickImage = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -77,8 +103,12 @@ export default function OnboardingScreen() {
     };
 
     const handleCompleteOnboarding = async () => {
-        if (!firstName || !lastName || !username || !gender) {
+        if (!firstName.trim() || !lastName.trim() || !username || !gender) {
             showToast('Please fill in all required fields including Username', 'error');
+            return;
+        }
+        if (usernameStatus === 'taken') {
+            showToast('That username is already taken. Please choose another.', 'error');
             return;
         }
 
@@ -162,14 +192,30 @@ export default function OnboardingScreen() {
                     </View>
 
                     <View style={styles.form}>
-                        <Input
-                            label=""
-                            placeholder="Username (e.g. johndoe123)"
-                            value={username}
-                            onChangeText={(text) => setUsername(text.toLowerCase().replace(/\s/g, ''))}
-                            containerStyle={styles.inputGap}
-                            autoCapitalize="none"
-                        />
+                        <View>
+                            <Input
+                                label=""
+                                placeholder="Username (e.g. johndoe123)"
+                                value={username}
+                                onChangeText={(text) => setUsername(text.toLowerCase().replace(/\s/g, ''))}
+                                containerStyle={styles.inputGap}
+                                autoCapitalize="none"
+                            />
+                            {usernameStatus === 'checking' && <Text style={styles.usernameChecking}>Checking availability...</Text>}
+                            {usernameStatus === 'available' && <Text style={styles.usernameAvailable}>✓ Username available</Text>}
+                            {usernameStatus === 'taken' && (
+                                <View style={{ marginBottom: 8 }}>
+                                    <Text style={styles.usernameTaken}>✕ Already taken. Try one of these:</Text>
+                                    <View style={styles.chipRow}>
+                                        {usernameSuggestions.map(s => (
+                                            <TouchableOpacity key={s} onPress={() => setUsername(s)} style={styles.chip}>
+                                                <Text style={styles.chipText}>{s}</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </View>
+                            )}
+                        </View>
                         <Input
                             label=""
                             placeholder="First Name"
@@ -290,4 +336,10 @@ const styles = StyleSheet.create({
     previewImageWrapper: { width: 100, height: 100, borderRadius: 50, borderWidth: 2, borderColor: COLORS.primary, overflow: 'hidden', justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.05)' },
     previewImage: { width: '100%', height: '100%' },
     continueBtn: { marginTop: 32, height: 56, borderRadius: BORDER_RADIUS.default },
+    usernameChecking: { color: 'rgba(255,255,255,0.4)', fontSize: 12, marginLeft: 4, marginBottom: 8 },
+    usernameAvailable: { color: '#10B981', fontSize: 12, fontWeight: '700', marginLeft: 4, marginBottom: 8 },
+    usernameTaken: { color: '#ef4444', fontSize: 12, fontWeight: '700', marginLeft: 4, marginBottom: 8 },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginLeft: 4 },
+    chip: { backgroundColor: 'rgba(59,130,246,0.15)', borderWidth: 1, borderColor: 'rgba(59,130,246,0.4)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6 },
+    chipText: { color: '#60a5fa', fontSize: 12, fontWeight: '700' },
 });

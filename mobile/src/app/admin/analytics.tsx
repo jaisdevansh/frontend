@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import adminService, { AdminSummary, RevenueTrend } from '../../services/adminService';
+import adminService, { AdminSummary, RevenueTrend, TopItem, TopUser } from '../../services/adminService';
+import { Image } from 'expo-image';
 
 
 const { width } = Dimensions.get('window');
@@ -105,9 +106,19 @@ export default function AnalyticsScreen() {
         queryFn: adminService.getSummary,
     });
 
-    const { data: trend, isLoading: trendLoading, refetch: refetchTrend } = useQuery({
+    const { data: trend, isLoading: trendLoading } = useQuery({
         queryKey: ['admin-revenue-trend'],
         queryFn: adminService.getRevenueTrend,
+    });
+
+    const { data: topUsers, isLoading: usersLoading } = useQuery({
+        queryKey: ['admin-top-users'],
+        queryFn: adminService.getTopUsers,
+    });
+
+    const { data: topItems, isLoading: itemsLoading } = useQuery({
+        queryKey: ['admin-top-items'],
+        queryFn: adminService.getTopItems,
     });
 
     const maxTrendVal = useMemo(() => {
@@ -124,11 +135,13 @@ export default function AnalyticsScreen() {
         // High-performance invalidation for real-time sync
         await Promise.all([
             queryClient.invalidateQueries({ queryKey: ['admin-summary'] }),
-            queryClient.invalidateQueries({ queryKey: ['admin-revenue-trend'] })
+            queryClient.invalidateQueries({ queryKey: ['admin-revenue-trend'] }),
+            queryClient.invalidateQueries({ queryKey: ['admin-top-users'] }),
+            queryClient.invalidateQueries({ queryKey: ['admin-top-items'] })
         ]);
     };
 
-    const isDataFetching = sumLoading || trendLoading;
+    const isDataFetching = sumLoading || trendLoading || usersLoading || itemsLoading;
 
     if (sumLoading && !summary) {
         return (
@@ -200,6 +213,54 @@ export default function AnalyticsScreen() {
                         <View style={styles.metaItem}><View style={[styles.dot, { backgroundColor: COLORS.danger }]} /><Text style={styles.metaLabel}>{summary?.rejectedOrders || 0} Revoked</Text></View>
                     </View>
                 </View>
+
+                {/* VIP Customers */}
+                <View style={[styles.conversionCard, { marginTop: 24 }]}>
+                    <View style={styles.metaRow}>
+                        <Text style={styles.sectionTitle}>VIP Customers</Text>
+                    </View>
+                    {usersLoading ? <ActivityIndicator style={{ marginTop: 20 }} color={COLORS.primary} /> : (
+                        <View style={{ marginTop: 20, gap: 16 }}>
+                            {(topUsers || []).map((user: TopUser, idx: number) => (
+                                <View key={user.id} style={styles.listItem}>
+                                    <View style={styles.listLeft}>
+                                        <Text style={styles.rankText}>#{idx + 1}</Text>
+                                        <Image source={{ uri: user.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=111&color=fff` }} style={styles.avatar} contentFit="cover" />
+                                        <Text style={styles.itemName} numberOfLines={1}>{user.name}</Text>
+                                    </View>
+                                    <Text style={styles.itemRevenue}>{formatCurr(user.totalSpent)}</Text>
+                                </View>
+                            ))}
+                            {(!topUsers || topUsers.length === 0) && <Text style={styles.emptyText}>No customer data yet</Text>}
+                        </View>
+                    )}
+                </View>
+
+                {/* Top Performing Assets */}
+                <View style={[styles.conversionCard, { marginTop: 24 }]}>
+                    <View style={styles.metaRow}>
+                        <Text style={styles.sectionTitle}>Top Performing Assets</Text>
+                    </View>
+                    {itemsLoading ? <ActivityIndicator style={{ marginTop: 20 }} color={COLORS.primary} /> : (
+                        <View style={{ marginTop: 20, gap: 16 }}>
+                            {(topItems || []).map((item: TopItem, idx: number) => (
+                                <View key={item.name} style={styles.listItem}>
+                                    <View style={styles.listLeft}>
+                                        <View style={styles.trendIconBox}>
+                                            <Ionicons name="trending-up" size={14} color={COLORS.success} />
+                                        </View>
+                                        <View>
+                                            <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
+                                            <Text style={styles.itemUnits}>{item.totalSold} units sold</Text>
+                                        </View>
+                                    </View>
+                                    <Text style={styles.itemRevenue}>{formatCurr(item.revenue)}</Text>
+                                </View>
+                            ))}
+                            {(!topItems || topItems.length === 0) && <Text style={styles.emptyText}>No sales data yet</Text>}
+                        </View>
+                    )}
+                </View>
             </ScrollView>
         </View>
     );
@@ -245,4 +306,15 @@ const styles = StyleSheet.create({
     metaItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     dot: { width: 8, height: 8, borderRadius: 4 },
     metaLabel: { color: COLORS.textDim, fontSize: 12, fontWeight: '700' },
+
+    // Lists
+    listItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    listLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+    rankText: { color: COLORS.textDim, fontSize: 12, fontWeight: '900', width: 24 },
+    avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#222' },
+    trendIconBox: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(16, 185, 129, 0.1)', justifyContent: 'center', alignItems: 'center' },
+    itemName: { color: COLORS.textWhite, fontSize: 15, fontWeight: '800' },
+    itemUnits: { color: COLORS.textDim, fontSize: 11, fontWeight: '600', marginTop: 2 },
+    itemRevenue: { color: COLORS.success, fontSize: 16, fontWeight: '900' },
+    emptyText: { color: COLORS.textDim, fontSize: 13, alignSelf: 'center', marginVertical: 20 },
 });

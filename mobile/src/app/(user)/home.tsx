@@ -64,7 +64,8 @@ export default function HomeScreen() {
 
     // Extract UI data
     const profileImage = authUser?.profileImage || profileData?.profileImage || null;
-    const profileName = authUser?.name || profileData?.name || null;
+    const rawName = authUser?.name || profileData?.name || '';
+    const profileName = rawName.trim() || 'Hey there 👋';
     const events = eventsData || [];
     const venues = venuesData || [];
     const loading = isEventsLoading;

@@ -9,13 +9,13 @@ export const updateProfileSchema = Joi.object({
     email: Joi.string().email().optional(),
     profileImage: Joi.string().allow('').optional(),
     bio: Joi.string().max(200).allow('').optional(),
-    dob: Joi.date().optional(),
+    dob: Joi.alternatives().try(Joi.date(), Joi.string().allow('').optional()).optional(),
     location: Joi.string().allow('').optional(),
     username: Joi.string().pattern(/^[@a-zA-Z0-9_.-]+$/).min(3).max(30).allow('').optional()
 });
 
 export const changePasswordSchema = Joi.object({
-    oldPassword: Joi.string().required(),
+    currentPassword: Joi.string().required(),
     newPassword: Joi.string().min(6).required()
 });
 
