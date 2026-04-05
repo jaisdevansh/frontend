@@ -11,6 +11,7 @@ import { userService } from '../../services/userService';
 import { useToast } from '../../context/ToastContext';
 import dayjs from 'dayjs';
 import { thumb } from '../../services/cloudinaryService';
+import { Ionicons } from '@expo/vector-icons';
 import apiClient from '../../services/apiClient';
 
 type Tab = 'upcoming' | 'past' | 'orders';
@@ -303,14 +304,17 @@ export default function MyBookings() {
                                     }}
                                 >
                                     <LinearGradient
-                                        colors={activeTab === 'orders' ? ['#1D4ED8', '#2563EB', '#3B82F6'] : ['#4F46E5', '#6366F1']}
+                                        colors={activeTab === 'orders' ? ['#1A365D', '#2563EB', '#3B82F6'] : ['#0F172A', '#1D4ED8', '#2563EB']}
                                         start={{ x: 0, y: 0 }}
-                                        end={{ x: 1, y: 0 }}
+                                        end={{ x: 1, y: 1 }}
                                         style={styles.emptyCtaGrad}
                                     >
-                                        <Text style={styles.emptyCtaText}>
-                                            {activeTab === 'orders' ? 'EXPLORE MENU' : 'DISCOVER EVENTS'}
-                                        </Text>
+                                        <View style={styles.emptyCtaInner}>
+                                            <Text style={styles.emptyCtaText}>
+                                                {activeTab === 'orders' ? 'EXPLORE MENU' : 'DISCOVER EVENTS'}
+                                            </Text>
+                                            <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 8, marginTop: 1 }} />
+                                        </View>
                                     </LinearGradient>
                                 </TouchableOpacity>
                             </View>
@@ -536,24 +540,31 @@ const styles = StyleSheet.create({
     },
     emptyCta: {
         width: '100%',
-        borderRadius: BORDER_RADIUS.lg,
+        borderRadius: 20, // More rounded, modern pill-like
         overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: 'rgba(59, 130, 246, 0.4)', // Glassy blue border
         shadowColor: '#2563EB',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.35,
-        shadowRadius: 15,
-        elevation: 8,
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.5,
+        shadowRadius: 20,
+        elevation: 12,
     },
     emptyCtaGrad: {
-        height: 56,
+        height: 60, // Slightly taller for premium feel
         justifyContent: 'center',
         alignItems: 'center',
     },
+    emptyCtaInner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     emptyCtaText: {
         color: '#FFFFFF',
-        fontSize: 14,
-        fontWeight: '800',
-        letterSpacing: 2,
+        fontSize: 15,
+        fontWeight: '900',
+        letterSpacing: 2.5, // Refined tracking
         textAlign: 'center',
     },
 

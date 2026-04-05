@@ -267,17 +267,19 @@ export const verifyOtp = async (req, res, next) => {
             const tempId = new mongoose.Types.ObjectId();
             const referralCode = Math.random().toString(36).substring(2, 8).toUpperCase() + tempId.toString().substring(18, 22).toUpperCase();
             
-            user = new User({
+            const userPayload = {
                 _id: tempId,
                 name: '',
-                email: isEmail ? identifierLower : undefined,
-                phone: !isEmail ? identifier : undefined,
                 emailVerified: isEmail,
                 role: 'user',
                 onboardingCompleted: false,
                 isActive: true,
                 referralCode
-            });
+            };
+            if (isEmail) userPayload.email = identifierLower;
+            if (!isEmail) userPayload.phone = identifier;
+
+            user = new User(userPayload);
             await user.save();
         }
 
