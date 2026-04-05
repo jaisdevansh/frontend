@@ -30,6 +30,7 @@ Thumbs.db
 *.swo
 
 # Project specific
+mobile/
 backend/node_modules/
 mobile/node_modules/
 backend/dist/
