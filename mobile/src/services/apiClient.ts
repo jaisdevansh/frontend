@@ -10,8 +10,8 @@ import { DeviceEventEmitter } from 'react-native';
  * Standard logic for development environments to ensure connectivity.
  */
 const getBaseUrl = () => {
-    // Local environment IP
-    return 'http://10.230.230.18:3000';
+    // Production Render URL
+    return 'https://test-53pw.onrender.com';
 };
 
 export const API_BASE_URL = getBaseUrl();
