@@ -10,6 +10,7 @@ import crypto from 'crypto';
 import { registerSchema, loginSchema, refreshTokenSchema, forgotPasswordSchema, resetPasswordSchema, sendOtpSchema, verifyOtpSchema } from '../../../validators/auth.validator.js';
 import sendEmail from '../../../shared/utils/sendEmail.js';
 import { sendSmsOtp, verifySmsOtp } from '../../../services/twilio.service.js';
+import { cacheService } from '../../../services/cache.service.js';
 
 const generateTokens = (user) => {
     const displayName = user.name || (user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : '');
@@ -268,7 +269,7 @@ export const verifyOtp = async (req, res, next) => {
             
             user = new User({
                 _id: tempId,
-                name: 'Club Member',
+                name: '',
                 email: isEmail ? identifierLower : undefined,
                 phone: !isEmail ? identifier : undefined,
                 emailVerified: isEmail,
@@ -608,6 +609,9 @@ export const completeOnboarding = async (req, res, next) => {
 
         await user.save();
 
+        // 🚨 CRITICAL: Invalidate backend profile cache immediately so home dashboard fetches real name!
+        await cacheService.delete(cacheService.formatKey('profile', req.user.id));
+
         res.status(200).json({
             success: true,
             message: 'Onboarding completed',
@@ -682,7 +686,7 @@ export const googleLogin = async (req, res, next) => {
 
             user = new User({
                 _id: tempId,
-                name: name || 'Club Member',
+                name: name || '',
                 email: emailLower,
                 profileImage: picture || undefined,
                 emailVerified: true,

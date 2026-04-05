@@ -28,37 +28,31 @@ export const Logo: React.FC<LogoProps> = ({
 
     return (
         <View style={styles.container}>
-            {/* Premium Circular Frame - Glowing Neon Edition */}
+            {/* Premium Circular Frame - no brackets */}
+
             <View style={[
                 styles.logoCircle, 
                 { 
                     width: circleSize, 
                     height: circleSize, 
                     borderRadius: circleSize / 2,
-                    borderWidth: 1.5,
-                    borderColor: 'rgba(255, 255, 255, 1)',
-                    shadowColor: '#a855f7', // vibrant purple neon glow
-                    shadowOffset: { width: 0, height: 0 },
-                    shadowOpacity: 0.9,
-                    shadowRadius: 30,
-                    elevation: 15
                 }
             ]}>
                 {/* 1. Underlying Glass Base - Wrapped strictly to prevent Android BlurView square bleeding */}
                 <View style={[StyleSheet.absoluteFill, { borderRadius: circleSize / 2, overflow: 'hidden' }]}>
                     <BlurView 
-                        intensity={40} 
+                        intensity={20} 
                         tint="dark" 
                         style={StyleSheet.absoluteFill} 
                     />
                 </View>
                 
-                {/* 2. Inner Rim Gradient */}
+                {/* 2. Glass Gradient & Border Rim */}
                 <LinearGradient
-                    colors={['rgba(255, 255, 255, 0.4)', 'rgba(255, 255, 255, 0.0)']}
+                    colors={['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.05)']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
-                    style={[StyleSheet.absoluteFill, { borderRadius: circleSize / 2, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' }]}
+                    style={[StyleSheet.absoluteFill, { borderRadius: circleSize / 2, borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.2)' }]}
                 />
 
                 {/* 3. The Signature Diagonal Shine Streak */}
@@ -111,7 +105,8 @@ const styles = StyleSheet.create({
     logoCircle: {
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        overflow: 'hidden',
+        backgroundColor: 'rgba(255, 255, 255, 0.02)',
     },
     logoEC: {
         color: '#FFFFFF',
