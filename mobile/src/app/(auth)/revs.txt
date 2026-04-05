@@ -1,0 +1,1 @@
+﻿f7c55c4 - fix: remove old (tabs) placeholder, fix nav bar dark theme, add root index redirect

@@ -1,0 +1,17 @@
+[
+  {
+    "_id": "69cbb46a5e11d29adb9bd37e",
+    "name": "Anshul rajput",
+    "username": "anshu",
+    "email": "mindcare65@gmail.com",
+    "phone": "9696855880",
+    "role": "STAFF",
+    "staffType": "WAITER",
+    "isActive": true,
+    "emailVerified": false,
+    "hostId": "69cac6015db90b2955e24ae2",
+    "createdAt": "2026-03-31T11:47:54.235Z",
+    "updatedAt": "2026-03-31T11:47:54.235Z",
+    "__v": 0
+  }
+]
