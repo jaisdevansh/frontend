@@ -243,11 +243,12 @@ export const verifyOtp = async (req, res, next) => {
         // ⚡ HIGH-PERFORMANCE PARALLEL LOOKUP
         if (!user) {
             const isEmail = identifier.includes('@');
-            const searchPhone = !isEmail ? (identifier.replace(/\s/g, '').startsWith('+') ? identifier.replace(/\s/g, '') : `+${identifier.replace(/\s/g, '')}`) : null;
+            const searchPhoneRaw = !isEmail ? identifier.replace(/\s/g, '') : null;
+            const phoneBase = searchPhoneRaw ? searchPhoneRaw.slice(-10) : null; // Get last 10 digits
             
             const query = isEmail 
                 ? { email: { $regex: new RegExp(`^${identifierLower}$`, 'i') } }
-                : { phone: searchPhone };
+                : { phone: { $regex: new RegExp(`${phoneBase}$`) } };
 
             const lookups = [
                 isAuthorizedAdmin ? Admin.findOne(query) : Promise.resolve(null), // Only check admin DB if authorized
