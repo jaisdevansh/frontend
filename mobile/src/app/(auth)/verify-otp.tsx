@@ -14,6 +14,7 @@ import { Logo } from '../../components/Logo';
 
 export default function VerifyOtpScreen() {
     const { identifier, hint } = useLocalSearchParams<{ identifier: string, hint?: string }>();
+    const [currentHint, setCurrentHint] = useState(hint);
     const [otp, setOtp] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -54,6 +55,7 @@ export default function VerifyOtpScreen() {
         try {
             const res = await authService.sendOtp(identifier!);
             if (res.success) {
+                if (res.data?.hint) setCurrentHint(res.data.hint);
                 showToast('OTP resent successfully', 'success');
             }
         } catch (error: any) {
@@ -89,7 +91,7 @@ export default function VerifyOtpScreen() {
                         <Text style={styles.title} adjustsFontSizeToFit numberOfLines={1}>VERIFY ACCESS</Text>
                         <Text style={styles.subtitle}>Enter the 6-digit code sent to</Text>
                         <Text style={styles.identifierText}>{identifier}</Text>
-                        {hint && <Text style={styles.hintText}>Demo Code: {hint}</Text>}
+                        {currentHint && <Text style={styles.hintText}>Demo Code: {currentHint}</Text>}
                     </View>
 
                     <View style={styles.form}>

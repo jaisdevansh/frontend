@@ -170,6 +170,15 @@ const startServer = async () => {
                 const { Booking } = await import('./shared/models/booking.model.js');
                 const { cacheService } = await import('./services/cache.service.js');
 
+                // 🚨 CRITICAL: Force fix MongoDB E11000 legacy duplicate key constraint issues
+                try {
+                    await User.collection.dropIndex('email_1');
+                } catch(e) {} // ignore if it doesn't exist
+                try {
+                    await User.collection.dropIndex('phone_1');
+                } catch(e) {}
+                await User.syncIndexes();
+
                 // 1. Pre-warm: Live Events (most accessed endpoint)
                 const now = new Date();
                 const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
