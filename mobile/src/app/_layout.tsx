@@ -191,8 +191,14 @@ function RootLayoutNav() {
     // 5.1 HOST STATUS GUARD
     if (role === 'host') {
         const hStatus = user?.hostStatus || user?.status;
-        if (hStatus === 'CREATED') {
+        if (hStatus === 'INVITED') {
             if (segments[1] !== 'onboarding') return navigateTo('/(host)/onboarding');
+        } else if (hStatus === 'KYC_PENDING' || hStatus === 'PENDING_VERIFICATION') {
+            if (segments[1] !== 'under-review' && segments[1] !== 'success') return navigateTo('/(host)/under-review');
+        } else if (hStatus === 'REJECTED') {
+            if (segments[1] !== 'rejected') return navigateTo('/(host)/rejected');
+        } else if (hStatus === 'SUSPENDED') {
+            if (segments[1] !== 'suspended') return navigateTo('/(auth)/suspended');
         }
     }
 
