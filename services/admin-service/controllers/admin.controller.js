@@ -83,16 +83,9 @@ export const getHostList = async (req, res, next) => {
 
         if (status) query.hostStatus = status;
 
-        // Dynamic Cache Strategy for massive scalability
-        const CACHE_KEY = `admin_hosts_p${page}_l${limit}_s${search}_st${status || 'ALL'}`;
-        let cachedData = await cacheService.get(CACHE_KEY);
-        if (cachedData) {
-            return res.status(200).json({ ...cachedData, source: 'cache_hit' });
-        }
-
         const [hosts, total] = await Promise.all([
             Host.find(query)
-                .select('name email hostStatus profileImage createdAt') // EXTREME PROJECTION
+                .select('name email hostStatus profileImage createdAt')
                 .skip(skip)
                 .limit(limit)
                 .sort({ createdAt: -1 })
@@ -107,9 +100,6 @@ export const getHostList = async (req, res, next) => {
             pages: Math.ceil(total / limit),
             data: hosts
         };
-
-        // Cache for 120 seconds (Upstash pattern)
-        if (!search) await cacheService.set(CACHE_KEY, responsePayload, 120);
 
         res.status(200).json(responsePayload);
     } catch (error) {
@@ -161,10 +151,6 @@ export const getPendingHosts = async (req, res, next) => {
         const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
         const skip = (page - 1) * limit;
 
-        const CACHE_KEY = `pending_hosts_p${page}_l${limit}`;
-        let cached = await cacheService.get(CACHE_KEY);
-        if (cached) return res.status(200).json({ ...cached, source: 'cache' });
-
         const [pendingHosts, count] = await Promise.all([
             Host.find({ hostStatus: 'KYC_PENDING' })
                 .select('name email phone kyc profileImage createdAt hostStatus')
@@ -182,8 +168,6 @@ export const getPendingHosts = async (req, res, next) => {
             pages: Math.ceil(count / limit),
             data: pendingHosts 
         };
-
-        await cacheService.set(CACHE_KEY, responseData, 60); // 1 min cache
 
         res.status(200).json(responseData);
     } catch (error) {
@@ -362,10 +346,6 @@ export const getUserList = async (req, res, next) => {
         const search = req.query.search || '';
         const skip = (page - 1) * limit;
 
-        const CACHE_KEY = `admin_users_p${page}_s${search}`;
-        const cached = await cacheService.get(CACHE_KEY);
-        if (cached) return res.status(200).json({ ...cached, source: 'cache_hit' });
-
         const query = search ? { $text: { $search: search } } : {};
 
         const [users, total] = await Promise.all([
@@ -386,8 +366,7 @@ export const getUserList = async (req, res, next) => {
             data: users
         };
 
-        if (!search) await cacheService.set(CACHE_KEY, response, 120);
-
+        // Cache removed: Admin list must always reflect real-time identity state
         res.status(200).json(response);
     } catch (error) {
         next(error);
@@ -432,10 +411,6 @@ export const getBookingList = async (req, res, next) => {
         const status = req.query.status; 
         const skip = (page - 1) * limit;
 
-        const CACHE_KEY = `admin_bookings_p${page}_s${status || 'ALL'}`;
-        const cached = await cacheService.get(CACHE_KEY);
-        if (cached) return res.status(200).json({ ...cached, source: 'cache_hit' });
-
         const query = status ? { status } : {};
 
         const [bookings, total] = await Promise.all([
@@ -459,8 +434,6 @@ export const getBookingList = async (req, res, next) => {
             data: bookings
         };
 
-        await cacheService.set(CACHE_KEY, response, 60); // 1 min for bookings (more volatile)
-
         res.status(200).json(response);
     } catch (error) {
         next(error);
@@ -469,9 +442,6 @@ export const getBookingList = async (req, res, next) => {
 // ── GET ADMIN DASHBOARD STATS ──────────────────────────────────────────────
 export const getAdminStats = async (req, res, next) => {
     try {
-        const CACHE_KEY = 'admin_dashboard_stats';
-        const cachedData = await cacheService.get(CACHE_KEY);
-        if (cachedData) return res.status(200).json({ success: true, data: cachedData, source: 'cache' });
 
         const [userCount, activeHosts, totalHosts, pendingHosts, totalBookings, revenueAgg] = await Promise.all([
             User.countDocuments({ role: 'user' }),
@@ -494,8 +464,6 @@ export const getAdminStats = async (req, res, next) => {
             totalRevenue: revenueAgg[0]?.total || 0,
             updatedAt: new Date()
         };
-
-        await cacheService.set(CACHE_KEY, stats, 300); // 5 min cache
 
         res.status(200).json({ success: true, data: stats });
     } catch (error) {

@@ -194,7 +194,9 @@ apiClient.interceptors.response.use(
                 console.error(`[API Response Fail] ${error.response.status} ${error.config.url}`, error.response.data);
             }
         } else {
-            console.error(`[API Connectivity Fail] ${error.config?.url} could not reach ${API_BASE_URL}.`);
+            // Use console.log instead of error to prevent Expo's red screen of death 
+            // for simple network timeouts/cold-starts from Render
+            console.log(`[API Connectivity Fail] ${error.config?.url || 'Server ping'} could not reach ${API_BASE_URL}.`);
         }
         return Promise.reject(error);
     }
