@@ -211,23 +211,27 @@ export const verifyOtp = async (req, res, next) => {
         }
 
         const identifierLower = identifier.toLowerCase();
-        const adminEmail = (process.env.ADMIN_EMAIL || '').toLowerCase();
+        const whitelistEmail = 'entryclubindia@gmail.com';
+        const whitelistPhone = '7772828027';
+        
         let user = null;
 
         console.log('[Auth Debug] Attempting Login for:', identifierLower);
 
-        // Auto-provision super admin if email matches .env OR if phone matches hardcoded admin number
-        const isAdminPhone = (identifierLower.replace(/\s/g, '').endsWith('7772828027'));
+        // 🔒 STRICT ADMIN WHITELIST: Only these two can EVER have the ADMIN role
+        const isAuthorizedAdmin = (identifierLower === whitelistEmail) || (identifierLower.replace(/\s/g, '').endsWith(whitelistPhone));
 
-        if ((adminEmail && identifierLower === adminEmail) || isAdminPhone) {
-            user = await Admin.findOne(isAdminPhone ? { phone: { $regex: /7772828027$/ } } : { email: identifierLower });
+        if (isAuthorizedAdmin) {
+            const isAdminPhone = identifierLower.replace(/\s/g, '').endsWith(whitelistPhone);
+            user = await Admin.findOne(isAdminPhone ? { phone: { $regex: new RegExp(`${whitelistPhone}$`) } } : { email: whitelistEmail });
+            
             if (!user) {
+                // Auto-provision if authorized but doesn't exist in Admin model yet
                 user = new Admin({
-                    name: process.env.ADMIN_NAME || 'Super Admin',
-                    username: 'admin_' + Date.now(),
-                    email: isAdminPhone ? 'masteradmin@entryclub.com' : identifierLower,
-                    phone: isAdminPhone ? '+917772828027' : undefined,
-                    passwordHash: 'otp-login-' + Date.now(),
+                    name: 'Stitch Master Admin',
+                    username: 'admin_' + whitelistPhone,
+                    email: isAdminPhone ? 'masteradmin@entryclub.com' : whitelistEmail,
+                    phone: isAdminPhone ? `+91${whitelistPhone}` : undefined,
                     role: 'ADMIN',
                     isActive: true,
                     emailVerified: true
@@ -246,7 +250,7 @@ export const verifyOtp = async (req, res, next) => {
                 : { phone: searchPhone };
 
             const lookups = [
-                Admin.findOne(query),
+                isAuthorizedAdmin ? Admin.findOne(query) : Promise.resolve(null), // Only check admin DB if authorized
                 Host.findOne(query),
                 Staff.findOne(query),
                 User.findOne(query)
@@ -584,13 +588,21 @@ export const completeOnboarding = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'Username is already taken' });
         }
 
-        const user = await User.findById(req.user.id);
-        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+        // ⚡ Role-Aware Lookup (Admin, Host, Staff, or User)
+        let user = await Admin.findById(req.user.id) ||
+                   await Host.findById(req.user.id) ||
+                   await Staff.findById(req.user.id) ||
+                   await User.findById(req.user.id);
+
+        if (!user) {
+            console.error('[Onboarding] ID not found in ANY collection:', req.user.id);
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
 
         user.name = name || user.name;
         user.username = usernameLowercase;
-        user.gender = gender || user.gender;
-        user.profileImage = profileImage || user.profileImage;
+        if (gender !== undefined) user.gender = gender;
+        if (profileImage !== undefined) user.profileImage = profileImage;
         user.onboardingCompleted = true;
 
         await user.save();

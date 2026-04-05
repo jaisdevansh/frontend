@@ -92,12 +92,24 @@ export default function SaaSAdminDashboard() {
 
     // ── DATA FETCHING ────────────────────────────────────────────────────────
     
-    // 1. Global Admin Stats (Optimized with Redis Caching)
+    // 1. Global Admin Stats — Instant from cache (5 min stale window)
     const { data: stats, isLoading: isStatsLoading, isRefetching } = useQuery({
         queryKey: ['admin-stats'],
         queryFn: adminService.getStats,
-        staleTime: 60000, // 1 min cache on frontend
+        staleTime: 5 * 60 * 1000, // 5 min — serve from cache, refresh silently
+        gcTime: 15 * 60 * 1000,   // Keep in memory 15 min
+        refetchOnMount: false,     // Don't re-fetch every tab switch
+        refetchOnWindowFocus: false,
     });
+
+    // 2. Silent pre-fetch all admin tabs so they open instantly
+    React.useEffect(() => {
+        // Fire and forget — pre-warms React Query cache for sub-pages
+        queryClient.prefetchQuery({ queryKey: ['admin-hosts', 1], queryFn: () => adminService.getHosts(1, 25), staleTime: 5 * 60 * 1000 });
+        queryClient.prefetchQuery({ queryKey: ['admin-users', 1], queryFn: () => adminService.getUsers(1, 25), staleTime: 5 * 60 * 1000 });
+        queryClient.prefetchQuery({ queryKey: ['admin-bookings', 1], queryFn: () => adminService.getBookings(1, 30), staleTime: 5 * 60 * 1000 });
+        queryClient.prefetchQuery({ queryKey: ['admin-staff'], queryFn: () => adminService.getStaff({}), staleTime: 5 * 60 * 1000 });
+    }, []);
 
     const formatCurrency = (val?: number) => `₹${(val || 0).toLocaleString()}`;
 

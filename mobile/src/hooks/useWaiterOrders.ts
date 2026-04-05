@@ -17,7 +17,7 @@ export const useAvailableOrders = () =>
             return (res.data as any[]) ?? [];
         },
         staleTime: 20_000,
-        refetchOnWindowFocus: true,
+        refetchOnWindowFocus: false,
     });
 
 export const useMyOrders = () =>
@@ -27,7 +27,8 @@ export const useMyOrders = () =>
             const res = await waiterService.getMyOrders();
             return (res.data as any[]) ?? [];
         },
-        staleTime: 10_000,
+        staleTime: 20_000,
+        refetchOnWindowFocus: false,
     });
 
 export const useCompletedOrders = () =>

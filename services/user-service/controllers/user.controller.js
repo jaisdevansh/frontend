@@ -29,12 +29,15 @@ export const getProfile = async (req, res, next) => {
             user = await User.findById(id).select('-password -refreshToken').lean();
         }
 
-        // Fallback: If not found in primary model, search others with correct priority
+        // Fallback: If not found in primary model, search others with correct priority in parallel
         if (!user) {
-            user = await Admin.findById(id).select('-password -refreshToken').lean() ||
-                   await Host.findById(id).select('-password -refreshToken').lean() ||
-                   await Staff.findById(id).select('-password -refreshToken').lean() ||
-                   await User.findById(id).select('-password -refreshToken').lean();
+            const results = await Promise.all([
+                Admin.findById(id).select('-password -refreshToken').lean(),
+                Host.findById(id).select('-password -refreshToken').lean(),
+                Staff.findById(id).select('-password -refreshToken').lean(),
+                User.findById(id).select('-password -refreshToken').lean()
+            ]);
+            user = results.find(u => u !== null) || null;
         }
 
         if (!user) {

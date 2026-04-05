@@ -88,7 +88,9 @@ export default function StaffManagement() {
             const res = await hostService.getStaff();
             return res.data as any[];
         },
-        staleTime: 30_000,
+        staleTime: 5 * 60 * 1000,
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
     });
 
     const updateMutation = useMutation({

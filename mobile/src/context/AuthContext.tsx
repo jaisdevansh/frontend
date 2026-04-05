@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DeviceEventEmitter } from 'react-native';
 import apiClient from '../services/apiClient';
+import { useQueryClient } from '@tanstack/react-query';
+import { prefetchAdminData, prefetchUserData } from '../services/prefetchService';
 
 export type UserRole = 'admin' | 'host' | 'staff' | 'user' | null;
 
@@ -32,6 +34,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user: null
     });
     const [isLoading, setIsLoading] = useState(true);
+    const queryClient = useQueryClient();
 
     useEffect(() => {
         loadAuth();
@@ -68,6 +71,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setIsLoading(false); // Only render app AFTER load is complete
         }
     };
+
+    // 🔥 Silent prefetch after state is set
+    useEffect(() => {
+        // 🔒 SAFETY: Don't prefetch any data if onboarding is not finished
+        // This prevents the "404 User not found" background loops.
+        if (!authState.token || !authState.role || !authState.onboardingCompleted) return;
+        
+        const role = authState.role.toLowerCase();
+        if (role === 'admin') {
+            prefetchAdminData(queryClient);
+        } else {
+            prefetchUserData(queryClient);
+        }
+    }, [authState.token, authState.onboardingCompleted]);
 
     const persistAuth = async (updates: Partial<AuthState>) => {
         setAuthState(prev => {
@@ -124,6 +141,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // Attach to global axios instance
         apiClient.defaults.headers.common['Authorization'] = `Bearer ${authData.token}`;
+
+        // 🔥 Fire-and-forget prefetch for all role-specific data
+        setTimeout(() => {
+            if (normalizedRole === 'admin') {
+                prefetchAdminData(queryClient);
+            } else {
+                prefetchUserData(queryClient);
+            }
+        }, 500); // small delay so navigation completes first
     };
 
     const setOnboardingStatus = async (status: boolean) => {

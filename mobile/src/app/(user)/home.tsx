@@ -19,6 +19,7 @@ import { userService } from '../../services/userService';
 import { useQuery } from '@tanstack/react-query';
 import { usePrefetchEvent } from '../../hooks/useEventQuery';
 import { hero, avatar } from '../../services/cloudinaryService';
+import { useAuth } from '../../context/AuthContext';
 
 import { InteractionManager } from 'react-native';
 const FlashList = SafeFlashList;
@@ -28,6 +29,7 @@ const DATE_OPTIONS = ['Today', 'Tomorrow', 'This Weekend', 'Next Week'];
 
 export default function HomeScreen() {
     const router = useRouter();
+    const { user: authUser } = useAuth();
     const insets = useSafeAreaInsets();
     const prefetchEvent = usePrefetchEvent();
     
@@ -54,15 +56,17 @@ export default function HomeScreen() {
         queryKey: ['user_profile'],
         queryFn: async () => {
             const res = await userService.getProfile();
+            console.log("[Home] Fetched Profile from Backend:", res.data?.name, res.data?.profileImage);
             return res.success ? res.data : null;
         },
         staleTime: 1000 * 60 * 30
     });
 
     // Extract UI data
+    const profileImage = authUser?.profileImage || profileData?.profileImage || null;
+    const profileName = authUser?.name || profileData?.name || null;
     const events = eventsData || [];
     const venues = venuesData || [];
-    const profileImage = profileData?.profileImage || null;
     const loading = isEventsLoading;
 
     // UI & Filter State
@@ -262,7 +266,7 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                 </View>
                 <TouchableOpacity onPress={() => router.push('/(user)/profile')} style={styles.profileWrapper}>
-                    <Image source={{ uri: avatar(profileImage) || 'https://via.placeholder.com/100' }} cachePolicy="memory-disk" contentFit="cover" style={styles.profilePic} />
+                    <Image source={{ uri: avatar(profileImage, profileName) || 'https://via.placeholder.com/100' }} cachePolicy="memory-disk" contentFit="cover" style={styles.profilePic} />
                 </TouchableOpacity>
             </View>
 
@@ -280,7 +284,7 @@ export default function HomeScreen() {
                 <Text style={{ color: '#fff', fontSize: 18, fontWeight: '900' }}>Explore Events</Text>
             </View>
         </View>
-    ), [cityName, profileImage, router]);
+    ), [cityName, profileImage, profileName, router]);
 
     const listEmptyComponent = useCallback(() => loading ? <ActivityIndicator color="#7c4dff" style={{ marginTop: 40 }} /> : null, [loading]);
     const keyExtractor = useCallback((item: any) => item._id || item.id, []);

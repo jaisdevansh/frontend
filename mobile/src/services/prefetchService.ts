@@ -1,0 +1,28 @@
+/**
+ * ⚡ PREFETCH SERVICE — Rocket-speed data warming
+ * Fires silently after login to pre-load ALL critical data into React Query cache.
+ * Result: Every screen opens INSTANTLY with zero loading spinners.
+ */
+import { QueryClient } from '@tanstack/react-query';
+import { userService } from './userService';
+import adminService from './adminService';
+
+const STALE = 5 * 60 * 1000; // 5 min
+
+// ─── Pre-warm USER screens ────────────────────────────────────────────────────
+export const prefetchUserData = (qc: QueryClient) => {
+    // Fire all in parallel — no awaiting, pure background
+    qc.prefetchQuery({ queryKey: ['user-profile'], queryFn: userService.getProfile, staleTime: STALE });
+    qc.prefetchQuery({ queryKey: ['events-list'], queryFn: userService.getEvents, staleTime: STALE });
+    qc.prefetchQuery({ queryKey: ['venues-list'], queryFn: userService.getVenues, staleTime: STALE });
+    qc.prefetchQuery({ queryKey: ['my-bookings'], queryFn: userService.getMyBookings, staleTime: STALE });
+    qc.prefetchQuery({ queryKey: ['active-event'], queryFn: userService.getActiveEvent, staleTime: STALE });
+};
+
+// ─── Pre-warm ADMIN screens ───────────────────────────────────────────────────
+export const prefetchAdminData = (qc: QueryClient) => {
+    qc.prefetchQuery({ queryKey: ['admin-stats'], queryFn: adminService.getStats, staleTime: STALE });
+    qc.prefetchQuery({ queryKey: ['admin-hosts', 1], queryFn: () => adminService.getHosts(1, 25), staleTime: STALE });
+    qc.prefetchQuery({ queryKey: ['admin-users', 1], queryFn: () => adminService.getUsers(1, 25), staleTime: STALE });
+    qc.prefetchQuery({ queryKey: ['admin-bookings', 1], queryFn: () => adminService.getBookings(1, 30), staleTime: STALE });
+};

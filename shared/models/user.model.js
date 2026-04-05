@@ -55,5 +55,6 @@ userSchema.index({ createdAt: -1 });
 userSchema.index({ onboardingCompleted: 1 });
 userSchema.index({ hostId: 1, role: 1 });
 userSchema.index({ isActive: 1, role: 1 }); // Composed for Admin Filtering
+userSchema.index({ name: 'text', email: 'text', username: 'text', phone: 'text' }); // 🚀 Global search index
 
 export const User = mongoose.model('User', userSchema);

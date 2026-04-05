@@ -10,6 +10,7 @@ import { authService } from '../../services/authService';
 import { userService } from '../../services/userService';
 import { COLORS } from '../../constants/design-system';
 import { useToast } from '../../context/ToastContext';
+import { avatar } from '../../services/cloudinaryService';
 
 // ─── Feature-colour palette ───────────────────────────────────────────────────
 const MENU_ITEMS = [
@@ -66,11 +67,13 @@ const MENU_ITEMS = [
 
 export default function UserProfile() {
     const router = useRouter();
-    const { logout } = useAuth();
+    const { logout, user: authUser } = useAuth();
     const { showToast } = useToast();
     const [isImageVisible, setImageVisible] = useState(false);
-    const [profile, setProfile] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
+    
+    // We start seamlessly with whatever authUser we have to completely eliminate loading spinners
+    const [profile, setProfile] = useState<any>(authUser || null);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     useFocusEffect(
         useCallback(() => {
@@ -80,9 +83,7 @@ export default function UserProfile() {
                     const res = await userService.getProfile();
                     if (res.success && isActive) setProfile(res.data);
                 } catch (error: any) {
-                    if (isActive) showToast(error.response?.data?.message || 'Failed to load profile', 'error');
-                } finally {
-                    if (isActive) setLoading(false);
+                    // silently fail the sync, use AuthContext
                 }
             };
             fetchProfile();
@@ -91,22 +92,14 @@ export default function UserProfile() {
     );
 
     const handleLogout = async () => {
-        setLoading(true);
+        setIsLoggingOut(true);
         try { await authService.logout(); await logout(); }
         catch { await logout(); }
-        finally { setLoading(false); }
+        finally { setIsLoggingOut(false); }
     };
 
-    if (loading) {
-        return (
-            <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]} edges={['top']}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
-            </SafeAreaView>
-        );
-    }
-
-    const defaultImage = 'https://images.unsplash.com/photo-1545128485-c400e7702796?q=80&w=800';
-    let profileImageUrl = profile?.profileImage || defaultImage;
+    const defaultImage = 'https://via.placeholder.com/100';
+    let profileImageUrl = profile?.profileImage || authUser?.profileImage || defaultImage;
     if (profileImageUrl && !profileImageUrl.startsWith('http') && !profileImageUrl.startsWith('file') && !profileImageUrl.startsWith('data:')) {
         profileImageUrl = `data:image/jpeg;base64,${profileImageUrl}`;
     }
@@ -130,7 +123,7 @@ export default function UserProfile() {
                     <TouchableOpacity onPress={() => setImageVisible(true)} activeOpacity={0.85}>
                         <View style={styles.avatarRing}>
                             <Image
-                                source={{ uri: profileImageUrl }}
+                                source={{ uri: avatar(profileImageUrl, profile?.name || authUser?.name) || 'https://via.placeholder.com/100' }}
                                 style={styles.avatar}
                                 contentFit="cover"
                                 cachePolicy="memory-disk"
@@ -138,8 +131,8 @@ export default function UserProfile() {
                         </View>
                     </TouchableOpacity>
                     <View style={styles.avatarInfo}>
-                        <Text style={styles.userName}>{profile?.name || 'Member'}</Text>
-                        <Text style={styles.userEmail} numberOfLines={1}>{profile?.email || profile?.phone || ''}</Text>
+                        <Text style={styles.userName}>{profile?.name || authUser?.name || 'Member'}</Text>
+                        <Text style={styles.userEmail} numberOfLines={1}>{profile?.email || authUser?.email || profile?.phone || authUser?.phone || ''}</Text>
                         <View style={styles.tierPill}>
                             <View style={styles.tierDot} />
                             <Text style={styles.tierText}>ENTRY CLUB MEMBER</Text>
@@ -179,8 +172,8 @@ export default function UserProfile() {
                 </View>
 
                 {/* ── Logout ── */}
-                <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} disabled={loading} activeOpacity={0.8}>
-                    {loading
+                <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} disabled={isLoggingOut} activeOpacity={0.8}>
+                    {isLoggingOut
                         ? <ActivityIndicator size="small" color="#FF4D4F" />
                         : <>
                             <Ionicons name="log-out-outline" size={20} color="#FF4D4F" />

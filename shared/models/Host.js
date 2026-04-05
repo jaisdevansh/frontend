@@ -24,6 +24,8 @@ const hostSchema = new mongoose.Schema({
         }]
     },
     profileImage: { type: String, default: '' },
+    gender: { type: String, enum: ['Male', 'Female', 'Other'], default: 'Male' },
+    onboardingCompleted: { type: Boolean, default: false },
     // 📍 LOCATION (NEW)
     location: {
         type: { type: String, enum: ['Point'], default: 'Point' },
@@ -59,5 +61,6 @@ hostSchema.index({ location: '2dsphere' });
 hostSchema.index({ hostStatus: 1 });
 hostSchema.index({ createdAt: -1 });
 hostSchema.index({ role: 1 }); // Required for Admin panel filtering
+hostSchema.index({ name: 'text', email: 'text', phone: 'text' }); // ⚡ Rocket-speed text search
 
 export const Host = mongoose.model('Host', hostSchema);

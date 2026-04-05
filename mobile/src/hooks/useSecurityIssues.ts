@@ -21,7 +21,7 @@ export const useOpenIssues = () =>
             return res.data as any[];
         },
         staleTime: 30_000,
-        refetchOnWindowFocus: true,
+        refetchOnWindowFocus: false,
     });
 
 /** Fetch issues assigned to current guard */

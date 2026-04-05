@@ -64,6 +64,7 @@ const eventSchema = new mongoose.Schema({
 eventSchema.index({ hostId: 1, createdAt: -1 });
 eventSchema.index({ hostId: 1, status: 1 });
 eventSchema.index({ status: 1, date: 1 });
+eventSchema.index({ title: 'text', description: 'text' }); // ⚡ Rocket-speed event search
 
 
 export const Event = mongoose.model('Event', eventSchema);

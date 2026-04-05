@@ -48,10 +48,11 @@ export default function MyBookings() {
             let active = true;
             const fetchBookings = async () => {
                 try {
+                    setLoading(true);
                     const res = await userService.getMyBookings();
                     if (res.success && res.data && active) setAllBookings(res.data);
                 } catch (error: any) {
-                    if (active) showToast(error.response?.data?.message || 'Failed to fetch bookings', 'error');
+                    // silently fail in production
                 } finally {
                     if (active) setLoading(false);
                 }
@@ -247,9 +248,6 @@ export default function MyBookings() {
                 </ScrollView>
             </View>
 
-            {loading ? (
-                <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 80 }} />
-            ) : (
             <FlashList
                 data={displayedData}
                 keyExtractor={keyExtractor}
@@ -258,6 +256,11 @@ export default function MyBookings() {
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
                 ListEmptyComponent={(
+                    loading || loadingOrders ? (
+                        <View style={{ flex: 1, alignItems: 'center', marginTop: 80 }}>
+                            <ActivityIndicator size="large" color={COLORS.primary} />
+                        </View>
+                    ) : (
                         <View style={styles.emptyContainer}>
                             <View style={styles.glowOverlay} />
                             <View style={styles.emptyContent}>
@@ -312,9 +315,9 @@ export default function MyBookings() {
                                 </TouchableOpacity>
                             </View>
                         </View>
-                    )}
+                    )
+                )}
             />
-            )}
         </SafeAreaView>
     );
 }

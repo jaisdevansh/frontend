@@ -11,6 +11,8 @@ const adminSchema = new mongoose.Schema({
     isActive: { type: Boolean, default: true },
     emailVerified: { type: Boolean, default: false },
     profileImage: { type: String, default: '' },
+    gender: { type: String, enum: ['Male', 'Female', 'Other'], default: 'Male' },
+    onboardingCompleted: { type: Boolean, default: false },
     lastLoginAt: { type: Date }
 }, { timestamps: true });
 

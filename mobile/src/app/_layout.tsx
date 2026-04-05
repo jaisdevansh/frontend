@@ -42,10 +42,12 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000,        // 5 min — serve from cache, refresh silently
-      gcTime: 30 * 60 * 1000,          // 30 min — keep in memory
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: 'always',
-      retry: 1,
+      gcTime: 60 * 60 * 1000,          // 1 hour — keep in memory (was 30 min)
+      refetchOnWindowFocus: false,      // never refetch when user switches apps
+      refetchOnMount: false,            // never refetch when navigating to a page
+      refetchOnReconnect: 'always',     // but always refresh on internet restore
+      retry: 1,                         // fail fast on errors
+      networkMode: 'offlineFirst',      // serve from cache even if network check fails
     },
   },
 });
@@ -87,7 +89,7 @@ export default function RootLayout() {
   return (
     <PersistQueryClientProvider
       client={queryClient}
-      persistOptions={{ persister: asyncStoragePersister, maxAge: 30 * 60 * 1000 }}
+      persistOptions={{ persister: asyncStoragePersister, maxAge: 60 * 60 * 1000 }}
     >
       <NetworkProvider>
         <AuthProvider>

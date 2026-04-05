@@ -78,11 +78,7 @@ export const getHostList = async (req, res, next) => {
         const query = { role: 'HOST' };
         
         if (search) {
-            query.$or = [
-                { name: { $regex: search, $options: 'i' } },
-                { email: { $regex: search, $options: 'i' } },
-                { phone: { $regex: search, $options: 'i' } }
-            ];
+            query.$text = { $search: search };
         }
 
         if (status) query.hostStatus = status;
@@ -370,14 +366,7 @@ export const getUserList = async (req, res, next) => {
         const cached = await cacheService.get(CACHE_KEY);
         if (cached) return res.status(200).json({ ...cached, source: 'cache_hit' });
 
-        const query = search
-            ? { 
-                $or: [
-                    { name: { $regex: `^${search}`, $options: 'i' } }, 
-                    { email: { $regex: `^${search}`, $options: 'i' } }
-                ] 
-              }
-            : {};
+        const query = search ? { $text: { $search: search } } : {};
 
         const [users, total] = await Promise.all([
             User.find(query)

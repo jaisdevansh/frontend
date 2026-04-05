@@ -131,7 +131,9 @@ export default function BookingsScreen() {
         queryFn: ({ pageParam = 1 }) => adminService.getBookings(pageParam, 30, statusFilter || undefined),
         getNextPageParam: (lastPage) => (lastPage.pages > lastPage.page ? lastPage.page + 1 : undefined),
         initialPageParam: 1,
-        staleTime: 30000,
+        staleTime: 5 * 60 * 1000,
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
     });
 
     const bookings = useMemo(() => data?.pages.flatMap(page => page.data) || [], [data]);

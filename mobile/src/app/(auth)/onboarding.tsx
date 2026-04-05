@@ -14,6 +14,8 @@ import { useAlert } from '../../context/AlertProvider';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from '../../services/apiClient';
+import { useQueryClient } from '@tanstack/react-query';
+import { userService } from '../../services/userService';
 
 const AVATARS = [
     { id: 'male', uri: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png' },
@@ -30,10 +32,11 @@ export default function OnboardingScreen() {
     const [loading, setLoading] = useState(false);
 
     const insets = useSafeAreaInsets();
-    const { setOnboardingStatus } = useAuth();
+    const { setOnboardingStatus, updateUser } = useAuth();
     const router = useRouter();
     const { showToast } = useToast();
     const { showAlert } = useAlert();
+    const queryClient = useQueryClient();
 
     const pickImage = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -90,6 +93,20 @@ export default function OnboardingScreen() {
             } as any);
 
             if (res.success) {
+                // Clear stale cache and trigger refetch so profile shows on Home/Profile screens
+                userService.clearCache();
+                queryClient.invalidateQueries({ queryKey: ['user_profile'] });
+
+                // Overwrite the 'Club Member' default in global AuthContext immediately
+                await updateUser({
+                    name: fullName,
+                    firstName: firstName.trim(),
+                    lastName: lastName.trim(),
+                    username: username.trim(),
+                    gender,
+                    profileImage: profileImage || undefined
+                });
+
                 // --- Referral Code Application ---
                 try {
                     const pendingCode = await AsyncStorage.getItem('pending_referral_code');

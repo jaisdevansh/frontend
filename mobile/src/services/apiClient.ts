@@ -10,40 +10,46 @@ import { DeviceEventEmitter } from 'react-native';
  * Standard logic for development environments to ensure connectivity.
  */
 const getBaseUrl = () => {
-    if (process.env.EXPO_PUBLIC_API_URL) {
-        return process.env.EXPO_PUBLIC_API_URL;
-    }
-    
-    if (__DEV__) {
-        // Dynamically use the developer's local machine IP for Expo Go on physical devices
-        const hostUri = Constants.expoConfig?.hostUri;
-        if (hostUri) {
-            const localIp = hostUri.split(':')[0];
-            return `http://${localIp}:3000`;
-        }
-        
-        // Fallback for Android emulator or iOS simulator
-        return Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
-    }
-
-    return 'https://backend-production-21311.up.railway.app';
+    // Local environment IP
+    return 'http://10.230.230.18:3000';
 };
 
 export const API_BASE_URL = getBaseUrl();
 
-// Proactive connectivity check for Dev
-if (__DEV__) {
-    axios.get(`${API_BASE_URL}/health`, { timeout: 2000 })
-        .then(() => console.log(`[Connectivity Test] SUCCESS: Reached backend at ${API_BASE_URL}`))
-        .catch(() => console.warn(`[Connectivity Test] FAILED: Could not reach backend at ${API_BASE_URL}. Ensure 'npm run dev' is running on your machine.`));
-}
+// 🚀 AGGRESSIVE WAKE-UP: Ping server immediately + with backoff to kill cold start delays
+// This fires BEFORE any real API calls so Render is already awake when user logs in
+let _serverAwake = false;
+export const wakeUpServer = () => {
+    if (_serverAwake) return;
+    const ping = (delay: number) => setTimeout(() => {
+        axios.get(`${API_BASE_URL}/health`, { timeout: 10000 })
+            .then(() => { 
+                _serverAwake = true;
+                console.log(`[Server] Backend is awake ✅`); 
+            })
+            .catch(() => console.log(`[Server] Waking up... (retry in ${delay}ms)`));
+    }, delay);
+    
+    // Fire 3 pings: immediately, after 10s, after 25s (covers Render's cold start window)
+    ping(0);
+    ping(10000);
+    ping(25000);
+};
+
+// Auto-trigger on import
+wakeUpServer();
+
+// Keep server warm every 10 minutes while app is open
+setInterval(() => {
+    axios.get(`${API_BASE_URL}/health`, { timeout: 5000 }).catch(() => {});
+}, 10 * 60 * 1000);
 
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
     headers: {
         'Content-Type': 'application/json',
     },
-    timeout: 30000, 
+    timeout: 60000, 
 });
 
 // ── Auth Token Injection ──────────────────────────────────────────────────────
@@ -147,6 +153,10 @@ apiClient.interceptors.response.use(
                 } finally {
                     isRefreshing = false;
                 }
+            } else if (error.response?.status === 404 && apiMessage === 'User not found') {
+                // 🚨 CRITICAL: Stale session detected (ID no longer exists in DB)
+                // Force logout immediately to clear invalid local state and prevent loops
+                DeviceEventEmitter.emit('SESSION_EXPIRED');
             } else {
                 // If it's a 401 but NOT explicitly 'Token expired', emit SESSION_EXPIRED
                 // to force logout and cleanup stale credentials (like 'Not authorized to access this route')

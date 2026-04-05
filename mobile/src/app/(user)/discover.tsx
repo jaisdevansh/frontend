@@ -371,17 +371,24 @@ export default function DiscoverScreen() {
                     ))}
                 </View>
                 <View style={styles.sheetBody}>
-                    {(queryLoading && !refreshing) ? <ActivityIndicator color="#7c4dff" style={{ marginTop: 40 }} /> : (
-                        <>
-                            {activeTab === 'chats' && (
-                                <View style={styles.tabContent}>
-                                    {!visibility ? (
-                                        <View style={styles.emptyWrap}><Ionicons name="eye-off-outline" size={48} color="rgba(255,255,255,0.2)" /><Text style={styles.emptyTitle}>Incognito Mode Active</Text><Text style={styles.emptySub}>Enable "Show me on map" to interact with people nearby.</Text></View>
-                                    ) : (
-                                        <FlashList data={nearbyUsers.map(u => ({ ...u, type: 'chat' })) as any} keyExtractor={(item: any) => item._id || item.id} ListHeaderComponent={ChatListHeader} renderItem={renderChatRow} estimatedItemSize={80} contentContainerStyle={{ padding: 20, paddingBottom: 100 }} />
-                                    )}
-                                </View>
-                            )}
+                    <>
+                        {activeTab === 'chats' && (
+                            <View style={styles.tabContent}>
+                                {!visibility ? (
+                                    <View style={styles.emptyWrap}><Ionicons name="eye-off-outline" size={48} color="rgba(255,255,255,0.2)" /><Text style={styles.emptyTitle}>Incognito Mode Active</Text><Text style={styles.emptySub}>Enable "Show me on map" to interact with people nearby.</Text></View>
+                                ) : (
+                                    <FlashList 
+                                        data={nearbyUsers.map(u => ({ ...u, type: 'chat' })) as any} 
+                                        keyExtractor={(item: any) => item._id || item.id} 
+                                        ListHeaderComponent={ChatListHeader} 
+                                        ListEmptyComponent={queryLoading && !refreshing ? <ActivityIndicator color="#7c4dff" style={{ marginTop: 40 }} /> : null}
+                                        renderItem={renderChatRow} 
+                                        estimatedItemSize={80} 
+                                        contentContainerStyle={{ padding: 20, paddingBottom: 100 }} 
+                                    />
+                                )}
+                            </View>
+                        )}
                             {activeTab === 'gift' && (
                                 <View style={[styles.tabContent, { backgroundColor: '#050505' }]}>
                                     <View style={styles.giftSearchContainer}><View style={styles.giftSearchInner}><Ionicons name="search-outline" size={18} color="rgba(255,255,255,0.4)" /><TextInput style={styles.giftSearchInput} placeholder="Search premium items..." placeholderTextColor="rgba(255,255,255,0.3)" value={giftSearch} onChangeText={setGiftSearch} /></View></View>
@@ -389,7 +396,17 @@ export default function DiscoverScreen() {
                                         <TouchableOpacity style={[styles.chip, giftCategory === cat.id && styles.activeChip]} onPress={() => setGiftCategory(cat.id)}><Text style={[styles.chipText, giftCategory === cat.id && styles.activeChipText]}>{cat.label}</Text></TouchableOpacity>
                                     )} /></View>
                                     <View style={styles.giftHeader}><View><Text style={styles.giftHeaderTitle}>Event Gifts</Text><Text style={styles.giftHeaderSub}>Secure retail inventory</Text></View><View style={styles.itemCountBadge}><Text style={styles.itemCountText}>{filteredGifts.length} items</Text></View></View>
-                                    <FlashList data={filteredGifts} keyExtractor={(item: GiftItem) => item._id} renderItem={renderGiftItem} numColumns={2} onRefresh={onPullRefresh} refreshing={refreshing} estimatedItemSize={220} contentContainerStyle={styles.giftGridScroll} />
+                                    <FlashList 
+                                        data={filteredGifts} 
+                                        keyExtractor={(item: GiftItem) => item._id} 
+                                        renderItem={renderGiftItem} 
+                                        numColumns={2} 
+                                        onRefresh={onPullRefresh} 
+                                        refreshing={refreshing} 
+                                        estimatedItemSize={220} 
+                                        contentContainerStyle={styles.giftGridScroll} 
+                                        ListEmptyComponent={queryLoading && !refreshing ? <ActivityIndicator color="#7c4dff" style={{ marginTop: 40 }} /> : null}
+                                    />
                                 </View>
                             )}
                             {activeTab === 'orders' && (
@@ -400,8 +417,7 @@ export default function DiscoverScreen() {
                                     tableId={paramTableId}
                                 />
                             )}
-                        </>
-                    )}
+                    </>
                 </View>
             </View>
 

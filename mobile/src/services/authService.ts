@@ -28,7 +28,7 @@ export const authService = {
         return response.data;
     },
 
-    completeOnboarding: async (data: { firstName: string, lastName: string, username: string, gender: string, profileImage?: string }) => {
+    completeOnboarding: async (data: { name: string, username: string, gender: string, profileImage?: string }) => {
         const response = await apiClient.post('/auth/onboarding', data);
         return response.data;
     },

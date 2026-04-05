@@ -26,6 +26,7 @@ import { useToast } from '../../context/ToastContext';
 import { useAlert } from '../../context/AlertProvider';
 import { userService } from '../../services/userService';
 import { uploadImage } from '../../services/cloudinaryService';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../context/AuthContext';
 import * as Haptics from 'expo-haptics';
 
@@ -66,6 +67,7 @@ export default function EditProfile() {
     const { showToast } = useToast();
     const { showAlert } = useAlert();
     const { role, user: authUser, updateUser } = useAuth();
+    const queryClient = useQueryClient();
     
     const isStaff = ['staff', 'waiter', 'security'].includes(role?.toLowerCase() || '');
 
@@ -267,8 +269,8 @@ export default function EditProfile() {
                 payload.firstName = firstName.trim();
                 payload.lastName = lastName.trim();
                 payload.name = `${firstName.trim()} ${lastName.trim()}`;
-                payload.dob = dob;
-                payload.location = location.trim();
+                if (dob) payload.dob = dob;
+                if (location) payload.location = location.trim();
                 payload.gender = gender;
             }
 
@@ -284,6 +286,8 @@ export default function EditProfile() {
             // ─── STAGE 3: Backend persist (now lightning-fast — no Cloudinary) ───
             const res = await userService.updateProfile(payload);
             if (res.success) {
+                userService.clearCache();
+                queryClient.invalidateQueries({ queryKey: ['user_profile'] });
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 showToast('Profile updated! ✅', 'success');
                 setTimeout(() => goBack(), 300);

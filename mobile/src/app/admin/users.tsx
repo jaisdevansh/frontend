@@ -81,7 +81,9 @@ export default function UsersScreen() {
         queryFn: ({ pageParam = 1 }) => adminService.getUsers(pageParam, 30, debouncedSearch),
         getNextPageParam: (lastPage) => (lastPage.pages > lastPage.page ? lastPage.page + 1 : undefined),
         initialPageParam: 1,
-        staleTime: 60000,
+        staleTime: 5 * 60 * 1000,
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
     });
 
     const users = useMemo(() => data?.pages.flatMap(page => page.data) || [], [data]);

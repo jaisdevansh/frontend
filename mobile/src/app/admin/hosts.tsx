@@ -98,7 +98,9 @@ export default function HostsScreen() {
         queryFn: ({ pageParam = 1 }) => adminService.getHosts(pageParam, 30, debouncedSearch),
         getNextPageParam: (lastPage) => (lastPage.pages > lastPage.page ? lastPage.page + 1 : undefined),
         initialPageParam: 1,
-        staleTime: 60000,
+        staleTime: 5 * 60 * 1000,     // 5 min — instant from pre-fetched cache
+        refetchOnMount: false,          // Don't re-fetch on every tab open
+        refetchOnWindowFocus: false,
     });
 
     const hosts = useMemo(() => data?.pages.flatMap(page => page.data) || [], [data]);

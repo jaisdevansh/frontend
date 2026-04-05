@@ -25,6 +25,9 @@ const staffSchema = new mongoose.Schema({
     },
     completedOrders: { type: Number, default: 0 },
     rating: { type: Number, default: 5.0 },
+    profileImage: { type: String, default: '' },
+    gender: { type: String, enum: ['Male', 'Female', 'Other'], default: 'Male' },
+    onboardingCompleted: { type: Boolean, default: false },
     shiftStartedAt: { type: Date }
 }, { timestamps: true });
 
@@ -46,10 +49,9 @@ staffSchema.methods.comparePassword = async function (candidatePassword) {
     return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// Indexes for performance
-staffSchema.index({ hostId: 1, staffType: 1 });
-// Indexes for performance
-// staffSchema.index({ phone: 1 }, { sparse: true });
-// staffSchema.index({ email: 1 }, { sparse: true });
+// High performance indexes
+staffSchema.index({ hostId: 1, isActive: 1, staffType: 1 }); // Host discovery optimization
+staffSchema.index({ createdAt: -1 }); // Global list sorting
+staffSchema.index({ name: 'text', email: 'text', phone: 'text' }); // ⚡ Pulse-search index
 
 export const Staff = mongoose.model('Staff', staffSchema);

@@ -161,6 +161,46 @@ const startServer = async () => {
         initLocationRevealService();
         initIssueEscalationService();
 
+        // 🔥 CACHE WARM-UP: Pre-fetch heavy queries right after boot so first user request is instant
+        setTimeout(async () => {
+            try {
+                const { Event } = await import('./shared/models/Event.js');
+                const { User } = await import('./shared/models/user.model.js');
+                const { Host } = await import('./shared/models/Host.js');
+                const { Booking } = await import('./shared/models/booking.model.js');
+                const { cacheService } = await import('./services/cache.service.js');
+
+                // 1. Pre-warm: Live Events (most accessed endpoint)
+                const now = new Date();
+                const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const liveEvents = await Event.find({ status: 'LIVE', date: { $gte: startOfToday } })
+                    .select('title date startTime coverImage locationVisibility isLocationRevealed locationData floorCount tickets floors hostId hostModel attendeeCount')
+                    .sort({ date: 1 })
+                    .lean();
+                await cacheService.set('events_all_guest_v11', liveEvents, 120);
+
+                // 2. Pre-warm: Admin Stats
+                const [userCount, activeHosts, totalHosts, pendingHosts, totalBookings, revenueAgg] = await Promise.all([
+                    User.countDocuments({ role: 'user' }),
+                    Host.countDocuments({ role: 'HOST', hostStatus: 'ACTIVE' }),
+                    Host.countDocuments({ role: 'HOST' }),
+                    Host.countDocuments({ hostStatus: { $in: ['INVITED', 'KYC_PENDING'] } }),
+                    Booking.countDocuments({ status: { $in: ['approved', 'active', 'completed'] } }),
+                    Booking.aggregate([{ $match: { paymentStatus: 'paid', status: { $ne: 'cancelled' } } }, { $group: { _id: null, total: { $sum: '$pricePaid' } } }])
+                ]);
+                await cacheService.set('admin_dashboard_stats', {
+                    users: userCount, activeHosts, hosts: totalHosts,
+                    pendingHosts, bookings: totalBookings,
+                    totalRevenue: revenueAgg[0]?.total || 0,
+                    updatedAt: new Date()
+                }, 300);
+
+                logger.info('⚡ Cache warm-up complete — all hot paths pre-loaded');
+            } catch (e) {
+                logger.warn('[Cache Warm-up] Non-critical warm-up error: ' + e.message);
+            }
+        }, 3000); // 3s after boot — gives DB connection time to stabilize
+
     } catch (error) {
         logger.error(`✘ Failed to connect to MongoDB: ${error.message}`);
         process.exit(1);
