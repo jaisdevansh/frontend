@@ -65,7 +65,7 @@ export const createIssueReport = async (req, res, next) => {
             }
 
             // Send Push to all Security (New Notification System)
-            const { notificationService } = await import('../services/notification.service.js');
+            const { notificationService } = await import('../../../services/notification.service.js');
             const title = '🚨 Safety Alert';
             const body = `${report.type.toUpperCase()} reported at ${report.zone?.toUpperCase()} Table ${report.tableId}`;
             
@@ -75,7 +75,7 @@ export const createIssueReport = async (req, res, next) => {
             });
 
             // Record in user's Notification history
-            const Notification = (await import('../models/Notification.js')).default;
+            const Notification = (await import('../../../shared/models/Notification.js')).default;
             await Notification.create({
                 userId: req.user.id,
                 title: 'Report Received 🚨',

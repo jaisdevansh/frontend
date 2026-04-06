@@ -106,7 +106,7 @@ export const processPayment = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Payment can only be processed for accepted requests' });
         }
 
-        const { Event } = await import('../models/Event.js');
+        const { Event } = await import('../../../shared/models/Event.js');
         const eventDoc = await Event.findById(request.eventId).select('hostId').lean();
         if (!eventDoc) return res.status(404).json({ success: false, message: 'Event not found' });
         

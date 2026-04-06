@@ -166,7 +166,7 @@ export const deleteSupportMessage = async (req, res, next) => {
 export const submitBugReport = async (req, res, next) => {
     try {
         const { description, images, metadata } = req.body;
-        const { User } = await import('../models/user.model.js');
+        const { User } = await import('../../../shared/models/user.model.js');
         const user = await User.findById(req.user.id).select('name email username profileImage').lean();
 
         let uploadedUrls = [];
@@ -205,7 +205,7 @@ export const submitBugReport = async (req, res, next) => {
 export const submitSupportRequest = async (req, res, next) => {
     try {
         const { name, message } = req.body;
-        const { User } = await import('../models/user.model.js');
+        const { User } = await import('../../../shared/models/user.model.js');
         const user = await User.findById(req.user.id).select('email username').lean();
 
         const transporter = (await import('nodemailer')).default.createTransport({

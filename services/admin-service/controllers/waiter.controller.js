@@ -119,8 +119,8 @@ export const acceptOrder = async (req, res, next) => {
             io?.to('waiter_room').emit('order_updated', { orderId: id, status: 'accepted' });
 
             // Push notification to user
-            const { notificationService } = await import('../services/notification.service.js');
-            const Notification = (await import('../models/Notification.js')).default;
+            const { notificationService } = await import('../../../services/notification.service.js');
+            const Notification = (await import('../../../shared/models/Notification.js')).default;
             const title = 'Order Accepted ✅';
             const body = 'Your order is being handled by our staff.';
             if (userId) {
@@ -167,8 +167,8 @@ export const rejectOrder = async (req, res, next) => {
             }
             io?.to('waiter_room').emit('order_updated', { orderId: id, status: 'cancelled' });
 
-            const { notificationService } = await import('../services/notification.service.js');
-            const Notification = (await import('../models/Notification.js')).default;
+            const { notificationService } = await import('../../../services/notification.service.js');
+            const Notification = (await import('../../../shared/models/Notification.js')).default;
             const title = 'Order Cancelled ❌';
             const body = reason ? `Sorry, your order was rejected: ${reason}` : 'Your order could not be fulfilled by staff.';
             
@@ -280,8 +280,8 @@ export const updateOrderStatus = async (req, res, next) => {
             io?.to('waiter_room').emit('order_updated', { orderId: id, status });
 
             // Push notification to user
-            const { notificationService } = await import('../services/notification.service.js');
-            const Notification = (await import('../models/Notification.js')).default;
+            const { notificationService } = await import('../../../services/notification.service.js');
+            const Notification = (await import('../../../shared/models/Notification.js')).default;
             const labels = {
                 preparing:         { title: 'Preparing Order 👨‍🍳', body: 'Staff is preparing your order now.' },
                 out_for_delivery:  { title: 'On the Way 🚀',        body: 'Your order is being delivered to your table.' },

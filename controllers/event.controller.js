@@ -222,7 +222,7 @@ export const revealEventLocation = async (req, res, next) => {
         // Trigger push notifications internally via service
         import('../services/notification.service.js').then(async ({ sendNotification }) => {
             // Find all confirmed bookings
-            const { Booking } = await import('../models/booking.model.js');
+            const { Booking } = await import('../shared/models/booking.model.js');
             const bookings = await Booking.find({ 
                 eventId: event._id, 
                 status: { $in: ['approved', 'active', 'confirmed', 'checked_in'] }
@@ -411,8 +411,8 @@ export const getEventTickets = async (req, res, next) => {
 export const getFloorPlan = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { Floor } = await import('../models/Floor.js');
-        const { Event } = await import('../models/Event.js');
+        const { Floor } = await import('../shared/models/Floor.js');
+        const { Event } = await import('../shared/models/Event.js');
 
         // 1. Fetch data from both sources
         const [dedicatedFloors, eventDoc] = await Promise.all([
