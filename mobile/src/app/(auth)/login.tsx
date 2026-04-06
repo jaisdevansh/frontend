@@ -18,8 +18,8 @@ import { Logo } from '../../components/Logo';
 WebBrowser.maybeCompleteAuthSession();
 
 const { width, height } = Dimensions.get('window');
-const GOOGLE_WEB_CLIENT_ID = '640886244176-l6r6ic1lhkbl7oi7a3kucijjdm83rk4f.apps.googleusercontent.com';
-const GOOGLE_ANDROID_CLIENT_ID = '640886244176-hp45kepcuqnmmo7sbqbuqjn4nesgn5n8.apps.googleusercontent.com';
+const GOOGLE_WEB_CLIENT_ID = '602975587983-6blaflnaakph6da4vv5bfdh85i667re8.apps.googleusercontent.com';
+const GOOGLE_ANDROID_CLIENT_ID = '212032319431-b4r810j8rp8huak60lqpnham0nn20cn2.apps.googleusercontent.com';
 
 /**
  * 🛡️ CRITICAL: Google ONLY accepts HTTPS public domains.
