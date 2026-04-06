@@ -95,6 +95,9 @@ export const verifyPayment = async (req, res, next) => {
                 paymentStatus: 'paid'
             });
 
+            // Immediately bust booking cache so My Bookings shows the new booking right away
+            await cacheService.delete(`my_bookings_${userId}`);
+
             // 2. Background tasks (non-blocking)
             const tasks = [];
 

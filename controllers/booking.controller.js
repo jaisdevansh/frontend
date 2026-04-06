@@ -16,7 +16,7 @@ export const getMyBookings = async (req, res, next) => {
             .sort({ createdAt: -1 })
             .lean();
 
-        await cacheService.set(cacheKey, bookings, 120); // 2 min cache
+        await cacheService.set(cacheKey, bookings, 30); // 30s cache — explicit bust happens on booking create/update
         res.status(200).json({ success: true, data: bookings });
     } catch (err) { next(err); }
 };
