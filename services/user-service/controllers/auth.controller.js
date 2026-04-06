@@ -718,6 +718,7 @@ export const googleLogin = async (req, res, next) => {
                 provider: 'google',
                 googleId,
                 role: 'user',
+                gender: null,            // Google doesn't provide gender — user sets from Profile Settings
                 bio: '',
                 onboardingCompleted: true,   // ✅ Skip onboarding for Google users
                 isActive: true,

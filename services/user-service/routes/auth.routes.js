@@ -77,6 +77,7 @@ passport.use(new GoogleStrategy({
                 username: autoUsername,
                 email,
                 profileImage: picture || undefined,
+                gender: null, // Google doesn't provide gender — user sets from Profile Settings
                 emailVerified: true,
                 isVerified: true,
                 provider: 'google',
