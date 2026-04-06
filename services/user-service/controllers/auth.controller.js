@@ -141,9 +141,11 @@ export const sendOtp = async (req, res, next) => {
             const e164Phone = rawPhone.startsWith('+') ? rawPhone : `+${rawPhone}`;
 
             const isDev = process.env.NODE_ENV === 'development';
-            const isTestNumber = ['+917052840748', '+917772828027'].includes(e164Phone);
+            
+            // Bypass Twilio for ALL numbers while on a Twilio Trial account
+            const bypassTwilioTrial = true; 
 
-            if (isDev || isTestNumber) {
+            if (isDev || bypassTwilioTrial) {
                 // 🔧 DEV MODE: Use local DB OTP (bypasses Twilio trial restrictions)
                 const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
                 await Otp.findOneAndUpdate(
@@ -194,9 +196,11 @@ export const verifyOtp = async (req, res, next) => {
             const e164Phone = rawPhone.startsWith('+') ? rawPhone : `+${rawPhone}`;
 
             const isDev = process.env.NODE_ENV === 'development';
-            const isTestNumber = ['+917052840748', '+917772828027'].includes(e164Phone);
+            
+            // Bypass Twilio for ALL numbers while on a Twilio Trial account
+            const bypassTwilioTrial = true; 
 
-            if (isDev || isTestNumber) {
+            if (isDev || bypassTwilioTrial) {
                 // 🔧 DEV MODE: Check against local DB OTP
                 const currentOtp = await Otp.findOne({ identifier: e164Phone, otp });
                 if (currentOtp) {

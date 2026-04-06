@@ -120,11 +120,14 @@ export default function WelcomeScreen() {
                 />
             </View>
 
-            <View style={[styles.contentOverlay, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 40 }]}>
+            <View 
+                style={[styles.contentOverlay, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 40 }]}
+                pointerEvents="box-none"
+            >
                 
                 {/* Logo Section */}
                 {/* Removed jumping/entering animations as requested */}
-                <View style={styles.logoSection}>
+                <View style={styles.logoSection} pointerEvents="none">
                     <View style={styles.animatedLogoWrapper}>
                         <Logo size={140} showText={false} variant="full" />
                     </View>
@@ -136,8 +139,8 @@ export default function WelcomeScreen() {
                 </View>
 
                 {/* Bottom Action Section */}
-                <View style={styles.actionSection}>
-                    <View style={styles.textWrapper}>
+                <View style={styles.actionSection} pointerEvents="box-none">
+                    <View style={styles.textWrapper} pointerEvents="none">
                         <Text style={styles.title}>{SLIDES[currentIndex].title}</Text>
                         <Text style={styles.subtitle}>{SLIDES[currentIndex].subtitle}</Text>
                     </View>
