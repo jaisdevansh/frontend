@@ -167,7 +167,9 @@ const EventDetails = () => {
     const venueAddress = isLocationMasked 
         ? (event.locationVisibility === 'delayed' ? 'Location reveals at scheduled time' : 'Location drops exact coordinates before event')
         : (event.locationData?.address || event.hostId?.venueProfile?.address || '');
-    const coords = event.locationData || event.hostId?.venueProfile?.coordinates || { lat: 28.6139, lng: 77.2090 };
+    const safeLat = parseFloat(event.locationData?.lat || event.hostId?.venueProfile?.coordinates?.lat || 28.6139);
+    const safeLng = parseFloat(event.locationData?.lng || event.hostId?.venueProfile?.coordinates?.lng || 77.2090);
+    const coords = { lat: safeLat, lng: safeLng };
 
     const openMaps = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

@@ -77,7 +77,9 @@ export default function VenueDetails() {
         if (addr) Linking.openURL('https://maps.google.com/?q=' + encodeURIComponent(addr));
     };
 
-    const coords = venueData?.coordinates || venueData?.venueProfile?.coordinates || { lat: 28.6139, lng: 77.2090 };
+    const safeLat = parseFloat(venueData?.coordinates?.lat || venueData?.venueProfile?.coordinates?.lat || 28.6139);
+    const safeLng = parseFloat(venueData?.coordinates?.lng || venueData?.venueProfile?.coordinates?.lng || 77.2090);
+    const coords = { lat: safeLat || 28.6139, lng: safeLng || 77.2090 };
 
 
     return (
