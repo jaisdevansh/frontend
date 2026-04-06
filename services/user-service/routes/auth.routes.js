@@ -17,7 +17,7 @@ const router = express.Router();
 // ── Username generation for Google users ─────────────────────────────────────
 const generateUsername = (name) => {
     const base = (name || 'user').replace(/\s+/g, '').toLowerCase().slice(0, 5);
-    const random = Math.floor(1000 + Math.random() * 9000);
+    const random = Math.floor(10 + Math.random() * 90); // 2-digit unique number
     return `${base}${random}`;
 };
 const getUniqueUsername = async (name) => {
