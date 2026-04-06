@@ -7,6 +7,7 @@ import morgan from 'morgan';
 import compression from 'compression';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import passport from 'passport';
 
 // Load Environment Variables FIRST
 dotenv.config();
@@ -67,6 +68,7 @@ app.use(limiter);
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cookieParser());
+app.use(passport.initialize()); // Passport for Google OAuth
 
 // 4. Logging
 if (NODE_ENV === 'production') {
@@ -86,7 +88,8 @@ app.get('/health', (req, res) => {
 
 // ── 5. Routes ──────────────────────────────────────────────────────────────────
 // Auth & User
-app.use('/auth', authRoutes);
+app.use('/auth', authRoutes);        // Legacy OTP-based routes
+app.use('/api/auth', authRoutes);    // New Google OAuth routes (/api/auth/google, /api/auth/callback/google)
 app.use('/user', userRoutes);
 
 // Discovery

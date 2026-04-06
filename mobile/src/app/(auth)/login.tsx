@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, TouchableOpacity, Dimensions, TextInput, ScrollView } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
-import * as AuthSession from 'expo-auth-session';
-import * as Google from 'expo-auth-session/providers/google';
+import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useStrictBack } from '../../hooks/useStrictBack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,14 +17,9 @@ import { Logo } from '../../components/Logo';
 WebBrowser.maybeCompleteAuthSession();
 
 const { width, height } = Dimensions.get('window');
-const GOOGLE_WEB_CLIENT_ID = '602975587983-6blaflnaakph6da4vv5bfdh85i667re8.apps.googleusercontent.com';
-const GOOGLE_ANDROID_CLIENT_ID = '212032319431-b4r810j8rp8huak60lqpnham0nn20cn2.apps.googleusercontent.com';
 
-/**
- * 🛡️ CRITICAL: Google ONLY accepts HTTPS public domains.
- * This is the "Secret Return URL" you MUST add to your Google Console (Web Client).
- */
-const GOOGLE_REDIRECT_URI = 'https://auth.expo.io/@jerry-don20/entry-club';
+// Backend-driven Google OAuth — no redirect URI issues
+const GOOGLE_AUTH_URL = 'https://test-53pw.onrender.com/api/auth/google';
 
 export default function LoginScreen() {
     const [identifier, setIdentifier] = useState('');
@@ -42,67 +36,46 @@ export default function LoginScreen() {
     const goBack = useStrictBack('/(auth)/welcome');
     const { showToast } = useToast();
 
-    // 🛡️ HYBRID MASTER:
-    // Manual construction of the professional HTTPS link to satisfy Google,
-    // and manual handling of the redirect to bypass Expo Proxy errors.
-
-    const handleGoogleCallback = async (accessToken: string) => {
-        setLoading(true);
-        try {
-            const res = await authService.googleLogin(accessToken);
-            if (res.success) {
-                const tokenPayload = res.data.accessToken || (res.data as any).token;
-                await login({
-                    token: tokenPayload,
-                    role: res.data.role,
-                    hostId: res.data.hostId,
-                    user: res.data,
-                    onboardingCompleted: res.data.onboardingCompleted
-                });
-                showToast('Welcome back!', 'success');
-            } else {
-                showToast(res.message || 'Login failed', 'error');
-            }
-        } catch (error: any) {
-            const errMsg = error.response?.data?.message || 'Google login failed.';
-            showToast(errMsg, 'error');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Set up standard Google Auth request via Expo's hook
-    const [request, response, promptAsync] = Google.useAuthRequest({
-        webClientId: GOOGLE_WEB_CLIENT_ID,
-        androidClientId: GOOGLE_ANDROID_CLIENT_ID,
-    });
-
-    useEffect(() => {
-        if (response?.type === 'success') {
-            const { authentication } = response;
-            if (authentication?.accessToken) {
-                console.log('[Google Auth] Success! Token acquired.');
-                handleGoogleCallback(authentication.accessToken);
-            }
-        } else if (response?.type === 'error') {
-            console.error('[Google Auth] Native hook returned an error:', response.error);
-            showToast('Google authentication was cancelled or failed.', 'error');
-        }
-    }, [response]);
-
+    // ── Google OAuth via backend deep-link ──────────────────────────────────
     const handleGoogleLogin = async () => {
         try {
-            await WebBrowser.dismissBrowser();
-            console.log('[Google Auth] Starting standard Expo Google Auth flow');
-            
-            if (request) {
-                await promptAsync();
-            } else {
-                showToast('Hold on, Google Login is initializing', 'info');
+            setLoading(true);
+            // Open backend Google OAuth URL in system browser
+            const result = await WebBrowser.openAuthSessionAsync(
+                GOOGLE_AUTH_URL,
+                'entry-club://auth'
+            );
+
+            if (result.type === 'success' && result.url) {
+                const parsed = Linking.parse(result.url);
+                const token = parsed.queryParams?.token as string | undefined;
+                const error = parsed.queryParams?.error as string | undefined;
+
+                if (error || !token) {
+                    showToast('Google login failed. Please try again.', 'error');
+                    return;
+                }
+
+                await login({
+                    token,
+                    role:               (parsed.queryParams?.role as string) || 'user',
+                    hostId:             (parsed.queryParams?.hostId as string) || undefined,
+                    onboardingCompleted: parsed.queryParams?.onboardingCompleted === 'true',
+                    user: {
+                        name:         parsed.queryParams?.name as string,
+                        email:        parsed.queryParams?.email as string,
+                        profileImage: parsed.queryParams?.profileImage as string,
+                    }
+                });
+                showToast('Welcome! 🎉', 'success');
+            } else if (result.type === 'cancel' || result.type === 'dismiss') {
+                // User closed browser — not an error
             }
         } catch (error: any) {
-            console.error('[Google Auth] Flow execution failure:', error);
+            console.error('[Google Auth] Error:', error);
             showToast('Google login service error', 'error');
+        } finally {
+            setLoading(false);
         }
     };
 
