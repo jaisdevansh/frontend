@@ -15,7 +15,7 @@ import { cacheService } from '../../../services/cache.service.js';
 // ── Username Generation for Google Users ────────────────────────────────────
 const generateUsername = (name) => {
     const base = (name || 'user').replace(/\s+/g, '').toLowerCase().slice(0, 5);
-    const random = Math.floor(10 + Math.random() * 90); // 2-digit unique number
+    const random = Math.floor(1000 + Math.random() * 9000);
     return `${base}${random}`;
 };
 
@@ -141,8 +141,9 @@ export const sendOtp = async (req, res, next) => {
             const e164Phone = rawPhone.startsWith('+') ? rawPhone : `+${rawPhone}`;
 
             const isDev = process.env.NODE_ENV === 'development';
+            const isTestNumber = ['+917052840748', '+917772828027'].includes(e164Phone);
 
-            if (isDev) {
+            if (isDev || isTestNumber) {
                 // 🔧 DEV MODE: Use local DB OTP (bypasses Twilio trial restrictions)
                 const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
                 await Otp.findOneAndUpdate(
@@ -193,8 +194,9 @@ export const verifyOtp = async (req, res, next) => {
             const e164Phone = rawPhone.startsWith('+') ? rawPhone : `+${rawPhone}`;
 
             const isDev = process.env.NODE_ENV === 'development';
+            const isTestNumber = ['+917052840748', '+917772828027'].includes(e164Phone);
 
-            if (isDev) {
+            if (isDev || isTestNumber) {
                 // 🔧 DEV MODE: Check against local DB OTP
                 const currentOtp = await Otp.findOne({ identifier: e164Phone, otp });
                 if (currentOtp) {
@@ -718,7 +720,6 @@ export const googleLogin = async (req, res, next) => {
                 provider: 'google',
                 googleId,
                 role: 'user',
-                gender: null,            // Google doesn't provide gender — user sets from Profile Settings
                 bio: '',
                 onboardingCompleted: true,   // ✅ Skip onboarding for Google users
                 isActive: true,
