@@ -22,14 +22,20 @@ passport.use(new GoogleStrategy({
     scope: ['profile', 'email'],
 }, async (accessToken, refreshToken, profile, done) => {
     try {
+        console.log('--- [BACKEND DEBUG] Google Strategy Callback ---');
         const email = profile.emails?.[0]?.value?.toLowerCase();
+        console.log('[DEBUG] Google Email acquired:', email);
         const name  = profile.displayName || '';
         const picture = profile.photos?.[0]?.value || '';
         const googleId = profile.id;
 
-        if (!email) return done(new Error('No email from Google'), null);
+        if (!email) {
+            console.error('[DEBUG] No email found in Google profile');
+            return done(new Error('No email from Google'), null);
+        }
 
         // Find user across all collections in parallel
+        console.log('[DEBUG] Searching for user in DB...');
         const [adminUser, hostUser, staffUser, normalUser] = await Promise.all([
             Admin.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } }),
             Host.findOne({  email: { $regex: new RegExp(`^${email}$`, 'i') } }),
@@ -40,6 +46,7 @@ passport.use(new GoogleStrategy({
         let user = adminUser || hostUser || staffUser || normalUser;
 
         if (!user) {
+            console.log('[DEBUG] New user! Provisioning in User collection...');
             const tempId = new mongoose.Types.ObjectId();
             const referralCode = Math.random().toString(36).substring(2, 8).toUpperCase()
                 + tempId.toString().substring(18, 22).toUpperCase();
@@ -56,10 +63,14 @@ passport.use(new GoogleStrategy({
                 googleId,
             });
             await user.save();
+            console.log('[DEBUG] User created successfully');
+        } else {
+            console.log('[DEBUG] Existing user found. Role:', user.role);
         }
 
         return done(null, user);
     } catch (err) {
+        console.error('[DEBUG] Strategy Error:', err.message);
         return done(err, null);
     }
 }));
@@ -67,16 +78,27 @@ passport.use(new GoogleStrategy({
 // ── Google OAuth Routes ───────────────────────────────────────────────────────
 
 // Step 1: Redirect user to Google login page
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'], session: false }));
+router.get('/google', (req, res, next) => {
+    console.log('--- [BACKEND DEBUG] GET /api/auth/google hit ---');
+    passport.authenticate('google', { scope: ['profile', 'email'], session: false })(req, res, next);
+});
 
 // Step 2: Google calls back → generate JWT → deep-link back to app
 router.get('/callback/google',
-    passport.authenticate('google', { session: false, failureRedirect: 'entry-club://auth?error=google_failed' }),
+    (req, res, next) => {
+        console.log('--- [BACKEND DEBUG] Callback hit from Google ---');
+        passport.authenticate('google', { session: false, failureRedirect: 'entry-club://auth?error=google_failed' })(req, res, next);
+    },
     (req, res) => {
         try {
+            console.log('--- [BACKEND DEBUG] Handling Final Callback ---');
             const user = req.user;
-            if (!user) return res.redirect('entry-club://auth?error=no_user');
+            if (!user) {
+                console.error('[DEBUG] No user object in request after passport auth');
+                return res.redirect('entry-club://auth?error=no_user');
+            }
 
+            console.log('[DEBUG] Generating JWT for user:', user.email);
             const token = jwt.sign(
                 { userId: user._id, role: user.role, hostId: user.hostId || null },
                 process.env.JWT_SECRET || 'supersecretkey123',
@@ -93,7 +115,9 @@ router.get('/callback/google',
                 hostId:              user.hostId?.toString() || '',
             });
 
-            return res.redirect(`entry-club://auth?${params.toString()}`);
+            const deepLink = `entry-club://auth?${params.toString()}`;
+            console.log('[DEBUG] Redirecting back to app via Deep Link:', deepLink.substring(0, 50) + '...');
+            return res.redirect(deepLink);
         } catch (err) {
             console.error('[Google Callback] Error:', err.message);
             return res.redirect('entry-club://auth?error=server_error');

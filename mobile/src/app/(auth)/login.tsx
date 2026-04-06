@@ -39,23 +39,30 @@ export default function LoginScreen() {
     // ── Google OAuth via backend deep-link ──────────────────────────────────
     const handleGoogleLogin = async () => {
         try {
+            console.log('[FRONTEND DEBUG] Initiate Google Login...');
             setLoading(true);
-            // Open backend Google OAuth URL in system browser
             const result = await WebBrowser.openAuthSessionAsync(
                 GOOGLE_AUTH_URL,
                 'entry-club://auth'
             );
 
+            console.log('[FRONTEND DEBUG] Browser result type:', result.type);
+
             if (result.type === 'success' && result.url) {
+                console.log('[FRONTEND DEBUG] Received URL:', result.url);
                 const parsed = Linking.parse(result.url);
+                console.log('[FRONTEND DEBUG] Parsed query params:', parsed.queryParams);
+                
                 const token = parsed.queryParams?.token as string | undefined;
                 const error = parsed.queryParams?.error as string | undefined;
 
                 if (error || !token) {
+                    console.error('[FRONTEND DEBUG] Error or Mission Token:', error || 'No Token');
                     showToast('Google login failed. Please try again.', 'error');
                     return;
                 }
 
+                console.log('[FRONTEND DEBUG] Token acquired! Logging in context...');
                 await login({
                     token,
                     role:               (parsed.queryParams?.role as string) || 'user',
@@ -69,10 +76,10 @@ export default function LoginScreen() {
                 });
                 showToast('Welcome! 🎉', 'success');
             } else if (result.type === 'cancel' || result.type === 'dismiss') {
-                // User closed browser — not an error
+                console.log('[FRONTEND DEBUG] User cancelled login');
             }
         } catch (error: any) {
-            console.error('[Google Auth] Error:', error);
+            console.error('[FRONTEND DEBUG] Error:', error);
             showToast('Google login service error', 'error');
         } finally {
             setLoading(false);
