@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, ActivityIndicator, FlatList, Dimensions, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, ActivityIndicator, FlatList, Dimensions, Modal, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -11,6 +11,7 @@ import { useHostProfile } from '../../hooks/useHostProfile';
 import { Image } from 'expo-image';
 import dayjs from 'dayjs';
 import { PendingVerification } from '../../components/host/PendingVerification';
+import { useQueryClient } from '@tanstack/react-query';
 
 const { width } = Dimensions.get('window');
 
@@ -57,6 +58,16 @@ export default function HostDashboard() {
     const { data: events, isLoading: eventsLoading } = useEvents();
     
     const [showProfileMenu, setShowProfileMenu] = useState(false);
+    
+    const queryClient = useQueryClient();
+    const [refreshing, setRefreshing] = useState(false);
+
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        // Will refresh all currently active queries on the screen
+        await queryClient.invalidateQueries();
+        setRefreshing(false);
+    }, [queryClient]);
 
     const handleEventPress = useCallback((eventId: string) => {
         router.push(`/(host)/events` as any); // Redirects to 'See All' screen as requested
@@ -91,13 +102,20 @@ export default function HostDashboard() {
         <ScrollView 
             style={[styles.container, { paddingTop: insets.top }]} 
             showsVerticalScrollIndicator={false}
+            refreshControl={
+                <RefreshControl 
+                    refreshing={refreshing} 
+                    onRefresh={onRefresh} 
+                    tintColor={COLORS.primary} 
+                    colors={[COLORS.primary]} 
+                />
+            }
         >
             <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
             
             <View style={styles.topBar}>
-                <TouchableOpacity onPress={logout} style={[styles.signOutBtn, { backgroundColor: 'rgba(37, 99, 235, 0.1)' }]}>
-                    <Ionicons name="log-out-outline" size={16} color={COLORS.primary} />
-                    <Text style={[styles.signOutText, { color: COLORS.primary }]}>Sign Out</Text>
+                <TouchableOpacity onPress={logout} style={styles.powerBtn}>
+                    <Ionicons name="power" size={18} color="#ef4444" />
                 </TouchableOpacity>
             </View>
 
@@ -231,8 +249,7 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#000000' },
     loader: { flex: 1, backgroundColor: '#000000', alignItems: 'center', justifyContent: 'center' },
     topBar: { alignItems: 'flex-end', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 10 },
-    signOutBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(167, 139, 250, 0.1)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
-    signOutText: { color: '#A78BFA', fontSize: 13, fontWeight: '600' },
+    powerBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(239, 68, 68, 0.1)', justifyContent: 'center', alignItems: 'center' },
     
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 24 },
     welcome: { color: 'rgba(255,255,255,0.7)', fontSize: 16, fontWeight: '500', marginBottom: 2 },

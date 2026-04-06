@@ -89,6 +89,10 @@ export default function SaaSAdminDashboard() {
     const [newHostEmail, setNewHostEmail] = useState('');
     const [newHostPhone, setNewHostPhone] = useState('');
     const [isCreatingHost, setIsCreatingHost] = useState(false);
+    
+    // Auto-scroll logic refs
+    const scrollViewRef = useRef<ScrollView>(null);
+    const [cardY, setCardY] = useState(0);
 
     // ── DATA FETCHING ────────────────────────────────────────────────────────
     
@@ -151,6 +155,7 @@ export default function SaaSAdminDashboard() {
             <StatusBar barStyle="light-content" />
 
             <ScrollView 
+                ref={scrollViewRef}
                 contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20 }]}
                 showsVerticalScrollIndicator={false}
                 refreshControl={
@@ -188,7 +193,7 @@ export default function SaaSAdminDashboard() {
 
                 {/* Quick Action: Host Onboarding */}
                 <Text style={styles.sectionHeader}>PROVISION NEW HOST</Text>
-                <View style={styles.onboardCard}>
+                <View style={styles.onboardCard} onLayout={(e) => setCardY(e.nativeEvent.layout.y)}>
                     <View style={styles.inputGroup}>
                         <View style={styles.inputBox}>
                             <MaterialIcons name="alternate-email" size={18} color={COLORS.primary} />
@@ -198,6 +203,13 @@ export default function SaaSAdminDashboard() {
                                 placeholderTextColor={COLORS.textDim}
                                 value={newHostEmail}
                                 onChangeText={setNewHostEmail}
+                                onFocus={() => {
+                                    if (cardY > 0) {
+                                        setTimeout(() => {
+                                            scrollViewRef.current?.scrollTo({ y: Math.max(0, cardY - 120), animated: true });
+                                        }, 150);
+                                    }
+                                }}
                                 keyboardType="email-address"
                                 autoCapitalize="none"
                             />
@@ -210,6 +222,13 @@ export default function SaaSAdminDashboard() {
                                 placeholderTextColor={COLORS.textDim}
                                 value={newHostPhone}
                                 onChangeText={setNewHostPhone}
+                                onFocus={() => {
+                                    if (cardY > 0) {
+                                        setTimeout(() => {
+                                            scrollViewRef.current?.scrollTo({ y: Math.max(0, cardY - 120), animated: true });
+                                        }, 150);
+                                    }
+                                }}
                                 keyboardType="phone-pad"
                             />
                         </View>

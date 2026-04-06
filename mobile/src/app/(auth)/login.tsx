@@ -18,8 +18,10 @@ WebBrowser.maybeCompleteAuthSession();
 
 const { width, height } = Dimensions.get('window');
 
+import { API_BASE_URL } from '../../services/apiClient';
+
 // Backend-driven Google OAuth — no redirect URI issues
-const GOOGLE_AUTH_URL = 'https://test-53pw.onrender.com/api/auth/google';
+const GOOGLE_AUTH_URL = `${API_BASE_URL}/api/auth/google`;
 
 export default function LoginScreen() {
     const [identifier, setIdentifier] = useState('');
@@ -41,9 +43,12 @@ export default function LoginScreen() {
         try {
             console.log('[FRONTEND DEBUG] Initiate Google Login...');
             setLoading(true);
+            const redirectUri = Linking.createURL('auth');
+            const authUrl = `${GOOGLE_AUTH_URL}?redirectUri=${encodeURIComponent(redirectUri)}`;
+            
             const result = await WebBrowser.openAuthSessionAsync(
-                GOOGLE_AUTH_URL,
-                'entry-club://auth'
+                authUrl,
+                redirectUri
             );
 
             console.log('[FRONTEND DEBUG] Browser result type:', result.type);

@@ -12,7 +12,7 @@ import { Button } from '../../components/Button';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import * as ImagePicker from 'expo-image-picker';
-import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import { PremiumDateTimePicker } from '../../components/PremiumDateTimePicker';
 import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
@@ -48,84 +48,46 @@ export default function HostCreateEvent() {
     const [useVenueLocation, setUseVenueLocation] = useState(true);
     const [venueLocation, setVenueLocation] = useState<{ lat: number, lng: number, address: string } | null>(null);
 
-    // Picker visibility state
-    const [showDatePicker, setShowDatePicker] = useState(false);
-    const [showStartPicker, setShowStartPicker] = useState(false);
-    const [showEndPicker, setShowEndPicker] = useState(false);
-
-    // Internal Date objects for the native pickers
-    const [pickerDate, setPickerDate] = useState(new Date());
-    const [pickerStart, setPickerStart] = useState(new Date());
-    const [pickerEnd, setPickerEnd] = useState(new Date());
-    const [pickerReveal, setPickerReveal] = useState(new Date());
-
-    const [showRevealPicker, setShowRevealPicker] = useState(false);
-    const [showBookingPicker, setShowBookingPicker] = useState(false);
-    const [pickerBooking, setPickerBooking] = useState(new Date());
+    // Premium Picker State
+    const [pickerVisible, setPickerVisible] = useState(false);
+    const [pickerMode, setPickerMode] = useState<'date' | 'time' | 'datetime'>('date');
+    const [pickerType, setPickerType] = useState<'date' | 'start' | 'end' | 'reveal' | 'booking'>('date');
+    const [pickerInitialDate, setPickerInitialDate] = useState(new Date());
+    const [pickerTitle, setPickerTitle] = useState('Select Date & Time');
 
     const openPicker = (type: 'date' | 'start' | 'end' | 'reveal' | 'booking') => {
-        if (Platform.OS === 'android') {
-            if (type === 'date') {
-                DateTimePickerAndroid.open({
-                    value: pickerDate, mode: 'date', minimumDate: new Date(),
-                    onChange: (_, selected) => { if (selected) { setPickerDate(selected); setDate(dayjs(selected).format('DD/MM/YYYY')); } }
-                });
-            } else if (type === 'start') {
-                DateTimePickerAndroid.open({
-                    value: pickerStart, mode: 'time', is24Hour: false,
-                    onChange: (_, selected) => { if (selected) { setPickerStart(selected); setStartTime(dayjs(selected).format('hh:mm A')); } }
-                });
-            } else if (type === 'end') {
-                DateTimePickerAndroid.open({
-                    value: pickerEnd, mode: 'time', is24Hour: false,
-                    onChange: (_, selected) => { if (selected) { setPickerEnd(selected); setEndTime(dayjs(selected).format('hh:mm A')); } }
-                });
-            } else if (type === 'reveal') {
-                DateTimePickerAndroid.open({
-                    value: pickerReveal, mode: 'time', // Android doesn't have "datetime" mode natively
-                    onChange: (_, selectedTime) => { 
-                        if (selectedTime) { 
-                            // Second step: Ask for date on Android
-                            DateTimePickerAndroid.open({
-                                value: pickerReveal, mode: 'date', minimumDate: new Date(),
-                                onChange: (__, selectedDate) => {
-                                    if (selectedDate) {
-                                        const finalDate = new Date(selectedDate);
-                                        finalDate.setHours(selectedTime.getHours(), selectedTime.getMinutes());
-                                        setPickerReveal(finalDate);
-                                        setRevealTime(dayjs(finalDate).format('DD/MM/YYYY hh:mm A'));
-                                    }
-                                }
-                            });
-                        } 
-                    }
-                });
-            } else if (type === 'booking') {
-                DateTimePickerAndroid.open({
-                    value: pickerBooking, mode: 'time',
-                    onChange: (_, selectedTime) => { 
-                        if (selectedTime) { 
-                            DateTimePickerAndroid.open({
-                                value: pickerBooking, mode: 'date', minimumDate: new Date(),
-                                onChange: (__, selectedDate) => {
-                                    if (selectedDate) {
-                                        const finalDate = new Date(selectedDate);
-                                        finalDate.setHours(selectedTime.getHours(), selectedTime.getMinutes());
-                                        setPickerBooking(finalDate);
-                                        setBookingOpenDate(dayjs(finalDate).format('DD/MM/YYYY hh:mm A'));
-                                    }
-                                }
-                            });
-                        } 
-                    }
-                });
-            }
-        } else {
-            if (type === 'date') setShowDatePicker(true);
-            if (type === 'start') setShowStartPicker(true);
-            if (type === 'end') setShowEndPicker(true);
-            if (type === 'reveal') setShowRevealPicker(true);
-            if (type === 'booking') setShowBookingPicker(true);
+        setPickerType(type);
+        if (type === 'date') {
+            setPickerMode('date');
+            setPickerTitle('Event Date');
+        } else if (type === 'start') {
+            setPickerMode('time');
+            setPickerTitle('Start Time');
+        } else if (type === 'end') {
+            setPickerMode('time');
+            setPickerTitle('End Time');
+        } else if (type === 'reveal') {
+            setPickerMode('datetime');
+            setPickerTitle('Auto-Reveal Time');
+        } else if (type === 'booking') {
+            setPickerMode('datetime');
+            setPickerTitle('Go Live Time');
+        }
+        setPickerInitialDate(new Date());
+        setPickerVisible(true);
+    };
+
+    const handlePremiumPickerSelect = (selectedDate: Date) => {
+        if (pickerType === 'date') {
+            setDate(dayjs(selectedDate).format('DD/MM/YYYY'));
+        } else if (pickerType === 'start') {
+            setStartTime(dayjs(selectedDate).format('hh:mm A'));
+        } else if (pickerType === 'end') {
+            setEndTime(dayjs(selectedDate).format('hh:mm A'));
+        } else if (pickerType === 'reveal') {
+            setRevealTime(dayjs(selectedDate).format('DD/MM/YYYY hh:mm A'));
+        } else if (pickerType === 'booking') {
+            setBookingOpenDate(dayjs(selectedDate).format('DD/MM/YYYY hh:mm A'));
         }
     };
     
@@ -320,6 +282,7 @@ export default function HostCreateEvent() {
         >
         <SafeAreaView style={styles.container}>
             <ScrollView
+                style={{ flex: 1 }}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
@@ -371,21 +334,6 @@ export default function HostCreateEvent() {
                                     {date || 'Pick date'}
                                 </Text>
                             </TouchableOpacity>
-                            {Platform.OS === 'ios' && showDatePicker && (
-                                <DateTimePicker
-                                    value={pickerDate}
-                                    mode="date"
-                                    display="spinner"
-                                    minimumDate={new Date()}
-                                    onChange={(_, selected) => {
-                                        setShowDatePicker(false);
-                                        if (selected) {
-                                            setPickerDate(selected);
-                                            setDate(dayjs(selected).format('DD/MM/YYYY'));
-                                        }
-                                    }}
-                                />
-                            )}
                         </View>
 
                         {/* START TIME PICKER */}
@@ -397,21 +345,6 @@ export default function HostCreateEvent() {
                                     {startTime || 'Pick time'}
                                 </Text>
                             </TouchableOpacity>
-                            {Platform.OS === 'ios' && showStartPicker && (
-                                <DateTimePicker
-                                    value={pickerStart}
-                                    mode="time"
-                                    is24Hour={false}
-                                    display="spinner"
-                                    onChange={(_, selected) => {
-                                        setShowStartPicker(false);
-                                        if (selected) {
-                                            setPickerStart(selected);
-                                            setStartTime(dayjs(selected).format('hh:mm A'));
-                                        }
-                                    }}
-                                />
-                            )}
                         </View>
                     </View>
 
@@ -424,21 +357,6 @@ export default function HostCreateEvent() {
                                 {bookingOpenDate || 'Select date & time when tickets become available'}
                             </Text>
                         </TouchableOpacity>
-                        {Platform.OS === 'ios' && showBookingPicker && (
-                            <DateTimePicker
-                                value={pickerBooking}
-                                mode="datetime"
-                                minimumDate={new Date()}
-                                display="spinner"
-                                onChange={(_, selected) => {
-                                    setShowBookingPicker(false);
-                                    if (selected) {
-                                        setPickerBooking(selected);
-                                        setBookingOpenDate(dayjs(selected).format('DD/MM/YYYY hh:mm A'));
-                                    }
-                                }}
-                            />
-                        )}
                     </View>
 
                     {/* END TIME + FLOORS ROW */}
@@ -452,21 +370,6 @@ export default function HostCreateEvent() {
                                     {endTime || 'Pick time'}
                                 </Text>
                             </TouchableOpacity>
-                            {Platform.OS === 'ios' && showEndPicker && (
-                                <DateTimePicker
-                                    value={pickerEnd}
-                                    mode="time"
-                                    is24Hour={false}
-                                    display="spinner"
-                                    onChange={(_, selected) => {
-                                        setShowEndPicker(false);
-                                        if (selected) {
-                                            setPickerEnd(selected);
-                                            setEndTime(dayjs(selected).format('hh:mm A'));
-                                        }
-                                    }}
-                                />
-                            )}
                         </View>
                         <View style={styles.flex1}>
                             <Input
@@ -607,21 +510,6 @@ export default function HostCreateEvent() {
                                         {revealTime || 'Set drop time...'}
                                     </Text>
                                 </TouchableOpacity>
-                                {Platform.OS === 'ios' && showRevealPicker && (
-                                    <DateTimePicker
-                                        value={pickerReveal}
-                                        mode="datetime"
-                                        minimumDate={new Date()}
-                                        display="spinner"
-                                        onChange={(_, selected) => {
-                                            setShowRevealPicker(false);
-                                            if (selected) {
-                                                setPickerReveal(selected);
-                                                setRevealTime(dayjs(selected).format('DD/MM/YYYY hh:mm A'));
-                                            }
-                                        }}
-                                    />
-                                )}
                             </View>
                         )}
                     </View>
@@ -790,6 +678,15 @@ export default function HostCreateEvent() {
                     </View>
                 </View>
             </View>
+
+            <PremiumDateTimePicker
+                visible={pickerVisible}
+                onClose={() => setPickerVisible(false)}
+                onSelect={handlePremiumPickerSelect}
+                mode={pickerMode}
+                initialDate={pickerInitialDate}
+                title={pickerTitle}
+            />
         </SafeAreaView>
         </KeyboardAvoidingView>
     );
@@ -803,7 +700,7 @@ const styles = StyleSheet.create({
     scrollContent: {
         padding: SPACING.lg,
         paddingTop: 40,
-        paddingBottom: 160, // Increased to account for the floating footer + tab bar
+        paddingBottom: 40,
     },
     backBtn: {
         width: 44,
@@ -976,12 +873,7 @@ const styles = StyleSheet.create({
     },
     footer: {
         padding: SPACING.lg,
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
         backgroundColor: 'rgba(11, 15, 26, 0.95)',
-        paddingBottom: 30,
         borderTopWidth: 1,
         borderTopColor: 'rgba(255, 255, 255, 0.05)',
     },
