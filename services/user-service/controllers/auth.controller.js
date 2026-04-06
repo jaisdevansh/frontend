@@ -12,6 +12,26 @@ import sendEmail from '../../../shared/utils/sendEmail.js';
 import { sendSmsOtp, verifySmsOtp } from '../../../services/twilio.service.js';
 import { cacheService } from '../../../services/cache.service.js';
 
+// ── Username Generation for Google Users ────────────────────────────────────
+const generateUsername = (name) => {
+    const base = (name || 'user').replace(/\s+/g, '').toLowerCase().slice(0, 5);
+    const random = Math.floor(1000 + Math.random() * 9000);
+    return `${base}${random}`;
+};
+
+const getUniqueUsername = async (name) => {
+    let username;
+    let attempts = 0;
+    while (attempts < 10) {
+        username = generateUsername(name);
+        const exists = await User.findOne({ username });
+        if (!exists) return username;
+        attempts++;
+    }
+    // Fallback: use timestamp suffix
+    return `user${Date.now().toString().slice(-6)}`;
+};
+
 const generateTokens = (user) => {
     const displayName = user.name || (user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : '');
     const accessToken = jwt.sign(
@@ -681,24 +701,40 @@ export const googleLogin = async (req, res, next) => {
         let user = adminUser || hostUser || staffUser || normalUser;
 
         if (!user) {
-            // New user — create automatically
+            // New Google user — auto-provision with username, skip onboarding
             const tempId = new mongoose.Types.ObjectId();
             const referralCode = Math.random().toString(36).substring(2, 8).toUpperCase()
                 + tempId.toString().substring(18, 22).toUpperCase();
+            const autoUsername = await getUniqueUsername(name || 'user');
 
             user = new User({
                 _id: tempId,
                 name: name || '',
+                username: autoUsername,
                 email: emailLower,
                 profileImage: picture || undefined,
                 emailVerified: true,
+                isVerified: true,
+                provider: 'google',
+                googleId,
                 role: 'user',
-                onboardingCompleted: false,
+                bio: '',
+                onboardingCompleted: true,   // ✅ Skip onboarding for Google users
                 isActive: true,
                 referralCode,
-                googleId,
             });
             await user.save();
+            console.log(`[Google Auth] New user created: ${emailLower} | username: ${autoUsername}`);
+        } else {
+            // Existing user — update Google fields if missing
+            const updates = {};
+            if (!user.profileImage && picture) updates.profileImage = picture;
+            if (!user.googleId) updates.googleId = googleId;
+            if (!user.username) updates.username = await getUniqueUsername(name || user.name || 'user');
+            if (Object.keys(updates).length > 0) {
+                await user.constructor.updateOne({ _id: user._id }, { $set: updates });
+                Object.assign(user, updates);
+            }
         }
 
         if (!user.isActive) {
@@ -720,9 +756,8 @@ export const googleLogin = async (req, res, next) => {
                 hostId: user.hostId || null,
                 profileImage: user.profileImage || picture,
                 hostStatus: user.hostStatus || null,
-                onboardingCompleted: (user.role && user.role.toLowerCase() !== 'user')
-                    ? true
-                    : (user.onboardingCompleted ?? false),
+                username: user.username || null,
+                onboardingCompleted: true,   // Google users always skip onboarding
                 accessToken,
                 refreshToken,
             }

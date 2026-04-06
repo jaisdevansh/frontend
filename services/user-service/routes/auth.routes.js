@@ -14,11 +14,30 @@ import { registerSchema, loginSchema, refreshTokenSchema, forgotPasswordSchema, 
 
 const router = express.Router();
 
+// ── Username generation for Google users ─────────────────────────────────────
+const generateUsername = (name) => {
+    const base = (name || 'user').replace(/\s+/g, '').toLowerCase().slice(0, 5);
+    const random = Math.floor(1000 + Math.random() * 9000);
+    return `${base}${random}`;
+};
+const getUniqueUsername = async (name) => {
+    let attempts = 0;
+    while (attempts < 10) {
+        const username = generateUsername(name);
+        const exists = await User.findOne({ username });
+        if (!exists) return username;
+        attempts++;
+    }
+    return `user${Date.now().toString().slice(-6)}`;
+};
+
 // ── Passport Google Strategy (for web-based OAuth flow) ──────────────────────
 passport.use(new GoogleStrategy({
     clientID:     process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL:  'https://test-53pw.onrender.com/api/auth/callback/google',
+    callbackURL:  process.env.NODE_ENV === 'production' 
+        ? 'https://test-53pw.onrender.com/api/auth/callback/google'
+        : 'http://localhost:3000/api/auth/callback/google',
     scope: ['profile', 'email'],
 }, async (accessToken, refreshToken, profile, done) => {
     try {
@@ -46,26 +65,41 @@ passport.use(new GoogleStrategy({
         let user = adminUser || hostUser || staffUser || normalUser;
 
         if (!user) {
-            console.log('[DEBUG] New user! Provisioning in User collection...');
+            console.log('[DEBUG] New user! Provisioning with auto-username...');
             const tempId = new mongoose.Types.ObjectId();
             const referralCode = Math.random().toString(36).substring(2, 8).toUpperCase()
                 + tempId.toString().substring(18, 22).toUpperCase();
+            const autoUsername = await getUniqueUsername(name);
+
             user = new User({
                 _id: tempId,
                 name,
+                username: autoUsername,
                 email,
                 profileImage: picture || undefined,
                 emailVerified: true,
+                isVerified: true,
+                provider: 'google',
+                googleId,
                 role: 'user',
-                onboardingCompleted: false,
+                bio: '',
+                onboardingCompleted: true,   // ✅ No onboarding for Google users
                 isActive: true,
                 referralCode,
-                googleId,
             });
             await user.save();
-            console.log('[DEBUG] User created successfully');
+            console.log(`[DEBUG] User created: ${email} | username: ${autoUsername}`);
         } else {
             console.log('[DEBUG] Existing user found. Role:', user.role);
+            // Patch missing fields for existing users
+            const updates = {};
+            if (!user.profileImage && picture) updates.profileImage = picture;
+            if (!user.googleId) updates.googleId = googleId;
+            if (!user.username) updates.username = await getUniqueUsername(name || user.name || 'user');
+            if (Object.keys(updates).length > 0) {
+                await user.constructor.updateOne({ _id: user._id }, { $set: updates });
+                Object.assign(user, updates);
+            }
         }
 
         return done(null, user);
@@ -133,8 +167,9 @@ router.get('/callback/google',
                 name:                user.name || '',
                 email:               user.email || '',
                 profileImage:        user.profileImage || '',
-                onboardingCompleted: String(user.onboardingCompleted ?? false),
+                onboardingCompleted: 'true',   // ✅ Google users always skip onboarding
                 hostId:              user.hostId?.toString() || '',
+                username:            user.username || '',
             });
 
             const deepLink = `${redirectUri}?${params.toString()}`;

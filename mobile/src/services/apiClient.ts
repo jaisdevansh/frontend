@@ -12,6 +12,8 @@ import { DeviceEventEmitter } from 'react-native';
 const getBaseUrl = () => {
     // Production Render URL
     return 'https://test-53pw.onrender.com';
+    // Local Testing URL (uncomment for local dev)
+    // return 'http://10.225.202.18:3000';
 };
 
 export const API_BASE_URL = getBaseUrl();
