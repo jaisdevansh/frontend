@@ -20,6 +20,7 @@ import { useQuery } from '@tanstack/react-query';
 import { usePrefetchEvent } from '../../hooks/useEventQuery';
 import { hero, avatar } from '../../services/cloudinaryService';
 import { useAuth } from '../../context/AuthContext';
+import { log } from '../../utils/logger';
 
 import { InteractionManager } from 'react-native';
 const FlashList = SafeFlashList;
@@ -188,10 +189,12 @@ export default function HomeScreen() {
                 style={[styles.eventCard, loadingEventId === item._id && { opacity: 0.8 }]}
                 activeOpacity={0.9}
                 onPress={() => {
+                    log("STEP 1: CLICK EVENT", item?._id);
                     setLoadingEventId(item._id);
                     Haptics.selectionAsync();
                     
                     setTimeout(() => {
+                        log("STEP 2: NAVIGATION START");
                         router.push({ pathname: '/(user)/event-details', params: { eventId: item._id } });
                         setTimeout(() => setLoadingEventId(null), 500);
                     }, 50);
@@ -289,9 +292,13 @@ export default function HomeScreen() {
                 </TouchableOpacity>
             </View>
             
-            <View style={{ paddingHorizontal: 20, marginBottom: 10 }}>
+            <TouchableOpacity 
+                activeOpacity={1} 
+                onLongPress={() => router.push('/(user)/debug')}
+                style={{ paddingHorizontal: 20, marginBottom: 10 }}
+            >
                 <Text style={{ color: '#fff', fontSize: 18, fontWeight: '900' }}>Explore Events</Text>
-            </View>
+            </TouchableOpacity>
         </View>
     ), [cityName, profileImage, profileName, router]);
 

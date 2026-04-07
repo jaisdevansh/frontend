@@ -13,6 +13,7 @@ import { useToast } from '../../context/ToastContext';
 import { useStrictBack } from '../../hooks/useStrictBack';
 import { useEventBasicQuery, useEventDetailsQuery, useInvalidateEvent } from '../../hooks/useEventQuery';
 import { hero, avatar } from '../../services/cloudinaryService';
+import { log } from '../../utils/logger';
 
 const { width } = Dimensions.get('window');
 
@@ -29,13 +30,15 @@ const EventDetails = () => {
 
     // ── Performance Tracking ──────────────────────────────────────────────────
     useEffect(() => {
+        log(`STEP 3: SCREEN OPEN`);
+        log(`STEP 4: PARAM eventId: ${eventId}`);
         // Fresh timestamp each mount — avoids stale ref after back-navigation
         const mountedAt = Date.now();
-        console.log(`[PERF] EventDetails mounting...`);
+        log(`[PERF] EventDetails mounting...`);
         InteractionManager.runAfterInteractions(() => {
-            console.log(`[PERF] EventDetails INTERACTION ready in ${Date.now() - mountedAt}ms`);
+            log(`[PERF] EventDetails INTERACTION ready in ${Date.now() - mountedAt}ms`);
         });
-    }, []);
+    }, [eventId]);
 
     const { showToast } = useToast();
     const [expandedRule, setExpandedRule] = useState<number | null>(null);
@@ -116,6 +119,19 @@ const EventDetails = () => {
     }, [event, router]);
 
     // ── Loading State: only show spinner if no cached data at all ───────────
+    if (!eventId) {
+        log("ERROR: ID MISSING");
+        return (
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <StatusBar barStyle="light-content" backgroundColor="#030303" />
+                <Text style={{ color: '#FFF' }}>Error: Event ID Missing.</Text>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 20 }}>
+                    <Text style={{ color: COLORS.primary }}>Go Back</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
     if (isLoading && !event) return (
         <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
             <StatusBar barStyle="light-content" backgroundColor="#030303" />
@@ -123,15 +139,18 @@ const EventDetails = () => {
         </View>
     );
 
-    if (!event) return (
-        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-            <StatusBar barStyle="light-content" backgroundColor="#030303" />
-            <Text style={{ color: '#FFF' }}>Event not found.</Text>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 20 }}>
-                <Text style={{ color: COLORS.primary }}>Go Back</Text>
-            </TouchableOpacity>
-        </View>
-    );
+    if (!event) {
+        log("ERROR: EVENT DATA NOT FOUND", eventId);
+        return (
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <StatusBar barStyle="light-content" backgroundColor="#030303" />
+                <Text style={{ color: '#FFF' }}>Event not found.</Text>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 20 }}>
+                    <Text style={{ color: COLORS.primary }}>Go Back</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
 
     const eventImages = event.images?.length > 0 ? event.images : event.coverImage ? [event.coverImage] : ['https://images.unsplash.com/photo-1514525253361-bee8a197c0c1?auto=format&fit=crop&q=80&w=800'];
     const lowestPrice = event.tickets?.length > 0 ? Math.min(...event.tickets.map((t: any) => t.price)) : null;

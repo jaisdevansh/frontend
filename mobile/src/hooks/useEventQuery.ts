@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { userService } from '../services/userService';
 import { Image } from 'expo-image';
+import { log } from '../utils/logger';
 
 // ─── Query Key Factory ────────────────────────────────────────────────────────
 export const eventKeys = {
@@ -12,12 +13,16 @@ export const eventKeys = {
 
 // ─── Fetch Functions ──────────────────────────────────────────────────────────
 const fetchEventBasic = async (id: string) => {
-    console.time("[API] Event_Basic");
-    const res = await userService.getEventBasic(id);
-    console.timeEnd("[API] Event_Basic");
-    console.log("[API] BASIC SIZE:", JSON.stringify(res.data || {}).length);
-    if (!res?.success) throw new Error('Event not found');
-    return res.data;
+    log(`STEP 5: API CALL START (Basic): ${id}`);
+    try {
+        const res = await userService.getEventBasic(id);
+        log(`STEP 6: API SUCCESS (Basic) SIZE: ${JSON.stringify(res.data || {}).length}`);
+        if (!res?.success) throw new Error('Event not found');
+        return res.data;
+    } catch (e: any) {
+        log("STEP 6: API ERROR (Basic)", e.message);
+        throw e;
+    }
 };
 
 const fetchEventDetails = async (id: string) => {

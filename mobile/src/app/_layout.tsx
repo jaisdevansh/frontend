@@ -6,6 +6,15 @@ import React, { useEffect, useRef } from 'react';
 import { Platform, LogBox, DeviceEventEmitter } from 'react-native';
 import { enableScreens } from 'react-native-screens';
 import * as Haptics from 'expo-haptics';
+import { log } from '../utils/logger';
+
+// @ts-ignore
+if (global.ErrorUtils) {
+  // @ts-ignore
+  global.ErrorUtils.setGlobalHandler((error: any, isFatal?: boolean) => {
+    log("GLOBAL ERROR:", error?.message || error);
+  });
+}
 
 enableScreens(true);
 import 'react-native-reanimated';
