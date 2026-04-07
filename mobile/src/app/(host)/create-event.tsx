@@ -15,7 +15,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { PremiumDateTimePicker } from '../../components/PremiumDateTimePicker';
 import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 dayjs.extend(customParseFormat);

@@ -8,28 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../constants/design-system';
 import { Button } from '../../components/Button';
 import { userService } from '../../services/userService';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
-const nightMapStyle = [
-  { "elementType": "geometry", "stylers": [{ "color": "#242f3e" }] },
-  { "elementType": "labels.text.fill", "stylers": [{ "color": "#746855" }] },
-  { "elementType": "labels.text.stroke", "stylers": [{ "color": "#242f3e" }] },
-  { "featureType": "administrative.locality", "elementType": "labels.text.fill", "stylers": [{ "color": "#d59563" }] },
-  { "featureType": "poi", "elementType": "labels.text.fill", "stylers": [{ "color": "#d59563" }] },
-  { "featureType": "poi.park", "elementType": "geometry", "stylers": [{ "color": "#263c3f" }] },
-  { "featureType": "poi.park", "elementType": "labels.text.fill", "stylers": [{ "color": "#6b9a76" }] },
-  { "featureType": "road", "elementType": "geometry", "stylers": [{ "color": "#38414e" }] },
-  { "featureType": "road", "elementType": "geometry.stroke", "stylers": [{ "color": "#212a37" }] },
-  { "featureType": "road", "elementType": "labels.text.fill", "stylers": [{ "color": "#9ca5b3" }] },
-  { "featureType": "road.highway", "elementType": "geometry", "stylers": [{ "color": "#746855" }] },
-  { "featureType": "road.highway", "elementType": "geometry.stroke", "stylers": [{ "color": "#1f2835" }] },
-  { "featureType": "road.highway", "elementType": "labels.text.fill", "stylers": [{ "color": "#f3d19c" }] },
-  { "featureType": "transit", "elementType": "geometry", "stylers": [{ "color": "#2f3948" }] },
-  { "featureType": "transit.station", "elementType": "labels.text.fill", "stylers": [{ "color": "#d59563" }] },
-  { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#17263c" }] },
-  { "featureType": "water", "elementType": "labels.text.fill", "stylers": [{ "color": "#515c6d" }] },
-  { "featureType": "water", "elementType": "labels.text.stroke", "stylers": [{ "color": "#17263c" }] }
-];
+const GEOAPIFY_KEY = process.env.EXPO_PUBLIC_GEOAPIFY_KEY || 'e6f13848c19246eab1bef2662e18ebd0';
 
 export default function VenueDetails() {
     const router = useRouter();
@@ -80,6 +60,7 @@ export default function VenueDetails() {
     const safeLat = parseFloat(venueData?.coordinates?.lat || venueData?.venueProfile?.coordinates?.lat || 28.6139);
     const safeLng = parseFloat(venueData?.coordinates?.lng || venueData?.venueProfile?.coordinates?.lng || 77.2090);
     const coords = { lat: safeLat || 28.6139, lng: safeLng || 77.2090 };
+    const staticMapUrl = `https://maps.geoapify.com/v1/staticmap?style=dark-matter&width=600&height=320&center=${coords.lng},${coords.lat}&zoom=15.5&marker=lonlat:${coords.lng},${coords.lat};color:%237c4dff;size:large&apiKey=${GEOAPIFY_KEY}`;
 
 
     return (
@@ -147,29 +128,11 @@ export default function VenueDetails() {
                     <Text style={styles.sectionTitle}>Location</Text>
                     <View style={styles.mapCard}>
                         <View style={{ height: 160, overflow: 'hidden' }}>
-                            <MapView
-                                provider={PROVIDER_GOOGLE}
+                            <Image
+                                source={{ uri: staticMapUrl }}
                                 style={StyleSheet.absoluteFillObject}
-                                initialRegion={{
-                                    latitude: coords.lat,
-                                    longitude: coords.lng,
-                                    latitudeDelta: 0.005,
-                                    longitudeDelta: 0.005,
-                                }}
-                                customMapStyle={nightMapStyle}
-                                pitchEnabled={false}
-                                rotateEnabled={false}
-                                zoomEnabled={false}
-                                scrollEnabled={false}
-                            >
-                                <Marker coordinate={{ latitude: coords.lat, longitude: coords.lng }}>
-                                    <View style={styles.markerContainer}>
-                                        <LinearGradient colors={['#7c4dff', '#4f46e5']} style={styles.markerCircle}>
-                                            <Ionicons name="location" size={16} color="#FFF" />
-                                        </LinearGradient>
-                                    </View>
-                                </Marker>
-                            </MapView>
+                                resizeMode="cover"
+                            />
                             <TouchableOpacity style={styles.mapOverlay} activeOpacity={1} onPress={openMaps}>
                                 <LinearGradient colors={['transparent', 'rgba(0,0,0,0.4)']} style={StyleSheet.absoluteFillObject} />
                             </TouchableOpacity>

@@ -34,7 +34,20 @@
       "expo-router",
       "@react-native-community/datetimepicker",
       "expo-notifications",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location to find nearby events."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos to upload profile and event images.",
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to take profile pictures."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
@@ -42,7 +55,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "43ebccef-f5fa-40f8-bc22-020dfc145d60"
+        "projectId": "e70e7239-652e-49de-bae2-328422b2a506"
       }
     },
     "owner": "jerry-don20",

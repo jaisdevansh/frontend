@@ -180,11 +180,11 @@ export default function WelcomeScreen() {
                     <View style={styles.buttonContainer}>
                         <Button
                             title="Get Started"
-                            onPress={() => router.push('/(auth)/signup' as any)}
+                            onPress={() => router.push('/signup' as any)}
                             style={styles.primaryBtn}
                         />
                         <TouchableOpacity
-                            onPress={() => router.push('/(auth)/login' as any)}
+                            onPress={() => router.push('/login' as any)}
                             style={styles.secondaryBtn}
                             activeOpacity={0.7}
                         >

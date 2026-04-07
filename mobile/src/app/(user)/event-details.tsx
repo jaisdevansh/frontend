@@ -9,7 +9,6 @@ import { COLORS } from '../../constants/design-system';
 import { API_BASE_URL } from '../../services/apiClient';
 import { io } from 'socket.io-client';
 import * as Haptics from 'expo-haptics';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useToast } from '../../context/ToastContext';
 import { useStrictBack } from '../../hooks/useStrictBack';
 import { useEventBasicQuery, useEventDetailsQuery, useInvalidateEvent } from '../../hooks/useEventQuery';
@@ -17,26 +16,7 @@ import { hero, avatar } from '../../services/cloudinaryService';
 
 const { width } = Dimensions.get('window');
 
-const nightMapStyle = [
-  { "elementType": "geometry", "stylers": [{ "color": "#242f3e" }] },
-  { "elementType": "labels.text.fill", "stylers": [{ "color": "#746855" }] },
-  { "elementType": "labels.text.stroke", "stylers": [{ "color": "#242f3e" }] },
-  { "featureType": "administrative.locality", "elementType": "labels.text.fill", "stylers": [{ "color": "#d59563" }] },
-  { "featureType": "poi", "elementType": "labels.text.fill", "stylers": [{ "color": "#d59563" }] },
-  { "featureType": "poi.park", "elementType": "geometry", "stylers": [{ "color": "#263c3f" }] },
-  { "featureType": "poi.park", "elementType": "labels.text.fill", "stylers": [{ "color": "#6b9a76" }] },
-  { "featureType": "road", "elementType": "geometry", "stylers": [{ "color": "#38414e" }] },
-  { "featureType": "road", "elementType": "geometry.stroke", "stylers": [{ "color": "#212a37" }] },
-  { "featureType": "road", "elementType": "labels.text.fill", "stylers": [{ "color": "#9ca5b3" }] },
-  { "featureType": "road.highway", "elementType": "geometry", "stylers": [{ "color": "#746855" }] },
-  { "featureType": "road.highway", "elementType": "geometry.stroke", "stylers": [{ "color": "#1f2835" }] },
-  { "featureType": "road.highway", "elementType": "labels.text.fill", "stylers": [{ "color": "#f3d19c" }] },
-  { "featureType": "transit", "elementType": "geometry", "stylers": [{ "color": "#2f3948" }] },
-  { "featureType": "transit.station", "elementType": "labels.text.fill", "stylers": [{ "color": "#d59563" }] },
-  { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#17263c" }] },
-  { "featureType": "water", "elementType": "labels.text.fill", "stylers": [{ "color": "#515c6d" }] },
-  { "featureType": "water", "elementType": "labels.text.stroke", "stylers": [{ "color": "#17263c" }] }
-];
+const GEOAPIFY_KEY = process.env.EXPO_PUBLIC_GEOAPIFY_KEY || 'e6f13848c19246eab1bef2662e18ebd0';
 
 const EventDetails = () => {
     const router = useRouter();
@@ -170,6 +150,7 @@ const EventDetails = () => {
     const safeLat = parseFloat(event.locationData?.lat || event.hostId?.venueProfile?.coordinates?.lat || 28.6139);
     const safeLng = parseFloat(event.locationData?.lng || event.hostId?.venueProfile?.coordinates?.lng || 77.2090);
     const coords = { lat: safeLat, lng: safeLng };
+    const staticMapUrl = `https://maps.geoapify.com/v1/staticmap?style=dark-matter&width=600&height=320&center=${coords.lng},${coords.lat}&zoom=15.5&marker=lonlat:${coords.lng},${coords.lat};color:%237c4dff;size:large&apiKey=${GEOAPIFY_KEY}`;
 
     const openMaps = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -309,29 +290,11 @@ const EventDetails = () => {
                             </View>
                         ) : (
                             <View style={{ height: 160, overflow: 'hidden' }}>
-                                <MapView
-                                    provider={PROVIDER_GOOGLE}
+                                <Image
+                                    source={{ uri: staticMapUrl }}
                                     style={StyleSheet.absoluteFillObject}
-                                    initialRegion={{
-                                        latitude: coords.lat,
-                                        longitude: coords.lng,
-                                        latitudeDelta: 0.005,
-                                        longitudeDelta: 0.005,
-                                    }}
-                                    customMapStyle={nightMapStyle}
-                                    pitchEnabled={false}
-                                    rotateEnabled={false}
-                                    zoomEnabled={false}
-                                    scrollEnabled={false}
-                                >
-                                    <Marker coordinate={{ latitude: coords.lat, longitude: coords.lng }}>
-                                        <View style={styles.markerContainer}>
-                                            <LinearGradient colors={['#7c4dff', '#4f46e5']} style={styles.markerCircle}>
-                                                <Ionicons name="location" size={16} color="#FFF" />
-                                            </LinearGradient>
-                                        </View>
-                                    </Marker>
-                                </MapView>
+                                    contentFit="cover"
+                                />
                                 <TouchableOpacity style={styles.mapOverlay} activeOpacity={1} onPress={openMaps}>
                                     <LinearGradient colors={['transparent', 'rgba(0,0,0,0.4)']} style={StyleSheet.absoluteFillObject} />
                                 </TouchableOpacity>
