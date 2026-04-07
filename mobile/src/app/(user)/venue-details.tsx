@@ -52,12 +52,17 @@ export default function VenueDetails() {
         fetchAll();
     }, [venueId]);
 
+    const realLat = parseFloat(venueData?.coordinates?.lat || venueData?.location?.coordinates?.[1] || venueData?.venueProfile?.coordinates?.lat as any);
+    const realLng = parseFloat(venueData?.coordinates?.long || venueData?.coordinates?.lng || venueData?.location?.coordinates?.[0] || venueData?.venueProfile?.coordinates?.lng as any);
+    
+    const safeLat = realLat || 28.6139;
+    const safeLng = realLng || 77.2090;
+    const coords = { lat: safeLat, lng: safeLng };
+    const staticMapUrl = `https://maps.geoapify.com/v1/staticmap?style=dark-matter&width=600&height=320&center=lonlat:${coords.lng},${coords.lat}&zoom=15.5&marker=lonlat:${coords.lng},${coords.lat};color:%237c4dff;size:large&apiKey=${GEOAPIFY_KEY}`;
+
     const openMaps = () => {
-        const addr = venueData?.address || venueData?.venueProfile?.address;
-        const lat = venueData?.coordinates?.lat || venueData?.venueProfile?.coordinates?.lat;
-        const lng = venueData?.coordinates?.lng || venueData?.venueProfile?.coordinates?.lng;
-        
-        const destination = (lat && lng) ? `${lat},${lng}` : encodeURIComponent(addr || '');
+        const addr = venueData?.address || venueData?.location?.address || venueData?.venueProfile?.address;
+        const destination = (realLat && realLng) ? `${realLat},${realLng}` : encodeURIComponent(addr || '');
         if (!destination) return;
 
         const url = Platform.select({
@@ -68,11 +73,6 @@ export default function VenueDetails() {
 
         if (url) Linking.openURL(url);
     };
-
-    const safeLat = parseFloat(venueData?.coordinates?.lat || venueData?.venueProfile?.coordinates?.lat || 28.6139);
-    const safeLng = parseFloat(venueData?.coordinates?.lng || venueData?.venueProfile?.coordinates?.lng || 77.2090);
-    const coords = { lat: safeLat || 28.6139, lng: safeLng || 77.2090 };
-    const staticMapUrl = `https://maps.geoapify.com/v1/staticmap?style=dark-matter&width=600&height=320&center=${coords.lng},${coords.lat}&zoom=15.5&marker=lonlat:${coords.lng},${coords.lat};color:%237c4dff;size:large&apiKey=${GEOAPIFY_KEY}`;
 
 
     return (

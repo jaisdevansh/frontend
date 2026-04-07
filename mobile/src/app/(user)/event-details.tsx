@@ -143,21 +143,27 @@ const EventDetails = () => {
     ];
 
     const isLocationMasked = (event.locationVisibility === 'hidden' || event.locationVisibility === 'delayed') && !event.isLocationRevealed;
-    const venueName = isLocationMasked ? 'Secret Location 🤫' : (event.title || 'Exclusive Event');
+    const venueName = isLocationMasked ? 'Secret Location 🤫' : (event.venueId?.name || event.hostId?.name || event.title || 'Exclusive Event');
     const venueAddress = isLocationMasked 
         ? (event.locationVisibility === 'delayed' ? 'Location reveals at scheduled time' : 'Location drops exact coordinates before event')
-        : (event.locationData?.address || event.hostId?.venueProfile?.address || '');
-    const safeLat = parseFloat(event.locationData?.lat || event.hostId?.venueProfile?.coordinates?.lat || 28.6139);
-    const safeLng = parseFloat(event.locationData?.lng || event.hostId?.venueProfile?.coordinates?.lng || 77.2090);
+        : (event.locationData?.address || event.venueId?.address || event.hostId?.location?.address || event.hostId?.venueProfile?.address || '');
+    const realLat = parseFloat(event.locationData?.lat || event.venueId?.coordinates?.lat || event.hostId?.location?.coordinates?.[1] || event.hostId?.venueProfile?.coordinates?.lat as any);
+    const realLng = parseFloat(event.locationData?.lng || event.venueId?.coordinates?.long || event.venueId?.coordinates?.lng || event.hostId?.location?.coordinates?.[0] || event.hostId?.venueProfile?.coordinates?.lng as any);
+    
+    const safeLat = realLat || 28.6139;
+    const safeLng = realLng || 77.2090;
     const coords = { lat: safeLat, lng: safeLng };
-    const staticMapUrl = `https://maps.geoapify.com/v1/staticmap?style=dark-matter&width=600&height=320&center=${coords.lng},${coords.lat}&zoom=15.5&marker=lonlat:${coords.lng},${coords.lat};color:%237c4dff;size:large&apiKey=${GEOAPIFY_KEY}`;
+    const staticMapUrl = `https://maps.geoapify.com/v1/staticmap?style=dark-matter&width=600&height=320&center=lonlat:${coords.lng},${coords.lat}&zoom=15.5&marker=lonlat:${coords.lng},${coords.lat};color:%237c4dff;size:large&apiKey=${GEOAPIFY_KEY}`;
 
     const openMaps = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         if (isLocationMasked) return;
 
-        const { lat, lng } = coords;
-        const destination = (lat && lng) ? `${lat},${lng}` : encodeURIComponent(venueAddress);
+        const destination = (realLat && realLng) ? `${realLat},${realLng}` : encodeURIComponent(venueAddress);
+        if (!destination) {
+            showToast('Address or coordinates not available', 'error');
+            return;
+        }
         
         const url = Platform.select({
             ios: `http://maps.apple.com/?daddr=${destination}&dirflg=d`,
@@ -309,11 +315,6 @@ const EventDetails = () => {
                                 <Text style={styles.mapVenueName}>{venueName}</Text>
                                 {venueAddress ? <Text style={[styles.mapAddress, (event.locationVisibility === 'hidden' && !event.isLocationRevealed) && { color: COLORS.primary }]} numberOfLines={1}>{venueAddress}</Text> : null}
                             </View>
-                            { !isLocationMasked && (
-                                <TouchableOpacity style={styles.directionsBtn} onPress={openMaps}>
-                                    <Text style={styles.directionsBtnText}>Directions</Text>
-                                </TouchableOpacity>
-                            )}
                         </View>
                     </View>
 
