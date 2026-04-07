@@ -34,9 +34,6 @@ import { NotificationProvider } from '../context/NotificationContext';
 import { useNotifications } from '../hooks/useNotifications';
 import { NetworkProvider } from '../context/NetworkProvider';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -50,12 +47,6 @@ const queryClient = new QueryClient({
       networkMode: 'offlineFirst',      // serve from cache even if network check fails
     },
   },
-});
-
-const asyncStoragePersister = createAsyncStoragePersister({
-  storage: AsyncStorage,
-  key: 'STITCH_QUERY_CACHE',
-  throttleTime: 1000,                   // debounce writes to AsyncStorage
 });
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -87,10 +78,7 @@ export default function RootLayout() {
   }
 
   return (
-    <PersistQueryClientProvider
-      client={queryClient}
-      persistOptions={{ persister: asyncStoragePersister, maxAge: 60 * 60 * 1000 }}
-    >
+    <QueryClientProvider client={queryClient}>
       <NetworkProvider>
         <AuthProvider>
           <AlertProvider>
@@ -102,7 +90,7 @@ export default function RootLayout() {
           </AlertProvider>
         </AuthProvider>
       </NetworkProvider>
-    </PersistQueryClientProvider>
+    </QueryClientProvider>
   );
 }
 

@@ -3,7 +3,7 @@ import {
     View, Text, StyleSheet, TouchableOpacity,
     StatusBar, Dimensions, TextInput, Modal,
     ImageBackground, Animated, ActivityIndicator,
-    Platform, FlatList, ScrollView
+    Platform, FlatList, ScrollView, RefreshControl
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,7 +34,7 @@ export default function HomeScreen() {
     const prefetchEvent = usePrefetchEvent();
     
     // ── SUPER-FAST REACT QUERY ARCHITECTURE ──
-    const { data: eventsData, isLoading: isEventsLoading } = useQuery({
+    const { data: eventsData, isLoading: isEventsLoading, refetch: refetchEvents } = useQuery({
         queryKey: ['home_events'],
         queryFn: async () => {
             const res = await userService.getEvents();
@@ -81,6 +81,14 @@ export default function HomeScreen() {
     const [priceRange, setPriceRange] = useState([0, 10000]);
     const [sliderTempPrice, setSliderTempPrice] = useState(10000);
     const [userLoc, setUserLoc] = useState<{lat: number, lng: number} | null>(null);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        await refetchEvents();
+        setRefreshing(false);
+    }, [refetchEvents]);
 
     useEffect(() => {
         const loadLocation = async () => {
@@ -310,6 +318,7 @@ export default function HomeScreen() {
                 contentContainerStyle={{ paddingBottom: 100 }}
                 ListHeaderComponent={ListHeader}
                 ListEmptyComponent={listEmptyComponent}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#7c4dff" />}
             />
 
             {/* Premium Filter Modal */}

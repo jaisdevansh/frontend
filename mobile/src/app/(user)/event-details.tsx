@@ -295,8 +295,12 @@ const EventDetails = () => {
                                     style={StyleSheet.absoluteFillObject}
                                     contentFit="cover"
                                 />
-                                <TouchableOpacity style={styles.mapOverlay} activeOpacity={1} onPress={openMaps}>
-                                    <LinearGradient colors={['transparent', 'rgba(0,0,0,0.4)']} style={StyleSheet.absoluteFillObject} />
+                                <TouchableOpacity style={styles.mapOverlay} activeOpacity={0.8} onPress={openMaps}>
+                                    <LinearGradient colors={['transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.8)']} style={StyleSheet.absoluteFillObject} />
+                                    <View style={{ position: 'absolute', bottom: 12, right: 12, flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 }}>
+                                        <Ionicons name="navigate-circle" size={18} color="#fff" style={{ marginRight: 6 }} />
+                                        <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Get Directions</Text>
+                                    </View>
                                 </TouchableOpacity>
                             </View>
                         )}

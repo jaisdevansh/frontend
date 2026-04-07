@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, Image, TouchableOpacity, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, Image, TouchableOpacity, ActivityIndicator, Linking, Platform } from 'react-native';
 import { useRouter, useNavigation, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -54,7 +54,19 @@ export default function VenueDetails() {
 
     const openMaps = () => {
         const addr = venueData?.address || venueData?.venueProfile?.address;
-        if (addr) Linking.openURL('https://maps.google.com/?q=' + encodeURIComponent(addr));
+        const lat = venueData?.coordinates?.lat || venueData?.venueProfile?.coordinates?.lat;
+        const lng = venueData?.coordinates?.lng || venueData?.venueProfile?.coordinates?.lng;
+        
+        const destination = (lat && lng) ? `${lat},${lng}` : encodeURIComponent(addr || '');
+        if (!destination) return;
+
+        const url = Platform.select({
+            ios: `http://maps.apple.com/?daddr=${destination}&dirflg=d`,
+            android: `https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving`,
+            default: `https://www.google.com/maps/dir/?api=1&destination=${destination}`
+        });
+
+        if (url) Linking.openURL(url);
     };
 
     const safeLat = parseFloat(venueData?.coordinates?.lat || venueData?.venueProfile?.coordinates?.lat || 28.6139);
@@ -133,8 +145,12 @@ export default function VenueDetails() {
                                 style={StyleSheet.absoluteFillObject}
                                 resizeMode="cover"
                             />
-                            <TouchableOpacity style={styles.mapOverlay} activeOpacity={1} onPress={openMaps}>
-                                <LinearGradient colors={['transparent', 'rgba(0,0,0,0.4)']} style={StyleSheet.absoluteFillObject} />
+                            <TouchableOpacity style={styles.mapOverlay} activeOpacity={0.8} onPress={openMaps}>
+                                <LinearGradient colors={['transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.8)']} style={StyleSheet.absoluteFillObject} />
+                                <View style={{ position: 'absolute', bottom: 12, right: 12, flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 }}>
+                                    <Ionicons name="navigate-circle" size={18} color="#fff" style={{ marginRight: 6 }} />
+                                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Get Directions</Text>
+                                </View>
                             </TouchableOpacity>
                         </View>
                         <View style={{ padding: 16 }}>
