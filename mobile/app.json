@@ -23,7 +23,12 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.entryclub.app",
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -55,10 +60,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "e70e7239-652e-49de-bae2-328422b2a506"
+        "projectId": "0249ef54-b7a8-46dc-967a-5eef51fda9ad"
       }
     },
-    "owner": "jerry-don20",
     "assetBundlePatterns": [
       "**/*"
     ]
