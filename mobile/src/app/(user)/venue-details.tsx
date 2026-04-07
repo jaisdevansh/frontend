@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../constants/design-system';
 import { Button } from '../../components/Button';
 import { userService } from '../../services/userService';
+import { log } from '../../utils/logger';
 
 const GEOAPIFY_KEY = process.env.EXPO_PUBLIC_GEOAPIFY_KEY || 'e6f13848c19246eab1bef2662e18ebd0';
 
@@ -16,6 +17,11 @@ export default function VenueDetails() {
     const navigation = useNavigation();
     const params = useLocalSearchParams();
     const insets = useSafeAreaInsets();
+
+    useEffect(() => {
+        log(`STEP 3: SCREEN OPEN (Venue Details)`);
+        log(`STEP 4: PARAM venueId: ${params.id}`);
+    }, [params.id]);
 
     const image = params.image && params.image !== 'undefined' ? String(params.image) : 'https://images.unsplash.com/photo-1514525253361-bee8a197c0c1?auto=format&fit=crop&q=80&w=800';
     const name = params.name && params.name !== 'undefined' ? String(params.name) : 'Exclusive Venue';
@@ -26,25 +32,36 @@ export default function VenueDetails() {
     const [venueData, setVenueData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
+    if (!venueId) {
+        log("ERROR: ID MISSING (Venue details)");
+        return (
+            <SafeAreaView style={{ flex: 1, backgroundColor: '#050505', justifyContent: 'center', alignItems: 'center' }}>
+                <Text style={{ color: '#FFF' }}>Error: Venue ID Missing.</Text>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 20 }}>
+                    <Text style={{ color: COLORS.primary }}>Go Back</Text>
+                </TouchableOpacity>
+            </SafeAreaView>
+        );
+    }
+
     useEffect(() => {
         const fetchAll = async () => {
-            if (!venueId) {
-                setLoading(false);
-                return;
-            }
+            log(`STEP 5: API CALL START (Venue): ${venueId}`);
             try {
                 const [vRes, eRes] = await Promise.all([
                     userService.getVenueById(venueId),
                     userService.getEvents()
                 ]);
                 
-                if (vRes.success) setVenueData(vRes.data);
+                if (vRes.success) {
+                    log(`STEP 6: API SUCCESS (Venue) SIZE: ${JSON.stringify(vRes.data || {}).length}`);
+                    setVenueData(vRes.data);
+                }
                 if (eRes.success) {
-                    // In a real scenario, we'd filter events by hostId or venueId
                     setEvents(eRes.data);
                 }
-            } catch (err) {
-                console.log('Error fetching venue details', err);
+            } catch (err: any) {
+                log(`STEP 6: API ERROR (Venue): ${err.message || 'Unknown'}`);
             } finally {
                 setLoading(false);
             }
