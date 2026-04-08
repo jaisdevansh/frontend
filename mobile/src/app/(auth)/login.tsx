@@ -46,11 +46,16 @@ export default function LoginScreen() {
             setLoading(true);
             
             // ⚡ CRITICAL: Clear all cache BEFORE Google login to prevent stale data
+            console.log('[Google Login] Clearing all previous user data...');
             await logout(); // This clears AsyncStorage and React Query cache
+            
+            // ⚡ EXTRA SAFETY: Wait a moment to ensure logout completes fully
+            await new Promise(resolve => setTimeout(resolve, 100));
             
             const redirectUri = Linking.createURL('auth');
             const authUrl = `${GOOGLE_AUTH_URL}?redirectUri=${encodeURIComponent(redirectUri)}`;
             
+            console.log('[Google Login] Opening Google OAuth...');
             const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
 
             if (result.type === 'success' && result.url) {
@@ -63,6 +68,8 @@ export default function LoginScreen() {
                     return;
                 }
                 
+                console.log('[Google Login] Success! Received token from backend');
+                
                 const refreshToken = parsed.queryParams?.refreshToken as string | undefined;
                 const userRole = (parsed.queryParams?.role as string) || 'user';
                 const onboarded = parsed.queryParams?.onboardingCompleted === 'true';
@@ -71,6 +78,12 @@ export default function LoginScreen() {
                 const nameParts = fullName.trim().split(' ');
                 const firstName = nameParts[0] || '';
                 const lastName = nameParts.slice(1).join(' ') || '';
+                
+                console.log('[Google Login] User data from backend:', {
+                    name: fullName,
+                    email: parsed.queryParams?.email,
+                    userId: parsed.queryParams?.userId
+                });
                 
                 await login({
                     token,
@@ -93,6 +106,7 @@ export default function LoginScreen() {
                 });
                 
                 console.log(`[⚡ PERF] Google login: ${Date.now() - startTime}ms`);
+                console.log('[Google Login] Login complete, showing success toast');
                 showToast('Welcome! 🎉', 'success');
             }
         } catch (error: any) {
