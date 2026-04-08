@@ -83,7 +83,7 @@ const RefreshBtn = ({ onPress, loading }: { onPress: () => void; loading: boolea
     );
 };
 
-// ─── SVG Line+Area Chart ─────────────────────────────────────────────────────
+// ─── SVG Line+Area Chart (Stock Market Style) ────────────────────────────────
 const LineAreaChart = ({ data }: { data: { value: number; label: string }[] }) => {
     const W = Math.max(width - 48, data.length * 24);
     const H = 150;
@@ -95,9 +95,10 @@ const LineAreaChart = ({ data }: { data: { value: number; label: string }[] }) =
     const pts = data.map((d, i) => ({
         x: padL + (i / Math.max(data.length - 1, 1)) * chartW,
         y: padT + chartH - (d.value / maxVal) * chartH,
+        value: d.value
     }));
 
-    // Smooth path (cardinal spline approximation)
+    // Smooth bezier curve path
     let linePath = '';
     let areaPath = '';
     
@@ -111,7 +112,6 @@ const LineAreaChart = ({ data }: { data: { value: number; label: string }[] }) =
         }
         areaPath = linePath + ` L ${pts[pts.length - 1].x},${padT + chartH} L ${pts[0].x},${padT + chartH} Z`;
     } else if (pts.length === 1) {
-        // Single point - draw horizontal line
         const y = pts[0].y;
         linePath = `M ${padL} ${y} L ${W - padR} ${y}`;
         areaPath = `M ${padL} ${y} L ${W - padR} ${y} L ${W - padR} ${padT + chartH} L ${padL} ${padT + chartH} Z`;
@@ -123,34 +123,48 @@ const LineAreaChart = ({ data }: { data: { value: number; label: string }[] }) =
         label: fmtShort(f * maxVal),
     }));
 
-    // X labels — show every 5th day for 30-day chart
+    // X labels
     const every = Math.max(Math.floor(data.length / 6), 1);
+    
+    // Find last non-zero point for highlight
+    const lastNonZeroIdx = pts.map((p, i) => ({ ...p, i })).reverse().find(p => p.value > 0)?.i ?? pts.length - 1;
 
     return (
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <Svg width={W} height={H}>
                 <Defs>
                     <LinearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-                        <Stop offset="0" stopColor={C.primary} stopOpacity={0.35} />
+                        <Stop offset="0" stopColor={C.primary} stopOpacity={0.25} />
+                        <Stop offset="0.5" stopColor={C.primary} stopOpacity={0.1} />
                         <Stop offset="1" stopColor={C.primary} stopOpacity={0} />
                     </LinearGradient>
                 </Defs>
 
-                {/* Grid lines */}
-                {ticks.map((t, i) => (
+                {/* Minimal grid lines */}
+                {ticks.filter((_, i) => i % 2 === 0).map((t, i) => (
                     <G key={i}>
-                        <Line x1={padL} y1={t.y} x2={W - padR} y2={t.y} stroke={C.muted + '40'} strokeWidth={1} />
+                        <Line x1={padL} y1={t.y} x2={W - padR} y2={t.y} stroke={C.muted + '20'} strokeWidth={1} strokeDasharray="4 4" />
                         <SvgText x={padL - 6} y={t.y + 4} fontSize={10} fill={C.dim} textAnchor="end">{t.label}</SvgText>
                     </G>
                 ))}
 
-                {/* Area fill */}
+                {/* Gradient fill under line */}
                 {areaPath ? <Path d={areaPath} fill="url(#areaGrad)" /> : null}
 
-                {/* Line */}
-                {linePath ? <Path d={linePath} stroke={C.primary} strokeWidth={2.5} fill="none" strokeLinecap="round" strokeLinejoin="round" /> : null}
+                {/* Dashed line (stock market style) */}
+                {linePath ? (
+                    <Path 
+                        d={linePath} 
+                        stroke={C.primary} 
+                        strokeWidth={2.5} 
+                        fill="none" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                        strokeDasharray="6 4"
+                    />
+                ) : null}
 
-                {/* Data points + x labels */}
+                {/* Data points */}
                 {pts.map((p, i) => (
                     <G key={i}>
                         {(i % every === 0 || i === pts.length - 1) && (
@@ -158,10 +172,13 @@ const LineAreaChart = ({ data }: { data: { value: number; label: string }[] }) =
                                 {data[i].label}
                             </SvgText>
                         )}
-                        {data[i].value > 0 && (
+                        {p.value > 0 && (
                             <>
-                                <Circle cx={p.x} cy={p.y} r={4} fill={C.card} />
-                                <Circle cx={p.x} cy={p.y} r={2.5} fill={C.accent} />
+                                <Circle cx={p.x} cy={p.y} r={i === lastNonZeroIdx ? 6 : 3.5} fill={C.card} />
+                                <Circle cx={p.x} cy={p.y} r={i === lastNonZeroIdx ? 4 : 2} fill={i === lastNonZeroIdx ? C.accent : C.primary} />
+                                {i === lastNonZeroIdx && (
+                                    <Circle cx={p.x} cy={p.y} r={8} fill={C.accent} opacity={0.2} />
+                                )}
                             </>
                         )}
                     </G>
@@ -525,71 +542,6 @@ export default function AnalyticsScreen() {
                             </View>
                         ))}
                     </View>
-                </View>
-
-                {/* ── Top Customers ── */}
-                <View style={styles.card}>
-                    <SectionTitle title="Top Customers" />
-                    {usersLoading ? (
-                        <ActivityIndicator color={C.primary} style={{ marginVertical: 24 }} />
-                    ) : !topUsers || topUsers.length === 0 ? (
-                        <View style={styles.emptyBox}>
-                            <Ionicons name="person-outline" size={36} color={C.muted} />
-                            <Text style={styles.emptyText}>No customer data yet</Text>
-                        </View>
-                    ) : (
-                        <View style={{ marginTop: 20, gap: 16 }}>
-                            {(topUsers as TopUser[]).map((user, idx) => (
-                                <View key={user.id} style={styles.listRow}>
-                                    <Text style={styles.rankBadge}>#{idx + 1}</Text>
-                                    <Image
-                                        source={{ uri: user.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=161622&color=818cf8&bold=true` }}
-                                        style={styles.avatar}
-                                        contentFit="cover"
-                                    />
-                                    <Text style={styles.listName} numberOfLines={1}>{user.name}</Text>
-                                    <Text style={styles.listAmt}>{fmt(user.totalSpent)}</Text>
-                                </View>
-                            ))}
-                        </View>
-                    )}
-                </View>
-
-                {/* ── Top Menu Items ── */}
-                <View style={styles.card}>
-                    <SectionTitle title="Top Menu Items" />
-                    {itemsLoading ? (
-                        <ActivityIndicator color={C.primary} style={{ marginVertical: 24 }} />
-                    ) : !topItems || topItems.length === 0 ? (
-                        <View style={styles.emptyBox}>
-                            <Ionicons name="fast-food-outline" size={36} color={C.muted} />
-                            <Text style={styles.emptyText}>No sales data yet</Text>
-                        </View>
-                    ) : (
-                        <View style={{ marginTop: 20, gap: 16 }}>
-                            {(topItems as TopItem[]).map((item, idx) => {
-                                const maxSold = Math.max(...(topItems as TopItem[]).map(i => i.totalSold));
-                                const pct = maxSold > 0 ? (item.totalSold / maxSold) : 0;
-                                return (
-                                    <View key={item.name}>
-                                        <View style={styles.listRow}>
-                                            <View style={[styles.trendIcon, { backgroundColor: idx === 0 ? C.primary + '22' : C.muted + '22' }]}>
-                                                <Ionicons name={idx === 0 ? 'trophy' : 'trending-up'} size={14} color={idx === 0 ? C.accent : C.success} />
-                                            </View>
-                                            <View style={{ flex: 1 }}>
-                                                <Text style={styles.listName} numberOfLines={1}>{item.name}</Text>
-                                                <Text style={{ color: C.dim, fontSize: 11, fontWeight: '600', marginTop: 2 }}>{item.totalSold} sold</Text>
-                                            </View>
-                                            <Text style={styles.listAmt}>{fmt(item.revenue)}</Text>
-                                        </View>
-                                        <View style={{ height: 3, backgroundColor: C.muted + '30', borderRadius: 2, marginTop: 8, marginLeft: 50 }}>
-                                            <View style={{ height: 3, width: `${pct * 100}%`, backgroundColor: C.primary, borderRadius: 2 }} />
-                                        </View>
-                                    </View>
-                                );
-                            })}
-                        </View>
-                    )}
                 </View>
             </ScrollView>
         </View>
