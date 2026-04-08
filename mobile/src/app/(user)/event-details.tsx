@@ -36,12 +36,9 @@ const EventDetails = () => {
 
     // ── Performance Tracking ──────────────────────────────────────────────────
     useEffect(() => {
-        log(`STEP 3: SCREEN OPEN`);
-        log(`STEP 4: PARAM eventId: ${eventId}`);
         const mountedAt = Date.now();
-        log(`[PERF] EventDetails mounting...`);
         InteractionManager.runAfterInteractions(() => {
-            log(`[PERF] EventDetails INTERACTION ready in ${Date.now() - mountedAt}ms`);
+            // Screen ready
         });
     }, [eventId]);
 
@@ -67,15 +64,7 @@ const EventDetails = () => {
     // ── Step 7: Log event data before render ─────────────────────────────────
     useEffect(() => {
         if (event && event._id) {
-            log(`EVENT DATA: ${JSON.stringify({
-                _id: event._id,
-                title: event.title,
-                ticketsCount: safeArray(event.tickets).length,
-                imagesCount: safeArray(event?.images || (event?.coverImage ? [event.coverImage] : [])).length,
-                houseRulesCount: safeArray(event.houseRules).length,
-                freeRefreshmentsCount: safeArray(event.freeRefreshments).length,
-                locationVisibility: event.locationVisibility,
-            })}`);
+            // Event data loaded
         }
     }, [event]);
 
@@ -169,7 +158,6 @@ const EventDetails = () => {
 
     // ── Loading State: only show spinner if no cached data at all ───────────
     if (!eventId) {
-        log("ERROR: ID MISSING");
         return (
             <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
                 <StatusBar barStyle="light-content" backgroundColor="#030303" />
@@ -199,7 +187,6 @@ const EventDetails = () => {
     );
 
     if (!event) {
-        log("ERROR: EVENT DATA NOT FOUND", eventId);
         return (
             <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 30 }]}>
                 <StatusBar barStyle="light-content" backgroundColor="#030303" />
@@ -307,7 +294,6 @@ const EventDetails = () => {
                                 flatListRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false });
                             }}
                             renderItem={({ item, index }: { item: any; index: number }) => {
-                                if (index === 0) console.time("[IMAGE_LOAD] Event");
                                 return (
                                     <Image
                                         source={{ uri: hero(item) || '' }}
@@ -315,7 +301,6 @@ const EventDetails = () => {
                                         contentFit="cover"
                                         transition={300}
                                         cachePolicy="memory-disk"
-                                        onLoad={() => { if (index === 0) console.timeEnd("[IMAGE_LOAD] Event"); }}
                                     />
                                 );
                             }}
@@ -495,7 +480,6 @@ const EventDetails = () => {
             </View>
         );
     } catch (e: any) {
-        log("RENDER ERROR: " + e?.message);
         return (
             <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 24 }]}>
                 <StatusBar barStyle="light-content" backgroundColor="#030303" />
