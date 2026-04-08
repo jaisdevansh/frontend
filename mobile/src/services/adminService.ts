@@ -120,6 +120,11 @@ const adminService = {
         return response.data.data;
     },
 
+    getBookingTrend: async (): Promise<RevenueTrend[]> => {
+        const response = await apiClient.get('/analytics/booking-trend');
+        return response.data.data;
+    },
+
     getTopItems: async (): Promise<TopItem[]> => {
         const response = await apiClient.get('/analytics/top-items');
         return response.data.data;

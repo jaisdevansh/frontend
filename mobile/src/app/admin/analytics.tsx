@@ -9,6 +9,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import adminService, { AdminSummary, RevenueTrend, TopItem, TopUser } from '../../services/adminService';
 import { Image } from 'expo-image';
 import Svg, { Path, Rect, G, Text as SvgText, Line, Defs, LinearGradient, Stop, Circle } from 'react-native-svg';
+import { useAuth } from '../../context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
@@ -290,8 +291,12 @@ const KpiCard = ({ icon, label, value, color }: any) => (
 export default function AnalyticsScreen() {
     const insets = useSafeAreaInsets();
     const queryClient = useQueryClient();
+    const { role } = useAuth();
     const [chartMode, setChartMode] = useState<'line' | 'bar'>('line');
     const [refreshing, setRefreshing] = useState(false);
+    
+    // Check if user is admin (hide food/staff/live orders cards)
+    const isAdmin = role?.toLowerCase() === 'admin';
 
     const { data: summary, isLoading: sumLoading } = useQuery({
         queryKey: ['admin-summary'],
@@ -383,17 +388,22 @@ export default function AnalyticsScreen() {
                         <KpiCard icon="cash-multiple" label="Net Revenue" value={fmt(summary?.totalRevenue)} color={C.primary} />
                         <KpiCard icon="ticket-confirmation" label="Tickets" value={fmt(summary?.ticketRevenue)} color={C.accent} />
                     </View>
-                    <View style={{ flexDirection: 'row', gap: 10 }}>
-                        <KpiCard icon="food" label="Food Rev" value={fmt(summary?.orderRevenue)} color={C.success} />
-                        <KpiCard icon="account-group" label="Staff" value={`${summary?.activeStaff || 0}`} color={C.amber} />
-                        <KpiCard icon="clock-fast" label="Live Orders" value={`${summary?.liveOrders || 0}`} color={C.cyan} />
-                    </View>
+                    {/* Only show Food/Staff/Live Orders for Host role */}
+                    {!isAdmin && (
+                        <View style={{ flexDirection: 'row', gap: 10 }}>
+                            <KpiCard icon="food" label="Food Rev" value={fmt(summary?.orderRevenue)} color={C.success} />
+                            <KpiCard icon="account-group" label="Staff" value={`${summary?.activeStaff || 0}`} color={C.amber} />
+                            <KpiCard icon="clock-fast" label="Live Orders" value={`${summary?.liveOrders || 0}`} color={C.cyan} />
+                        </View>
+                    )}
                 </View>
 
                 {/* ── Revenue Trend ── */}
                 <View style={styles.card}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                         <SectionTitle title="Revenue Trend" badge="30-DAY" />
+                    </View>
+                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 16 }}>
                         <View style={styles.toggleRow}>
                             <TouchableOpacity onPress={() => setChartMode('line')} style={[styles.toggleBtn, chartMode === 'line' && styles.toggleActive]}>
                                 <Ionicons name="analytics" size={14} color={chartMode === 'line' ? C.white : C.dim} />
