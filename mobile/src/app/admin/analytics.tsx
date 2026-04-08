@@ -360,10 +360,14 @@ export default function AnalyticsScreen() {
     }, [trend]);
 
     // ── Pie segments ──
-    const pieSegments = useMemo(() => [
-        { value: summary?.ticketRevenue || 0, color: C.primary, name: 'Ticket Sales' },
-        { value: summary?.orderRevenue || 0, color: C.success, name: 'Food Orders' },
-    ], [summary]);
+    const pieSegments = useMemo(() => {
+        const segments = [
+            { value: summary?.ticketRevenue || 0, color: C.amber, name: 'Ticket Sales' },
+            { value: summary?.orderRevenue || 0, color: C.success, name: 'Food Orders' },
+        ];
+        // Filter out zero values for cleaner display
+        return segments.filter(s => s.value > 0);
+    }, [summary]);
 
     // ── Conversion ──
     const convRate = useMemo(() => {
@@ -454,6 +458,16 @@ export default function AnalyticsScreen() {
                             <View style={styles.emptyBox}>
                                 <Ionicons name="pie-chart-outline" size={40} color={C.muted} />
                                 <Text style={styles.emptyText}>No revenue data yet</Text>
+                            </View>
+                        ) : pieSegments.length === 1 ? (
+                            // Single segment - show as simple card instead of pie
+                            <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                                <View style={{ width: 120, height: 120, borderRadius: 60, backgroundColor: pieSegments[0].color + '30', justifyContent: 'center', alignItems: 'center', borderWidth: 8, borderColor: pieSegments[0].color }}>
+                                    <Text style={{ color: C.white, fontSize: 18, fontWeight: '900' }}>100%</Text>
+                                    <Text style={{ color: C.dim, fontSize: 11, fontWeight: '700', marginTop: 4 }}>{pieSegments[0].name}</Text>
+                                </View>
+                                <Text style={{ color: C.white, fontSize: 24, fontWeight: '900', marginTop: 20 }}>{fmt(pieSegments[0].value)}</Text>
+                                <Text style={{ color: C.dim, fontSize: 12, fontWeight: '600', marginTop: 4 }}>Total Revenue</Text>
                             </View>
                         ) : (
                             <PieChart segments={pieSegments} />
