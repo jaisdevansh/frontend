@@ -220,11 +220,11 @@ const BarChartSvg = ({ data }: { data: { value: number; label: string }[] }) => 
 
 // ─── SVG Pie Chart ────────────────────────────────────────────────────────────
 const PieChart = ({ segments }: { segments: { value: number; color: string; name: string }[] }) => {
-    const R = 70, cx = 80, cy = 80;
+    const R = 65, cx = 75, cy = 75;
     const totalVal = segments.reduce((a, s) => a + s.value, 0) || 1;
 
     let currentAngle = -Math.PI / 2;
-    const paths = segments.map(seg => {
+    const slices = segments.map(seg => {
         const angle = (seg.value / totalVal) * 2 * Math.PI;
         const x1 = cx + R * Math.cos(currentAngle);
         const y1 = cy + R * Math.sin(currentAngle);
@@ -237,18 +237,20 @@ const PieChart = ({ segments }: { segments: { value: number; color: string; name
     });
 
     return (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 20 }}>
-            <Svg width={160} height={160}>
-                {paths.map((p, i) => <Path key={i} d={p.d} fill={p.color} />)}
+        <View style={{ alignItems: 'center', gap: 20 }}>
+            <Svg width={150} height={150} viewBox="0 0 150 150">
+                {slices.map((slice, i) => (
+                    <Path key={i} d={slice.d} fill={slice.color} />
+                ))}
             </Svg>
-            <View style={{ flex: 1, gap: 14 }}>
+            <View style={{ width: '100%', gap: 14 }}>
                 {segments.map((seg, i) => (
                     <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                         <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: seg.color }} />
                         <View style={{ flex: 1 }}>
                             <Text style={{ color: C.dim, fontSize: 11, fontWeight: '700' }}>{seg.name}</Text>
                             <Text style={{ color: C.white, fontWeight: '900', fontSize: 16 }}>{fmt(seg.value)}</Text>
-                            <Text style={{ color: C.dim, fontSize: 10, fontWeight: '600', marginTop: 2 }}>{paths[i].percentage}%</Text>
+                            <Text style={{ color: C.dim, fontSize: 10, fontWeight: '600', marginTop: 2 }}>{slices[i].percentage}%</Text>
                         </View>
                     </View>
                 ))}
