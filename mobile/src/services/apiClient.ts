@@ -19,38 +19,52 @@ const getBaseUrl = () => {
 export const API_BASE_URL = getBaseUrl();
 export const ADMIN_API_BASE_URL = 'https://entry-admin-backend.onrender.com';
 
-// 🚀 AGGRESSIVE WAKE-UP: Ping server immediately + with backoff to kill cold start delays
-// This fires BEFORE any real API calls so Render is already awake when user logs in
+// 🚀 ULTRA-AGGRESSIVE WAKE-UP: Ping server with exponential backoff
+// Render free tier sleeps after 15min inactivity, takes 30-60s to wake up
 let _serverAwake = false;
+let _wakeAttempts = 0;
+const MAX_WAKE_ATTEMPTS = 8;
+
 export const wakeUpServer = () => {
     if (_serverAwake) return;
-    const ping = (delay: number) => setTimeout(() => {
-        axios.get(`${API_BASE_URL}/health`, { timeout: 10000 })
-            .then(() => { 
-                _serverAwake = true;
-                console.log(`[Server] User Backend is awake ✅`); 
-            })
-            .catch(() => console.log(`[Server] Waking up User Backend... (retry in ${delay}ms)`));
+    
+    const ping = (delay: number, attempt: number) => setTimeout(async () => {
+        if (_serverAwake || attempt > MAX_WAKE_ATTEMPTS) return;
+        
+        console.log(`[Server] Wake attempt ${attempt}/${MAX_WAKE_ATTEMPTS}...`);
+        
+        try {
+            // Parallel ping both servers with 30s timeout (Render needs time)
+            await Promise.race([
+                axios.get(`${API_BASE_URL}/health`, { timeout: 30000 }),
+                axios.get(`${ADMIN_API_BASE_URL}/health`, { timeout: 30000 })
+            ]);
             
-        axios.get(`${ADMIN_API_BASE_URL}/health`, { timeout: 10000 })
-            .then(() => console.log(`[Server] Admin Backend is awake ✅`))
-            .catch(() => {});
+            _serverAwake = true;
+            console.log(`[Server] ✅ Backend is AWAKE (attempt ${attempt})`);
+        } catch (err) {
+            console.log(`[Server] Still waking... (attempt ${attempt})`);
+            
+            // Exponential backoff: 0s, 5s, 10s, 15s, 20s, 30s, 40s, 50s
+            const nextDelay = Math.min(5000 * attempt, 50000);
+            ping(nextDelay, attempt + 1);
+        }
     }, delay);
     
-    // Fire 3 pings: immediately, after 10s, after 25s (covers Render's cold start window)
-    ping(0);
-    ping(10000);
-    ping(25000);
+    // Start immediately
+    ping(0, 1);
 };
 
 // Auto-trigger on import
 wakeUpServer();
 
-// Keep servers warm every 10 minutes while app is open
+// Keep servers warm every 8 minutes (before 15min sleep threshold)
 setInterval(() => {
-    axios.get(`${API_BASE_URL}/health`, { timeout: 5000 }).catch(() => {});
-    axios.get(`${ADMIN_API_BASE_URL}/health`, { timeout: 5000 }).catch(() => {});
-}, 10 * 60 * 1000);
+    if (_serverAwake) {
+        axios.get(`${API_BASE_URL}/health`, { timeout: 5000 }).catch(() => { _serverAwake = false; });
+        axios.get(`${ADMIN_API_BASE_URL}/health`, { timeout: 5000 }).catch(() => {});
+    }
+}, 8 * 60 * 1000);
 
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
@@ -106,6 +120,22 @@ apiClient.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
+
+        // 🚨 RENDER COLD START DETECTION
+        if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT' || 
+            error.response?.status === 502 || error.response?.status === 503 || error.response?.status === 504) {
+            
+            console.log('[API] Cold start detected, waking server...');
+            _serverAwake = false;
+            wakeUpServer();
+            
+            // Retry after 3 seconds if not already retried
+            if (!originalRequest._coldStartRetry) {
+                originalRequest._coldStartRetry = true;
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                return apiClient(originalRequest);
+            }
+        }
 
         // Prevent refresh logic for login/verify-otp endpoints - they are public
         const isAuthEndpoint = originalRequest?.url?.includes('/auth/refresh') || 
