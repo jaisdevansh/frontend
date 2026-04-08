@@ -400,17 +400,20 @@ export default function AnalyticsScreen() {
             ];
         }
         
-        // Create a full 30-day array with all dates
+        // Create array from April 1st to today
         const today = new Date();
-        const thirtyDaysAgo = new Date(today);
-        thirtyDaysAgo.setDate(today.getDate() - 29); // Last 30 days including today
+        const startDate = new Date(today.getFullYear(), 3, 1); // April 1st (month is 0-indexed, so 3 = April)
         
         const fullData: { value: number; label: string; date: string }[] = [];
         const trendMap = new Map((trend as RevenueTrend[]).map(t => [t.date, t.revenue || 0]));
         
-        for (let i = 0; i < 30; i++) {
-            const date = new Date(thirtyDaysAgo);
-            date.setDate(thirtyDaysAgo.getDate() + i);
+        // Calculate number of days from April 1st to today
+        const daysDiff = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        
+        // Start from April 1st to today
+        for (let i = 0; i < daysDiff; i++) {
+            const date = new Date(startDate);
+            date.setDate(startDate.getDate() + i);
             const dateStr = date.toISOString().split('T')[0];
             const revenue = trendMap.get(dateStr) || 0;
             
@@ -421,7 +424,7 @@ export default function AnalyticsScreen() {
             });
         }
         
-        console.log('TrendData:', fullData.length, 'points, max:', Math.max(...fullData.map(d => d.value)));
+        console.log('TrendData from April:', fullData.length, 'days, first:', fullData[0]?.label, 'last:', fullData[fullData.length-1]?.label);
         return fullData;
     }, [trend]);
 
