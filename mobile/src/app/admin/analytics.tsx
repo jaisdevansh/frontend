@@ -38,8 +38,8 @@ const fmt = (v?: number) => {
 };
 
 const fmtShort = (v: number) => {
-    if (v >= 100000) return `${(v / 100000).toFixed(0)}L`;
-    if (v >= 1000) return `${(v / 1000).toFixed(0)}K`;
+    if (v >= 100000) return `${(v / 100000).toFixed(1)}L`;
+    if (v >= 1000) return `${(v / 1000).toFixed(1)}K`;
     return `${Math.round(v)}`;
 };
 
@@ -219,7 +219,7 @@ const BarChartSvg = ({ data }: { data: { value: number; label: string }[] }) => 
 };
 
 // ─── SVG Pie Chart ────────────────────────────────────────────────────────────
-const PieChart = ({ segments, total, label }: { segments: { value: number; color: string; name: string }[]; total: number; label: string }) => {
+const PieChart = ({ segments }: { segments: { value: number; color: string; name: string }[] }) => {
     const R = 70, cx = 80, cy = 80;
     const totalVal = segments.reduce((a, s) => a + s.value, 0) || 1;
 
@@ -233,7 +233,7 @@ const PieChart = ({ segments, total, label }: { segments: { value: number; color
         const large = angle > Math.PI ? 1 : 0;
         const d = `M ${cx} ${cy} L ${x1} ${y1} A ${R} ${R} 0 ${large} 1 ${x2} ${y2} Z`;
         currentAngle += angle;
-        return { d, color: seg.color };
+        return { d, color: seg.color, percentage: ((seg.value / totalVal) * 100).toFixed(1) };
     });
 
     return (
@@ -248,6 +248,7 @@ const PieChart = ({ segments, total, label }: { segments: { value: number; color
                         <View style={{ flex: 1 }}>
                             <Text style={{ color: C.dim, fontSize: 11, fontWeight: '700' }}>{seg.name}</Text>
                             <Text style={{ color: C.white, fontWeight: '900', fontSize: 16 }}>{fmt(seg.value)}</Text>
+                            <Text style={{ color: C.dim, fontSize: 10, fontWeight: '600', marginTop: 2 }}>{paths[i].percentage}%</Text>
                         </View>
                     </View>
                 ))}
@@ -431,11 +432,7 @@ export default function AnalyticsScreen() {
                                 <Text style={styles.emptyText}>No revenue data yet</Text>
                             </View>
                         ) : (
-                            <PieChart
-                                segments={pieSegments}
-                                total={summary?.totalRevenue || 0}
-                                label={fmt(summary?.totalRevenue)}
-                            />
+                            <PieChart segments={pieSegments} />
                         )}
                     </View>
                 </View>
