@@ -385,14 +385,14 @@ export default function AnalyticsScreen() {
                 {/* ── KPI Cards ── */}
                 <View style={{ gap: 10, marginBottom: 20 }}>
                     <View style={{ flexDirection: 'row', gap: 10 }}>
-                        <KpiCard icon="cash-multiple" label="Net Revenue" value={fmt(summary?.totalRevenue)} color={C.primary} />
-                        <KpiCard icon="ticket-confirmation" label="Tickets" value={fmt(summary?.ticketRevenue)} color={C.accent} />
+                        <KpiCard icon="cash-multiple" label="Net Revenue" value={fmt(summary?.totalRevenue)} color={C.success} />
+                        <KpiCard icon="ticket-confirmation" label="Tickets" value={fmt(summary?.ticketRevenue)} color={C.amber} />
                     </View>
                     {/* Only show Food/Staff/Live Orders for Host role */}
                     {!isAdmin && (
                         <View style={{ flexDirection: 'row', gap: 10 }}>
-                            <KpiCard icon="food" label="Food Rev" value={fmt(summary?.orderRevenue)} color={C.success} />
-                            <KpiCard icon="account-group" label="Staff" value={`${summary?.activeStaff || 0}`} color={C.amber} />
+                            <KpiCard icon="food" label="Food Rev" value={fmt(summary?.orderRevenue)} color={C.primary} />
+                            <KpiCard icon="account-group" label="Staff" value={`${summary?.activeStaff || 0}`} color={C.accent} />
                             <KpiCard icon="clock-fast" label="Live Orders" value={`${summary?.liveOrders || 0}`} color={C.cyan} />
                         </View>
                     )}
