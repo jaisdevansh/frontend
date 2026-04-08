@@ -60,6 +60,12 @@ export const userService = {
         return response.data;
     },
 
+    // ⚡ ULTRA-OPTIMIZED: Single endpoint for all event data
+    getEventFull: async (id: string) => {
+        const response = await apiClient.get(`/user/events/${id}/full`);
+        return response.data;
+    },
+
     bookEvent: async (data: { eventId: string, ticketType: string, tableId?: string }) => {
         const response = await apiClient.post('/user/events/book', data);
         return response.data;

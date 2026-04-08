@@ -79,7 +79,10 @@ export default function UserProfile() {
     // sync local profile state immediately — name/image appear without extra fetch
     useEffect(() => {
         if (authUser) {
-            setProfile((prev: any) => prev ? { ...prev, ...authUser } : authUser);
+            setProfile((prev: any) => {
+                const merged = prev ? { ...prev, ...authUser } : authUser;
+                return merged;
+            });
         }
     }, [authUser]);
 
@@ -92,7 +95,7 @@ export default function UserProfile() {
                     const res = await userService.getProfile();
                     if (res.success && isActive) setProfile(res.data);
                 } catch (error: any) {
-                    // silently fail the sync, use AuthContext
+                    // silently fail, use AuthContext
                 }
             };
             fetchProfile();
