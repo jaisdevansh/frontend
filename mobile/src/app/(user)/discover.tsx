@@ -208,18 +208,23 @@ export default function DiscoverScreen() {
 
             // Retry active-event API call with exponential backoff
             const eventRes = await retryApiCall(
-                () => apiClient.get('/user/active-event'),
+                () => apiClient.get('/user/active-event?refresh=true'),
                 3,
                 2000
             );
             
             if (eventRes.data?.success && eventRes.data.data) {
                 const booking = eventRes.data.data;
-                // eventId is populated → use ._id; hostId is raw string
+                // eventId is populated → use ._id; hostId is already a string
                 const eid = booking.eventId?._id || booking.eventId;
-                const hid = booking.hostId?._id || booking.hostId;
+                const hid = booking.hostId; // hostId is already a string from backend
+                
+                console.log('[Active Event] Loaded:', { eventId: eid, hostId: hid, status: booking.status });
+                
                 if (eid) setActiveEventId(String(eid));
                 if (hid) setActiveHostId(String(hid));
+            } else {
+                console.log('[Active Event] No active booking found');
             }
         } catch (e: any) { 
             // Silent fail for 502/503 - these are expected during cold starts
