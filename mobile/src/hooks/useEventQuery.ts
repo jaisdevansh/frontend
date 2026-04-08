@@ -15,11 +15,18 @@ export const eventKeys = {
 
 // ⚡⚡⚡ ULTRA-OPTIMIZED: Single API call for all event data ⚡⚡⚡
 const fetchEventFull = async (id: string) => {
+    const startTime = Date.now();
     try {
         const res = await userService.getEventFull(id);
+        console.log(`[⚡ OPTIMIZED] getEventFull: ${Date.now() - startTime}ms`);
         if (!res?.success) throw new Error('Event not found');
+        
+        const payloadSize = JSON.stringify(res.data).length;
+        console.log(`[⚡ PAYLOAD] Received: ${(payloadSize / 1024).toFixed(2)}KB`);
+        
         return res.data;
     } catch (e: any) {
+        console.log(`[⚡ ERROR] getEventFull failed: ${Date.now() - startTime}ms`);
         const status = e.response?.status;
         if (status === 502 || status === 503) {
             console.log('[EventQuery] Server cold start, retrying...');
