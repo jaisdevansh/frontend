@@ -85,22 +85,23 @@ const RefreshBtn = ({ onPress, loading }: { onPress: () => void; loading: boolea
 
 // ─── SVG Line+Area Chart ─────────────────────────────────────────────────────
 const LineAreaChart = ({ data }: { data: { value: number; label: string }[] }) => {
-    const W = Math.max(width - 96, data.length * 32);
+    const W = Math.max(width - 48, data.length * 24);
     const H = 150;
-    const padL = 40, padR = 24, padT = 16, padB = 36;
+    const padL = 45, padR = 16, padT = 16, padB = 36;
     const chartW = W - padL - padR;
     const chartH = H - padT - padB;
     const maxVal = Math.max(...data.map(d => d.value), 1);
 
     const pts = data.map((d, i) => ({
-        x: padL + (i / (data.length - 1 || 1)) * chartW,
+        x: padL + (i / Math.max(data.length - 1, 1)) * chartW,
         y: padT + chartH - (d.value / maxVal) * chartH,
     }));
 
     // Smooth path (cardinal spline approximation)
     let linePath = '';
     let areaPath = '';
-    if (pts.length > 1) {
+    
+    if (pts.length >= 2) {
         linePath = `M ${pts[0].x} ${pts[0].y}`;
         for (let i = 1; i < pts.length; i++) {
             const prev = pts[i - 1];
@@ -109,6 +110,11 @@ const LineAreaChart = ({ data }: { data: { value: number; label: string }[] }) =
             linePath += ` C ${cpx},${prev.y} ${cpx},${curr.y} ${curr.x},${curr.y}`;
         }
         areaPath = linePath + ` L ${pts[pts.length - 1].x},${padT + chartH} L ${pts[0].x},${padT + chartH} Z`;
+    } else if (pts.length === 1) {
+        // Single point - draw horizontal line
+        const y = pts[0].y;
+        linePath = `M ${padL} ${y} L ${W - padR} ${y}`;
+        areaPath = `M ${padL} ${y} L ${W - padR} ${y} L ${W - padR} ${padT + chartH} L ${padL} ${padT + chartH} Z`;
     }
 
     // Y-axis labels
@@ -117,8 +123,8 @@ const LineAreaChart = ({ data }: { data: { value: number; label: string }[] }) =
         label: fmtShort(f * maxVal),
     }));
 
-    // X labels — show every Nth so they don't overlap
-    const every = Math.ceil(data.length / 7);
+    // X labels — show every 5th day for 30-day chart
+    const every = Math.max(Math.floor(data.length / 6), 1);
 
     return (
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -134,7 +140,7 @@ const LineAreaChart = ({ data }: { data: { value: number; label: string }[] }) =
                 {ticks.map((t, i) => (
                     <G key={i}>
                         <Line x1={padL} y1={t.y} x2={W - padR} y2={t.y} stroke={C.muted + '40'} strokeWidth={1} />
-                        <SvgText x={padL - 6} y={t.y + 4} fontSize={9} fill={C.dim} textAnchor="end">{t.label}</SvgText>
+                        <SvgText x={padL - 6} y={t.y + 4} fontSize={10} fill={C.dim} textAnchor="end">{t.label}</SvgText>
                     </G>
                 ))}
 
@@ -147,15 +153,15 @@ const LineAreaChart = ({ data }: { data: { value: number; label: string }[] }) =
                 {/* Data points + x labels */}
                 {pts.map((p, i) => (
                     <G key={i}>
-                        {i % every === 0 && (
+                        {(i % every === 0 || i === pts.length - 1) && (
                             <SvgText x={p.x} y={H - 4} fontSize={9} fill={C.dim} textAnchor="middle">
                                 {data[i].label}
                             </SvgText>
                         )}
-                        {data.length <= 20 && (
+                        {data[i].value > 0 && (
                             <>
-                                <Circle cx={p.x} cy={p.y} r={5} fill={C.card} />
-                                <Circle cx={p.x} cy={p.y} r={3} fill={C.accent} />
+                                <Circle cx={p.x} cy={p.y} r={4} fill={C.card} />
+                                <Circle cx={p.x} cy={p.y} r={2.5} fill={C.accent} />
                             </>
                         )}
                     </G>
@@ -353,10 +359,28 @@ export default function AnalyticsScreen() {
     // ── Trend data ──
     const trendData = useMemo(() => {
         if (!trend || trend.length === 0) return [];
-        return (trend as RevenueTrend[]).map(t => {
-            const d = new Date(t.date);
-            return { value: t.revenue || 0, label: `${d.getDate()}/${d.getMonth() + 1}` };
-        });
+        
+        // Create a full 30-day array with all dates
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        const fullData: { value: number; label: string; date: string }[] = [];
+        const trendMap = new Map((trend as RevenueTrend[]).map(t => [t.date, t.revenue || 0]));
+        
+        for (let i = 0; i < 30; i++) {
+            const date = new Date(thirtyDaysAgo);
+            date.setDate(date.getDate() + i);
+            const dateStr = date.toISOString().split('T')[0];
+            const revenue = trendMap.get(dateStr) || 0;
+            
+            fullData.push({
+                value: revenue,
+                label: `${date.getDate()}/${date.getMonth() + 1}`,
+                date: dateStr
+            });
+        }
+        
+        return fullData;
     }, [trend]);
 
     // ── Pie segments ──
