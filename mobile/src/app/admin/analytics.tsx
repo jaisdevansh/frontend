@@ -189,57 +189,64 @@ const LineAreaChart = ({ data }: { data: { value: number; label: string }[] }) =
 
 // ─── SVG Bar Chart ─────────────────────────────────────────────────────────────
 const BarChartSvg = ({ data }: { data: { value: number; label: string }[] }) => {
-    const barW = 16;
-    const gap = 6;
-    const padL = 45, padR = 16, padT = 16, padB = 36;
-    const H = 150;
-    const W = Math.max(width - 48, padL + data.length * (barW + gap) + padR);
+    const barW = 20;
+    const gap = 10;
+    const padL = 50, padR = 20, padT = 20, padB = 40;
+    const H = 160;
+    const W = Math.max(width - 40, padL + data.length * (barW + gap) + padR);
     const chartH = H - padT - padB;
-    const maxVal = Math.max(...data.map(d => d.value), 1);
+    const maxVal = Math.max(...data.map(d => d.value), 100);
     const every = Math.max(Math.floor(data.length / 6), 1);
 
-    const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => ({
-        y: padT + chartH - f * chartH,
-        label: fmtShort(f * maxVal),
-    }));
+    console.log('BarChart - data points:', data.length, 'maxVal:', maxVal);
 
     return (
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <Svg width={W} height={H}>
                 <Defs>
                     <LinearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
-                        <Stop offset="0" stopColor={C.primary} stopOpacity={1} />
-                        <Stop offset="1" stopColor={C.accent} stopOpacity={0.8} />
+                        <Stop offset="0" stopColor="#6366f1" stopOpacity={1} />
+                        <Stop offset="1" stopColor="#818cf8" stopOpacity={0.9} />
                     </LinearGradient>
                 </Defs>
 
-                {/* Grid lines */}
-                {ticks.filter((_, i) => i % 2 === 0).map((t, i) => (
-                    <G key={i}>
-                        <Line x1={padL} y1={t.y} x2={W - padR} y2={t.y} stroke={C.muted + '20'} strokeWidth={1} strokeDasharray="4 4" />
-                        <SvgText x={padL - 6} y={t.y + 4} fontSize={10} fill={C.dim} textAnchor="end">{t.label}</SvgText>
-                    </G>
-                ))}
+                {/* Y-axis labels */}
+                {[0, 0.5, 1].map((f, i) => {
+                    const y = padT + chartH - f * chartH;
+                    return (
+                        <G key={i}>
+                            <Line x1={padL} y1={y} x2={W - padR} y2={y} stroke="#383850" strokeWidth={1} opacity={0.3} />
+                            <SvgText x={padL - 8} y={y + 4} fontSize={11} fill="#8890a6" textAnchor="end">
+                                {fmtShort(f * maxVal)}
+                            </SvgText>
+                        </G>
+                    );
+                })}
 
                 {/* Bars */}
                 {data.map((d, i) => {
                     const x = padL + i * (barW + gap);
-                    const barH = d.value > 0 ? Math.max((d.value / maxVal) * chartH, 4) : 0;
-                    const y = padT + chartH - barH;
+                    const barHeight = d.value > 0 ? Math.max((d.value / maxVal) * chartH, 5) : 2;
+                    const y = padT + chartH - barHeight;
+                    
                     return (
                         <G key={i}>
-                            {barH > 0 && (
-                                <Rect 
-                                    x={x} 
-                                    y={y} 
-                                    width={barW} 
-                                    height={barH} 
-                                    rx={3} 
-                                    fill="url(#barGrad)" 
-                                />
-                            )}
+                            <Rect 
+                                x={x} 
+                                y={y} 
+                                width={barW} 
+                                height={barHeight} 
+                                rx={4} 
+                                fill="url(#barGrad)" 
+                            />
                             {(i % every === 0 || i === data.length - 1) && (
-                                <SvgText x={x + barW / 2} y={H - 4} fontSize={9} fill={C.dim} textAnchor="middle">
+                                <SvgText 
+                                    x={x + barW / 2} 
+                                    y={H - 8} 
+                                    fontSize={10} 
+                                    fill="#8890a6" 
+                                    textAnchor="middle"
+                                >
                                     {d.label}
                                 </SvgText>
                             )}
@@ -385,18 +392,25 @@ export default function AnalyticsScreen() {
 
     // ── Trend data ──
     const trendData = useMemo(() => {
-        if (!trend || trend.length === 0) return [];
+        if (!trend || trend.length === 0) {
+            // Test data with 2 points for debugging
+            return [
+                { value: 8100, label: '1/4', date: '2025-04-01' },
+                { value: 16200, label: '2/4', date: '2025-04-02' }
+            ];
+        }
         
         // Create a full 30-day array with all dates
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const today = new Date();
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(today.getDate() - 29); // Last 30 days including today
         
         const fullData: { value: number; label: string; date: string }[] = [];
         const trendMap = new Map((trend as RevenueTrend[]).map(t => [t.date, t.revenue || 0]));
         
         for (let i = 0; i < 30; i++) {
             const date = new Date(thirtyDaysAgo);
-            date.setDate(date.getDate() + i);
+            date.setDate(thirtyDaysAgo.getDate() + i);
             const dateStr = date.toISOString().split('T')[0];
             const revenue = trendMap.get(dateStr) || 0;
             
