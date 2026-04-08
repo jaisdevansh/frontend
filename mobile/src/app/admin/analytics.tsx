@@ -218,9 +218,9 @@ const BarChartSvg = ({ data }: { data: { value: number; label: string }[] }) => 
     );
 };
 
-// ─── SVG Donut Chart ──────────────────────────────────────────────────────────
-const DonutChart = ({ segments, total, label }: { segments: { value: number; color: string; name: string }[]; total: number; label: string }) => {
-    const R = 60, r = 40, cx = 80, cy = 80;
+// ─── SVG Pie Chart ────────────────────────────────────────────────────────────
+const PieChart = ({ segments, total, label }: { segments: { value: number; color: string; name: string }[]; total: number; label: string }) => {
+    const R = 70, cx = 80, cy = 80;
     const totalVal = segments.reduce((a, s) => a + s.value, 0) || 1;
 
     let currentAngle = -Math.PI / 2;
@@ -230,12 +230,8 @@ const DonutChart = ({ segments, total, label }: { segments: { value: number; col
         const y1 = cy + R * Math.sin(currentAngle);
         const x2 = cx + R * Math.cos(currentAngle + angle);
         const y2 = cy + R * Math.sin(currentAngle + angle);
-        const xi1 = cx + r * Math.cos(currentAngle + angle);
-        const yi1 = cy + r * Math.sin(currentAngle + angle);
-        const xi2 = cx + r * Math.cos(currentAngle);
-        const yi2 = cy + r * Math.sin(currentAngle);
         const large = angle > Math.PI ? 1 : 0;
-        const d = `M ${x1} ${y1} A ${R} ${R} 0 ${large} 1 ${x2} ${y2} L ${xi1} ${yi1} A ${r} ${r} 0 ${large} 0 ${xi2} ${yi2} Z`;
+        const d = `M ${cx} ${cy} L ${x1} ${y1} A ${R} ${R} 0 ${large} 1 ${x2} ${y2} Z`;
         currentAngle += angle;
         return { d, color: seg.color };
     });
@@ -244,9 +240,6 @@ const DonutChart = ({ segments, total, label }: { segments: { value: number; col
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 20 }}>
             <Svg width={160} height={160}>
                 {paths.map((p, i) => <Path key={i} d={p.d} fill={p.color} />)}
-                <Circle cx={cx} cy={cy} r={r - 2} fill={C.card} />
-                <SvgText x={cx} y={cy - 6} fontSize={14} fontWeight="bold" fill={C.white} textAnchor="middle">{label}</SvgText>
-                <SvgText x={cx} y={cy + 10} fontSize={10} fill={C.dim} textAnchor="middle">Total</SvgText>
             </Svg>
             <View style={{ flex: 1, gap: 14 }}>
                 {segments.map((seg, i) => (
@@ -428,7 +421,7 @@ export default function AnalyticsScreen() {
                     )}
                 </View>
 
-                {/* ── Revenue Split Donut ── */}
+                {/* ── Revenue Split Pie ── */}
                 <View style={styles.card}>
                     <SectionTitle title="Revenue Split" />
                     <View style={{ marginTop: 20 }}>
@@ -438,7 +431,7 @@ export default function AnalyticsScreen() {
                                 <Text style={styles.emptyText}>No revenue data yet</Text>
                             </View>
                         ) : (
-                            <DonutChart
+                            <PieChart
                                 segments={pieSegments}
                                 total={summary?.totalRevenue || 0}
                                 label={fmt(summary?.totalRevenue)}
