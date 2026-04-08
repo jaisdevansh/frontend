@@ -400,6 +400,7 @@ export default function AnalyticsScreen() {
             });
         }
         
+        console.log('TrendData:', fullData.length, 'points, max:', Math.max(...fullData.map(d => d.value)));
         return fullData;
     }, [trend]);
 
