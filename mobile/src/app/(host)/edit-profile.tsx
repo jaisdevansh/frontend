@@ -42,7 +42,7 @@ export default function EditProfileScreen() {
     const { data: profileResponse, isLoading: isFetching } = useQuery({
         queryKey: ['hostProfile'],
         queryFn: hostService.getProfile,
-        staleTime: 0,
+        staleTime: 5 * 60 * 1000,
     });
 
     const [form, setForm] = useState({

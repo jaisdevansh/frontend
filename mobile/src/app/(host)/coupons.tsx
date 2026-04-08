@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator, Platform, KeyboardAvoidingView } from 'react-native';
 import SafeFlashList from '../../components/SafeFlashList';
 const FlashList = SafeFlashList;
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { Calendar } from 'react-native-calendars';
 import { useRouter } from 'expo-router';
 import { useStrictBack } from '../../hooks/useStrictBack';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -103,15 +103,13 @@ export default function HostCoupons() {
         }
     };
 
-    const onDateChange = (event: any, selectedDate?: Date) => {
+    const onDayPress = (day: any) => {
         setShowDatePicker(false);
-        if (selectedDate) {
-            setNewCoupon({
-                ...newCoupon,
-                expiryDate: selectedDate.toISOString(),
-                expiryDisplay: dayjs(selectedDate).format('DD/MM/YYYY')
-            });
-        }
+        setNewCoupon({
+            ...newCoupon,
+            expiryDate: dayjs(day.dateString).toISOString(),
+            expiryDisplay: dayjs(day.dateString).format('DD/MM/YYYY')
+        });
     };
 
     const handleDeleteCoupon = async () => {
@@ -285,7 +283,10 @@ export default function HostCoupons() {
                 transparent={true}
                 onRequestClose={() => setCreateModalVisible(false)}
             >
-                <View style={styles.modalOverlay}>
+                <KeyboardAvoidingView 
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    style={styles.modalOverlay}
+                >
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
                             <Text style={styles.modalTitle}>Create Coupon</Text>
@@ -370,24 +371,43 @@ export default function HostCoupons() {
                             </TouchableOpacity>
 
                             {showDatePicker && (
-                                <DateTimePicker
-                                    value={newCoupon.expiryDate ? new Date(newCoupon.expiryDate) : new Date()}
-                                    mode="date"
-                                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                                    onChange={onDateChange}
-                                    minimumDate={new Date()}
-                                />
+                                <View style={{ marginBottom: 20, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.card.glassBorder }}>
+                                    <Calendar
+                                        onDayPress={onDayPress}
+                                        minDate={new Date().toISOString().split('T')[0]}
+                                        theme={{
+                                            backgroundColor: COLORS.card.glass,
+                                            calendarBackground: COLORS.card.dark,
+                                            textSectionTitleColor: COLORS.text.muted,
+                                            selectedDayBackgroundColor: COLORS.primary,
+                                            selectedDayTextColor: '#ffffff',
+                                            todayTextColor: COLORS.primary,
+                                            dayTextColor: 'white',
+                                            textDisabledColor: 'rgba(255,255,255,0.1)',
+                                            monthTextColor: 'white',
+                                            arrowColor: COLORS.primary,
+                                            textDayFontWeight: '500',
+                                            textMonthFontWeight: 'bold',
+                                            textDayHeaderFontWeight: '600'
+                                        }}
+                                        markedDates={
+                                            newCoupon.expiryDate 
+                                            ? { [newCoupon.expiryDate.split('T')[0]]: { selected: true, selectedColor: COLORS.primary } } 
+                                            : {}
+                                        }
+                                    />
+                                </View>
                             )}
 
                             <Button
                                 title={createLoading ? "Creating..." : "Create Promo Code"}
                                 onPress={handleCreateCoupon}
                                 loading={createLoading}
-                                style={{ marginTop: 24, marginBottom: 40 }}
+                                style={{ marginTop: 24, marginBottom: 80 }}
                             />
                         </ScrollView>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
 
             {/* Delete Confirmation Modal */}

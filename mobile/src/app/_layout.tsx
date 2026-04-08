@@ -42,18 +42,28 @@ import { AlertProvider } from '../context/AlertProvider';
 import { NotificationProvider } from '../context/NotificationContext';
 import { useNotifications } from '../hooks/useNotifications';
 import { NetworkProvider } from '../context/NetworkProvider';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, QueryCache } from '@tanstack/react-query';
 
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error: any) => {
+      const status = error?.response?.status;
+      // 🤐 SILENCE: 502/503 (Render Cold Start) and 401 (Auth Transitions) 
+      // These are expected during server restarts or logouts and shouldn't trigger UI red boxes.
+      if (status === 502 || status === 503 || status === 401) return;
+      
+      console.warn('[React Query Global Error]', error.message || error);
+    }
+  }),
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000,        // 5 min — serve from cache, refresh silently
-      gcTime: 60 * 60 * 1000,          // 1 hour — keep in memory (was 30 min)
-      refetchOnWindowFocus: false,      // never refetch when user switches apps
-      refetchOnMount: false,            // never refetch when navigating to a page
-      refetchOnReconnect: 'always',     // but always refresh on internet restore
-      retry: 1,                         // fail fast on errors
-      networkMode: 'offlineFirst',      // serve from cache even if network check fails
+      staleTime: 10 * 60 * 1000,       // 10 min (aggressive caching)
+      gcTime: 24 * 60 * 60 * 1000,     // 24 hours
+      refetchOnWindowFocus: false,
+      refetchOnMount: 'always',        // Refresh in background if stale
+      refetchOnReconnect: 'always',
+      retry: 1,                        // 1 retry only to fail fast
+      networkMode: 'offlineFirst',
     },
   },
 });
@@ -136,7 +146,7 @@ function RootLayoutNav() {
         const timer = setTimeout(() => {
             setShowSplashAnim(false);
             SplashScreen.hideAsync();
-        }, 2200); // Ensures the 1.2s + spring animation in index.tsx finishes gracefully
+        }, 400); // Slashed from 2200ms to 400ms for production speed
         return () => clearTimeout(timer);
     }
   }, [isLoading]);
@@ -146,10 +156,13 @@ function RootLayoutNav() {
 
     const inAuthGroup = segments[0] === '(auth)';
     const isOnboardingPage = segments[1] === 'onboarding';
+    const isLoginPage = segments[1] === 'login';
 
-    // 1. GUEST GATE
+    // 1. GUEST GATE - Don't redirect if on login page (user might be logging in)
     if (!token) {
-      if (!inAuthGroup) router.replace('/(auth)/welcome');
+      if (!inAuthGroup) {
+        router.replace('/(auth)/welcome');
+      }
       return;
     }
 
@@ -163,6 +176,7 @@ function RootLayoutNav() {
     const currentPath = `/${segments.join('/')}`;
     const navigateTo = (path: string) => {
         if (currentPath !== path) {
+            console.log('[_layout] Navigating from', currentPath, 'to', path);
             router.replace(path as any);
         }
     };
@@ -205,7 +219,7 @@ function RootLayoutNav() {
     // If user is logged in but on an Auth or Index page, send them to their home
     const isRoot = !segments[0] || (segments[0] as string) === 'index';
     if (inAuthGroup || isRoot) {
-        if (!isOnboardingPage) return navigateTo(targetHome);
+        if (!isOnboardingPage && !isLoginPage) return navigateTo(targetHome);
     }
 
     // 7. RBAC (Role-Based Access Control)
@@ -215,7 +229,7 @@ function RootLayoutNav() {
     if (role === 'host' && ['admin', '(staff)'].includes(s0)) return navigateTo(targetHome);
     if (role === 'staff' && ['(host)', 'admin', '(user)'].includes(s0)) return navigateTo(targetHome);
     if (role === 'admin' && ['(host)', '(user)', '(staff)'].includes(s0)) return navigateTo(targetHome);
-  }, [token, role, hostId, user, isLoading, segments, onboardingCompleted]);
+  }, [token, role, hostId, user, isLoading, segments, onboardingCompleted, logout, router]);
 
   // 🛡️ RENDER BLOCKING (MANDATORY)
   // We keep our custom splash screen visible until BOTH auth and animation are ready.

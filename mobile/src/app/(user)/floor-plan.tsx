@@ -46,7 +46,7 @@ export default function FloorPlan() {
     const targetZone = params.zone ? String(params.zone) : '';
 
     // Store Logic
-    const { selectedSeats, toggleSeat } = useBookingStore();
+    const { selectedSeats, toggleSeat, clearSelection } = useBookingStore();
     
     // Static Data
     const [seats, setSeats] = useState<SeatData[]>([]);
@@ -56,24 +56,37 @@ export default function FloorPlan() {
 
     const goBack = useStrictBack('/(user)/ticket-selection');
 
+    // 🚀 Clean Start: Always clear selection when entering a new floor plan session
+    useEffect(() => {
+        clearSelection();
+    }, [eventId]);
+
     const loadFloor = useCallback(async () => {
         if (!eventId) return;
         setLoading(true);
         try {
             const res = await userService.getFloorPlan(eventId);
-            if (res?.success && res.data?.zones) {
+            if (res?.success && res.data?.zones?.length > 0) {
                 setZonesMetadata(res.data.zones);
-                const zoneData = res.data.zones.find((z: any) => z.name === targetZone);
-                if (zoneData) {
+                
+                // Flexible Match: Try param zone, then first zone
+                const zoneData = res.data.zones.find((z: any) => 
+                    z.name?.toLowerCase() === targetZone.toLowerCase() || 
+                    targetZone.toLowerCase().includes(z.name?.toLowerCase())
+                ) || res.data.zones[0];
+
+                if (zoneData && zoneData.seats) {
                     const mappedSeats = zoneData.seats.map((s: any) => ({
-                        id: s.id,
+                        id: s.id || s._id,
                         number: s.number,
                         zone: zoneData.name,
-                        status: s.status,
-                        price: s.price
+                        status: s.status || 'available',
+                        price: s.price || zoneData.price || 0
                     }));
                     setSeats(mappedSeats);
                 }
+            } else {
+                setSeats([]);
             }
         } catch (err) {
             console.error('Floor Plan Load Error:', err);
@@ -191,12 +204,22 @@ export default function FloorPlan() {
                         </View>
                     </>
                 )}
-                ListFooterComponent={() => (
-                    <View style={styles.legend}>
-                         <View style={styles.legendItem}><View style={[styles.lDot, { backgroundColor: '#111' }]} /><Text style={styles.lText}>Booked</Text></View>
-                         <View style={styles.legendItem}><View style={[styles.lDot, { backgroundColor: '#222', borderWidth: 1, borderColor: '#444' }]} /><Text style={styles.lText}>Available</Text></View>
-                         <View style={styles.legendItem}><View style={[styles.lDot, { backgroundColor: COLORS.primary }]} /><Text style={styles.lText}>Selected</Text></View>
+                ListEmptyComponent={() => (
+                    <View style={{ padding: 40, alignItems: 'center' }}>
+                        <Ionicons name="map-outline" size={48} color="rgba(255,255,255,0.1)" />
+                        <Text style={{ color: 'rgba(255,255,255,0.4)', marginTop: 16, textAlign: 'center' }}>
+                            Floor map for this zone isn't available yet.{"\n"}You can proceed directly to fix your spot.
+                        </Text>
                     </View>
+                )}
+                ListFooterComponent={() => (
+                    seats.length > 0 ? (
+                        <View style={styles.legend}>
+                            <View style={styles.legendItem}><View style={[styles.lDot, { backgroundColor: '#111' }]} /><Text style={styles.lText}>Booked</Text></View>
+                            <View style={styles.legendItem}><View style={[styles.lDot, { backgroundColor: '#222', borderWidth: 1, borderColor: '#444' }]} /><Text style={styles.lText}>Available</Text></View>
+                            <View style={styles.legendItem}><View style={[styles.lDot, { backgroundColor: COLORS.primary }]} /><Text style={styles.lText}>Selected</Text></View>
+                        </View>
+                    ) : null
                 )}
             />
 
@@ -208,9 +231,9 @@ export default function FloorPlan() {
                     </Text>
                 </View>
                 <TouchableOpacity 
-                    style={[styles.reserveBtn, selectedSeats.size !== guests && { opacity: 0.4 }]}
+                    style={[styles.reserveBtn, (seats.length > 0 && selectedSeats.size !== guests) && { opacity: 0.4 }]}
                     onPress={handleProceed}
-                    disabled={locking || selectedSeats.size !== guests}
+                    disabled={locking || (seats.length > 0 && selectedSeats.size !== guests)}
                 >
                     <LinearGradient
                         colors={[COLORS.primary, '#4f46e5']}
@@ -219,7 +242,9 @@ export default function FloorPlan() {
                     >
                         {locking ? <ActivityIndicator size="small" color="#fff" /> : (
                             <>
-                                <Text style={styles.reserveTxt}>Complete Booking</Text>
+                                <Text style={styles.reserveTxt}>
+                                    {seats.length > 0 ? 'Complete Booking' : 'Proceed to Pay'}
+                                </Text>
                                 <Ionicons name="arrow-forward" size={18} color="#fff" />
                             </>
                         )}

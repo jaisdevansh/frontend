@@ -126,6 +126,7 @@ const TableSelection = () => {
         setIsProceeding(true);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
+        // Use minimum timeout for ripple effect, then route immediately
         setTimeout(() => {
             router.push({
                 pathname: '/(user)/floor-plan',
@@ -141,7 +142,7 @@ const TableSelection = () => {
                 },
             });
             setTimeout(() => setIsProceeding(false), 500);
-        }, 800);
+        }, 50);
     };
 
     return (
@@ -177,16 +178,12 @@ const TableSelection = () => {
                         </TouchableOpacity>
                     </View>
                     {coverImage ? (
-                        <View>
-                            {(() => { console.time(`[TRACE ${eventId}] IMAGE`); return null; })()}
-                            <Image 
-                                source={{ uri: thumb(coverImage) }} 
-                                style={[styles.offerImg, { borderRadius: 12 }]} 
-                                contentFit="cover"
-                                cachePolicy="memory-disk"
-                                onLoad={() => console.timeEnd(`[TRACE ${eventId}] IMAGE`)}
-                            />
-                        </View>
+                        <Image 
+                            source={{ uri: thumb(coverImage) }} 
+                            style={[styles.offerImg, { borderRadius: 12 }]} 
+                            contentFit="cover"
+                            cachePolicy="memory-disk"
+                        />
                     ) : (
                         <View style={[styles.offerImg, { backgroundColor: '#1a1a2e', alignItems: 'center', justifyContent: 'center' }]}>
                             <Ionicons name="musical-notes" size={28} color={COLORS.primary} />

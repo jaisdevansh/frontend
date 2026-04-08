@@ -6,6 +6,55 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING } from '../../constants/design-system';
 import { hostService } from '../../services/hostService';
 import { useToast } from '../../context/ToastContext';
+import SafeFlashList from '../../components/SafeFlashList';
+
+// 🚀 MEMOIZED BOOKING CARD FOR MAXIMUM FPS 🚀
+const BookingCard = React.memo(({ booking, getStatusColor, handleUpdateStatus }: any) => {
+    return (
+        <View style={styles.bookingItem}>
+            <View style={styles.bookingDetailsRow}>
+                <View style={styles.guestInfo}>
+                    <Text style={styles.guestName}>{booking.userId?.name || 'Unknown Guest'}</Text>
+                    <Text style={styles.bookingType}>
+                        {booking.eventId?.title || 'Event'} • {booking.guests || booking.guestsCount || 1} Guests
+                    </Text>
+                    <View style={{ flexDirection: 'row', marginTop: 4 }}>
+                        <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10 }}>
+                            Code: {booking.bookingCode?.toUpperCase() || booking._id?.substring(0,8).toUpperCase()}
+                        </Text>
+                    </View>
+                </View>
+                <View style={[
+                    styles.statusBox,
+                    { backgroundColor: `${getStatusColor(booking.status)}20` }
+                ]}>
+                    <Text style={[styles.statusText, { color: getStatusColor(booking.status) }]}>
+                        {(booking.status || 'Confirmed').toUpperCase().replace('_', ' ')}
+                    </Text>
+                </View>
+            </View>
+
+            {booking.status === 'pending' && (
+                <View style={styles.hostActionsRow}>
+                    <TouchableOpacity 
+                        style={[styles.actionBtn, { backgroundColor: 'rgba(34, 197, 94, 0.2)', borderColor: COLORS.emerald }]} 
+                        onPress={() => handleUpdateStatus(booking._id, 'approved')}
+                    >
+                        <Text style={[styles.actionTxt, { color: COLORS.emerald }]}>Approve</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity 
+                        style={[styles.actionBtn, { backgroundColor: 'rgba(255, 69, 58, 0.2)', borderColor: '#FF453A' }]} 
+                        onPress={() => handleUpdateStatus(booking._id, 'rejected')}
+                    >
+                        <Text style={[styles.actionTxt, { color: '#FF453A' }]}>Reject</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+        </View>
+    );
+}, (prev, next) => prev.booking._id === next.booking._id && prev.booking.status === next.booking.status);
+
 
 export default function HostBookings() {
     const router = useRouter();
@@ -78,62 +127,24 @@ export default function HostBookings() {
                     <ActivityIndicator size="large" color={COLORS.primary} />
                 </View>
             ) : (
-                <ScrollView
-                    contentContainerStyle={styles.scrollContent}
-                    refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
-                    }
-                >
-                    {bookings.length === 0 ? (
-                        <View style={{ padding: 40, alignItems: 'center' }}>
-                            <Text style={{ color: 'rgba(255,255,255,0.4)', marginTop: 100 }}>No bookings found yet.</Text>
-                        </View>
-                    ) : (
-                        bookings.map((booking) => (
-                            <View key={booking._id} style={styles.bookingItem}>
-                                <View style={styles.bookingDetailsRow}>
-                                    <View style={styles.guestInfo}>
-                                        <Text style={styles.guestName}>{booking.userId?.name || 'Unknown Guest'}</Text>
-                                        <Text style={styles.bookingType}>
-                                            {booking.eventId?.title || 'Event'} • {booking.guests || booking.guestsCount || 1} Guests
-                                        </Text>
-                                        <View style={{ flexDirection: 'row', marginTop: 4 }}>
-                                            <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10 }}>
-                                                Code: {booking.bookingCode?.toUpperCase() || booking._id?.substring(0,8).toUpperCase()}
-                                            </Text>
-                                        </View>
-                                    </View>
-                                    <View style={[
-                                        styles.statusBox,
-                                        { backgroundColor: `${getStatusColor(booking.status)}20` }
-                                    ]}>
-                                        <Text style={[styles.statusText, { color: getStatusColor(booking.status) }]}>
-                                            {(booking.status || 'Confirmed').toUpperCase().replace('_', ' ')}
-                                        </Text>
-                                    </View>
-                                </View>
-
-                                {booking.status === 'pending' && (
-                                    <View style={styles.hostActionsRow}>
-                                        <TouchableOpacity 
-                                            style={[styles.actionBtn, { backgroundColor: 'rgba(34, 197, 94, 0.2)', borderColor: COLORS.emerald }]} 
-                                            onPress={() => handleUpdateStatus(booking._id, 'approved')}
-                                        >
-                                            <Text style={[styles.actionTxt, { color: COLORS.emerald }]}>Approve</Text>
-                                        </TouchableOpacity>
-                                        
-                                        <TouchableOpacity 
-                                            style={[styles.actionBtn, { backgroundColor: 'rgba(255, 69, 58, 0.2)', borderColor: '#FF453A' }]} 
-                                            onPress={() => handleUpdateStatus(booking._id, 'rejected')}
-                                        >
-                                            <Text style={[styles.actionTxt, { color: '#FF453A' }]}>Reject</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                )}
+                <View style={{ flex: 1 }}>
+                    <SafeFlashList
+                        data={bookings}
+                        keyExtractor={(item: any) => item._id}
+                        estimatedItemSize={120}
+                        contentContainerStyle={styles.scrollContent}
+                        showsVerticalScrollIndicator={false}
+                        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
+                        ListEmptyComponent={
+                            <View style={{ padding: 40, alignItems: 'center' }}>
+                                <Text style={{ color: 'rgba(255,255,255,0.4)', marginTop: 100 }}>No bookings found yet.</Text>
                             </View>
-                        ))
-                    )}
-                </ScrollView>
+                        }
+                        renderItem={({ item }: { item: any }) => (
+                            <BookingCard booking={item} getStatusColor={getStatusColor} handleUpdateStatus={handleUpdateStatus} />
+                        )}
+                    />
+                </View>
             )}
         </SafeAreaView>
     );

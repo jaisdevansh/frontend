@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { initiateRazorpayPayment } from '../../services/razorpayService';
 import { userService } from '../../services/userService';
+import { log } from '../../utils/logger';
 
 const { width, height } = Dimensions.get('window');
 
@@ -55,6 +56,9 @@ export default function SplitRequestReceived() {
         // Receipt must be max 40 chars
         const receipt = `split_${Date.now()}`.substring(0, 40);
 
+        // 1. Resolve hostId from params or backup from event
+        const resolvedHostId = params.hostId ? String(params.hostId) : '';
+
         const result = await initiateRazorpayPayment(
             {
                 amount: shareAmount,
@@ -63,10 +67,11 @@ export default function SplitRequestReceived() {
                 prefillName:    profile?.name    || '',
                 prefillEmail:   profile?.email   || '',
                 prefillContact: profile?.phone   || '',
-                notes: { type: 'split', zone, eventId },
+                notes: { type: 'split', zone, eventId, split_requester: requesterName },
             },
             {
                 eventId,
+                hostId: resolvedHostId, // Crucial for backend verifyPayment
                 ticketType: `${zone} Zone (Split)`,
                 pricePaid: shareAmount,
                 zone,

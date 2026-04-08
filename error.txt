@@ -1,1 +1,0 @@
-Firebase Admin SDK: Config missing or using placeholders. Skipping initialization. ⚠️

@@ -1,4 +1,5 @@
 import React, { useMemo, useCallback, useState, useEffect } from 'react';
+import { InteractionManager } from 'react-native';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, ActivityIndicator, FlatList, Dimensions, Modal, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -70,7 +71,11 @@ export default function HostDashboard() {
     }, [queryClient]);
 
     const handleEventPress = useCallback((eventId: string) => {
-        router.push(`/(host)/events` as any); // Redirects to 'See All' screen as requested
+        setTimeout(() => {
+            InteractionManager.runAfterInteractions(() => {
+                router.push(`/(host)/events` as any); // Redirects to 'See All' screen as requested
+            });
+        }, 50);
     }, [router]);
 
     const renderEvent = useCallback(({ item }: { item: any }) => (
@@ -201,7 +206,13 @@ export default function HostDashboard() {
                     <TouchableOpacity 
                         key={tool.label} 
                         style={styles.toolGridCard} 
-                        onPress={() => router.push(tool.route as any)}
+                        onPress={() => {
+                            setTimeout(() => {
+                                InteractionManager.runAfterInteractions(() => {
+                                    router.push(tool.route as any);
+                                });
+                            }, 50);
+                        }}
                     >
                         <View style={[styles.toolIconWrap, { backgroundColor: `${tool.color}15` }]}>
                             <MaterialCommunityIcons name={tool.icon as any} size={24} color={tool.color} />

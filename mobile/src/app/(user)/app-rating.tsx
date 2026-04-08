@@ -73,13 +73,15 @@ export default function AppRatingScreen() {
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <KeyboardAvoidingView 
                     style={styles.keyboardView} 
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
                 >
                     <ScrollView 
                         ref={scrollRef}
                         contentContainerStyle={styles.scrollContent} 
                         showsVerticalScrollIndicator={false}
                         keyboardShouldPersistTaps="handled"
+                        keyboardDismissMode="on-drag"
                     >
                         
                         <View style={styles.heroSection}>
@@ -127,9 +129,16 @@ export default function AppRatingScreen() {
                                         value={feedback}
                                         onChangeText={setFeedback}
                                         onFocus={() => {
+                                            // ⚡ FIX: Scroll to bottom when keyboard appears
                                             setTimeout(() => {
                                                 scrollRef.current?.scrollToEnd({ animated: true });
-                                            }, 300);
+                                            }, 100);
+                                        }}
+                                        onContentSizeChange={() => {
+                                            // ⚡ FIX: Auto-scroll as user types
+                                            if (feedback.length > 50) {
+                                                scrollRef.current?.scrollToEnd({ animated: true });
+                                            }
                                         }}
                                     />
                                 </View>
@@ -210,7 +219,7 @@ const styles = StyleSheet.create({
         flexGrow: 1,
         alignItems: 'center',
         paddingHorizontal: SPACING.lg,
-        paddingBottom: 40,
+        paddingBottom: 120, // ⚡ FIX: Extra padding so button is visible above keyboard
         paddingTop: 20,
     },
     heroSection: {
@@ -287,11 +296,13 @@ const styles = StyleSheet.create({
         borderColor: 'rgba(255, 255, 255, 0.1)',
         borderRadius: BORDER_RADIUS.lg,
         color: '#FFF',
-        height: 140, // Changed from minHeight so it creates an internal scrollable bounds for long reviews
+        minHeight: 120, // ⚡ FIX: Use minHeight instead of fixed height for better auto-scroll
+        maxHeight: 180, // ⚡ FIX: Add maxHeight to prevent it from growing too large
         padding: 16,
         paddingTop: 16,
         textAlignVertical: 'top',
         fontSize: 15,
+        lineHeight: 22,
     },
     submitBtnContainer: {
         width: '100%',

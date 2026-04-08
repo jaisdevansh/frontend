@@ -12,6 +12,7 @@ import * as Haptics from 'expo-haptics';
 import * as Contacts from 'expo-contacts';
 import { COLORS } from '../../constants/design-system';
 import { userService } from '../../services/userService';
+import { log } from '../../utils/logger';
 
 const { width, height } = Dimensions.get('window');
 
@@ -139,6 +140,10 @@ export default function SplitPayScreen() {
     }, [goBack, showPicker]);
 
     const handleRequestSplit = async () => {
+        if (!eventId) {
+            log("ERROR: eventId missing in split-payment");
+            return;
+        }
         setProcessing(true);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         
@@ -148,14 +153,15 @@ export default function SplitPayScreen() {
             ...selectedFriends.map((f: any) => f.name)
         ].join(',');
 
+        log(`[Split] Initiating split for event: ${eventId}, amount: ${shareAmount}`);
+
         setTimeout(() => {
             setProcessing(false);
-            // Navigate to the recipient's view (what friends will see)
-            // In production this would be sent via notification. Here we show a preview.
             router.push({
                 pathname: '/(user)/split-request-received',
                 params: {
-                    requesterName:  profile?.name || 'You',
+                    requesterId:    profile?._id    || '',
+                    requesterName:  profile?.name   || 'You',
                     requesterAvatar: profile?.profileImage || 'https://i.pravatar.cc/150?u=me',
                     title:          title,
                     coverImage:     cover,
@@ -166,6 +172,7 @@ export default function SplitPayScreen() {
                     zone,
                     participants:   allParticipants,
                     eventId,
+                    hostId:         hostId, // MANDATORY for backend verify
                 }
             });
         }, 1200);

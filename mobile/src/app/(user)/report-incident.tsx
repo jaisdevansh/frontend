@@ -59,20 +59,31 @@ export default function ReportIncidentScreen() {
     };
 
     const handleSubmit = async () => {
-        if (!selectedType) return showToast('Please select what this report is about.', 'error');
-        if (!title.trim()) return showToast('Please add an incident title.', 'error');
-        if (!description.trim() || description.trim().length < 10) return showToast('Please provide more details (min 10 characters).', 'error');
+        // ⚡ FIX: Proper validation with clear error messages
+        if (!selectedType) {
+            return showToast('Please select what this report is about.', 'error');
+        }
+        if (!title.trim()) {
+            return showToast('Please add an incident title.', 'error');
+        }
+        if (!description.trim()) {
+            return showToast('Please provide incident details.', 'error');
+        }
+        if (description.trim().length < 10) {
+            return showToast('Please provide more details (min 10 characters).', 'error');
+        }
 
         Keyboard.dismiss();
         setSubmitting(true);
         try {
             const res = await apiClient.post('/user/report-incident', {
-                category: selectedType,
+                type: selectedType,        // ⚡ FIX: Backend expects 'type' not 'category'
+                message: description.trim(), // ⚡ FIX: Backend expects 'message' not 'description'
                 title: title.trim(),
-                description: description.trim(),
                 images,
             });
             if (res.data.success) {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 setSubmitted(true);
             }
         } catch (error: any) {
@@ -138,136 +149,140 @@ export default function ReportIncidentScreen() {
             </View>
 
             <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+            >
+                <ScrollView
                     style={{ flex: 1 }}
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="on-drag"
                 >
-                    <ScrollView
-                        style={{ flex: 1 }}
-                        contentContainerStyle={styles.scrollContent}
-                        showsVerticalScrollIndicator={false}
-                        keyboardShouldPersistTaps="handled"
-                        keyboardDismissMode="on-drag"
-                    >
-                        {/* Hero */}
-                        <View style={styles.heroSection}>
-                            <View style={styles.iconGlow}>
-                                <Ionicons name="warning" size={42} color="#FF3B30" />
-                            </View>
-                            <Text style={styles.heroTitle}>Your Safety Matters</Text>
-                            <Text style={styles.heroSubtitle}>
-                                Confidentially report any issues. Our Trust & Safety team reviews all reports immediately.
-                            </Text>
+                    {/* Hero */}
+                    <View style={styles.heroSection}>
+                        <View style={styles.iconGlow}>
+                            <Ionicons name="warning" size={42} color="#FF3B30" />
                         </View>
-
-                        {/* Category */}
-                        <Text style={styles.sectionLabel}>WHAT IS THIS REGARDING?</Text>
-                        <View style={styles.typesContainer}>
-                            {INCIDENT_TYPES.map((type) => {
-                                const isSelected = selectedType === type.id;
-                                return (
-                                    <TouchableOpacity
-                                        key={type.id}
-                                        style={[styles.typeCard, isSelected && styles.typeCardActive]}
-                                        activeOpacity={0.75}
-                                        onPress={() => {
-                                            Haptics.selectionAsync();
-                                            setSelectedType(type.id);
-                                        }}
-                                    >
-                                        <View style={[styles.typeIconBox, isSelected && styles.typeIconBoxActive]}>
-                                            <Ionicons
-                                                name={type.icon as any}
-                                                size={20}
-                                                color={isSelected ? '#FF3B30' : 'rgba(255,255,255,0.4)'}
-                                            />
-                                        </View>
-                                        <Text style={[styles.typeLabel, isSelected && styles.typeLabelActive]}>
-                                            {type.label}
-                                        </Text>
-                                        {isSelected && (
-                                            <Ionicons name="checkmark-circle" size={20} color="#FF3B30" />
-                                        )}
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
-
-                        {/* Title */}
-                        <Text style={[styles.sectionLabel, { marginTop: SPACING.lg }]}>INCIDENT TITLE</Text>
-                        <TextInput
-                            style={styles.titleInput}
-                            placeholder="Short summary of the issue..."
-                            placeholderTextColor="rgba(255,255,255,0.3)"
-                            value={title}
-                            onChangeText={setTitle}
-                            maxLength={100}
-                        />
-
-                        {/* Description */}
-                        <Text style={[styles.sectionLabel, { marginTop: SPACING.lg }]}>INCIDENT DETAILS</Text>
-                        <View style={styles.inputWrapper}>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Please describe exactly what happened. Include dates, times, and any relevant people or venues involved..."
-                                placeholderTextColor="rgba(255, 255, 255, 0.3)"
-                                multiline
-                                maxLength={1000}
-                                value={description}
-                                onChangeText={setDescription}
-                            />
-                            <Text style={styles.charCount}>{description.length}/1000</Text>
-                        </View>
-
-                        {/* Image Upload */}
-                        <Text style={[styles.sectionLabel, { marginTop: SPACING.lg }]}>ATTACH EVIDENCE (OPTIONAL)</Text>
-                        <View style={styles.imageSection}>
-                            {/* Add Button */}
-                            {images.length < 5 && (
-                                <TouchableOpacity style={styles.addImageBtn} onPress={handlePickImages} activeOpacity={0.7}>
-                                    <View style={styles.addImageInner}>
-                                        <Ionicons name="camera-outline" size={28} color="rgba(255,59,48,0.7)" />
-                                        <Text style={styles.addImageText}>Add Photos</Text>
-                                        <Text style={styles.addImageSub}>{images.length}/5</Text>
-                                    </View>
-                                </TouchableOpacity>
-                            )}
-                            {/* Previews */}
-                            {images.map((uri, idx) => (
-                                <View key={idx} style={styles.previewWrapper}>
-                                    <Image source={{ uri }} style={styles.previewImg} />
-                                    <TouchableOpacity style={styles.removeBtn} onPress={() => removeImage(idx)}>
-                                        <Ionicons name="close" size={14} color="white" />
-                                    </TouchableOpacity>
-                                </View>
-                            ))}
-                        </View>
-
-                        {/* Privacy Note */}
-                        <View style={styles.privacyNote}>
-                            <Ionicons name="lock-closed" size={14} color="rgba(255,255,255,0.4)" />
-                            <Text style={styles.privacyText}>This report is strictly confidential and encrypted.</Text>
-                        </View>
-                    </ScrollView>
-
-                    {/* Footer Submit */}
-                    <View style={[styles.footer, { paddingBottom: insets.bottom || 24 }]}>
-                        <TouchableOpacity
-                            style={[
-                                styles.submitBtn,
-                                (!selectedType || !title.trim() || description.trim().length === 0 || submitting) && styles.submitBtnDisabled
-                            ]}
-                            activeOpacity={0.9}
-                            onPress={handleSubmit}
-                            disabled={!selectedType || !title.trim() || description.trim().length === 0 || submitting}
-                        >
-                            {submitting ? (
-                                <ActivityIndicator color="#FFFFFF" />
-                            ) : (
-                                <Text style={styles.submitBtnText}>Submit Secure Report</Text>
-                            )}
-                        </TouchableOpacity>
+                        <Text style={styles.heroTitle}>Your Safety Matters</Text>
+                        <Text style={styles.heroSubtitle}>
+                            Confidentially report any issues. Our Trust & Safety team reviews all reports immediately.
+                        </Text>
                     </View>
-                </KeyboardAvoidingView>
+
+                    {/* Category */}
+                    <Text style={styles.sectionLabel}>WHAT IS THIS REGARDING?</Text>
+                    <View style={styles.typesContainer}>
+                        {INCIDENT_TYPES.map((type) => {
+                            const isSelected = selectedType === type.id;
+                            return (
+                                <TouchableOpacity
+                                    key={type.id}
+                                    style={[styles.typeCard, isSelected && styles.typeCardActive]}
+                                    activeOpacity={0.75}
+                                    onPress={() => {
+                                        Haptics.selectionAsync();
+                                        setSelectedType(type.id);
+                                    }}
+                                >
+                                    <View style={[styles.typeIconBox, isSelected && styles.typeIconBoxActive]}>
+                                        <Ionicons
+                                            name={type.icon as any}
+                                            size={20}
+                                            color={isSelected ? '#FF3B30' : 'rgba(255,255,255,0.4)'}
+                                        />
+                                    </View>
+                                    <Text style={[styles.typeLabel, isSelected && styles.typeLabelActive]}>
+                                        {type.label}
+                                    </Text>
+                                    {isSelected && (
+                                        <Ionicons name="checkmark-circle" size={20} color="#FF3B30" />
+                                    )}
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+
+                    {/* Title */}
+                    <Text style={[styles.sectionLabel, { marginTop: SPACING.lg }]}>INCIDENT TITLE</Text>
+                    <TextInput
+                        style={styles.titleInput}
+                        placeholder="Short summary of the issue..."
+                        placeholderTextColor="rgba(255,255,255,0.3)"
+                        value={title}
+                        onChangeText={setTitle}
+                        maxLength={100}
+                    />
+
+                    {/* Description */}
+                    <Text style={[styles.sectionLabel, { marginTop: SPACING.lg }]}>INCIDENT DETAILS</Text>
+                    <View style={styles.inputWrapper}>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Please describe exactly what happened. Include dates, times, and any relevant people or venues involved..."
+                            placeholderTextColor="rgba(255, 255, 255, 0.3)"
+                            multiline
+                            maxLength={1000}
+                            value={description}
+                            onChangeText={setDescription}
+                        />
+                        <Text style={styles.charCount}>{description.length}/1000</Text>
+                    </View>
+
+                    {/* Image Upload */}
+                    <Text style={[styles.sectionLabel, { marginTop: SPACING.lg }]}>ATTACH EVIDENCE (OPTIONAL)</Text>
+                    <View style={styles.imageSection}>
+                        {/* Add Button */}
+                        {images.length < 5 && (
+                            <TouchableOpacity style={styles.addImageBtn} onPress={handlePickImages} activeOpacity={0.7}>
+                                <View style={styles.addImageInner}>
+                                    <Ionicons name="camera-outline" size={28} color="rgba(255,59,48,0.7)" />
+                                    <Text style={styles.addImageText}>Add Photos</Text>
+                                    <Text style={styles.addImageSub}>{images.length}/5</Text>
+                                </View>
+                            </TouchableOpacity>
+                        )}
+                        {/* Previews */}
+                        {images.map((uri, idx) => (
+                            <View key={idx} style={styles.previewWrapper}>
+                                <Image source={{ uri }} style={styles.previewImg} />
+                                <TouchableOpacity style={styles.removeBtn} onPress={() => removeImage(idx)}>
+                                    <Ionicons name="close" size={14} color="white" />
+                                </TouchableOpacity>
+                            </View>
+                        ))}
+                    </View>
+
+                    {/* Privacy Note */}
+                    <View style={styles.privacyNote}>
+                        <Ionicons name="lock-closed" size={14} color="rgba(255,255,255,0.4)" />
+                        <Text style={styles.privacyText}>This report is strictly confidential and encrypted.</Text>
+                    </View>
+
+                    {/* Extra padding for keyboard */}
+                    <View style={{ height: 100 }} />
+                </ScrollView>
+
+                {/* Footer Submit - Fixed position */}
+                <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+                    <TouchableOpacity
+                        style={[
+                            styles.submitBtn,
+                            (!selectedType || !title.trim() || !description.trim() || submitting) && styles.submitBtnDisabled
+                        ]}
+                        activeOpacity={0.9}
+                        onPress={handleSubmit}
+                        disabled={!selectedType || !title.trim() || !description.trim() || submitting}
+                    >
+                        {submitting ? (
+                            <ActivityIndicator color="#FFFFFF" />
+                        ) : (
+                            <Text style={styles.submitBtnText}>Submit Secure Report</Text>
+                        )}
+                    </TouchableOpacity>
+                </View>
+            </KeyboardAvoidingView>
         </View>
     );
 }
@@ -277,7 +292,7 @@ const styles = StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
     backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
     headerTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '700' },
-    scrollContent: { paddingHorizontal: SPACING.xl, paddingTop: SPACING.xl, paddingBottom: 120 },
+    scrollContent: { paddingHorizontal: SPACING.xl, paddingTop: SPACING.xl, paddingBottom: 20 },
     heroSection: { alignItems: 'center', marginBottom: SPACING.xxl },
     iconGlow: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(255, 59, 48, 0.1)', alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.lg, borderWidth: 1, borderColor: 'rgba(255, 59, 48, 0.2)' },
     heroTitle: { color: '#FFFFFF', fontSize: 24, fontWeight: '800', marginBottom: 8 },
@@ -304,7 +319,7 @@ const styles = StyleSheet.create({
     removeBtn: { position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
     privacyNote: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 20, gap: 6 },
     privacyText: { color: 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: '500' },
-    footer: { backgroundColor: 'rgba(0, 0, 0, 0.97)', paddingHorizontal: SPACING.xl, paddingTop: SPACING.lg, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
+    footer: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0, 0, 0, 0.97)', paddingHorizontal: SPACING.xl, paddingTop: SPACING.lg, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
     submitBtn: { height: 56, backgroundColor: '#FF3B30', borderRadius: 100, alignItems: 'center', justifyContent: 'center', shadowColor: '#FF3B30', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 6 },
     submitBtnDisabled: { backgroundColor: 'rgba(255,255,255,0.05)', shadowOpacity: 0, elevation: 0, borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1 },
     submitBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800', letterSpacing: 0.5 },

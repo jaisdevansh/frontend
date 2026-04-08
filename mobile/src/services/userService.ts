@@ -1,27 +1,8 @@
 import apiClient from './apiClient';
 
-// Premium In-Memory Cache
-const _cache: Record<string, { data: any, timestamp: number }> = {};
-const CACHE_TTL = 300000; // 5 minutes
-
-const getCached = (key: string) => {
-    const entry = _cache[key];
-    if (entry && (Date.now() - entry.timestamp < CACHE_TTL)) return entry.data;
-    return null;
-};
-
-const setCache = (key: string, data: any) => {
-    _cache[key] = { data, timestamp: Date.now() };
-};
-
 export const userService = {
     getProfile: async () => {
-        const cacheKey = 'user_profile_current';
-        const cached = getCached(cacheKey);
-        if (cached) return cached;
-
         const response = await apiClient.get('/user/profile');
-        if (response.data?.success) setCache(cacheKey, response.data);
         return response.data;
     },
 
@@ -39,8 +20,6 @@ export const userService = {
         const response = await apiClient.put('/user/change-password', data);
         return response.data;
     },
-
-
 
     createBooking: async (data: any) => {
         const response = await apiClient.post('/user/book', data);
@@ -62,30 +41,17 @@ export const userService = {
     },
 
     getEvents: async () => {
-        const cacheKey = 'events_all';
-        const cached = getCached(cacheKey);
-        if (cached) return cached;
-
         const response = await apiClient.get('/user/events');
-        if (response.data?.success) setCache(cacheKey, response.data);
         return response.data;
     },
     
     getEventBasic: async (id: string) => {
-        const cacheKey = `event_basic_${id}`;
-        const cached = getCached(cacheKey);
-        if (cached) return cached;
         const response = await apiClient.get(`/user/events/${id}/basic`);
-        if (response.data?.success) setCache(cacheKey, response.data);
         return response.data;
     },
 
     getEventDetails: async (id: string) => {
-        const cacheKey = `event_details_${id}`;
-        const cached = getCached(cacheKey);
-        if (cached) return cached;
         const response = await apiClient.get(`/user/events/${id}/details`);
-        if (response.data?.success) setCache(cacheKey, response.data);
         return response.data;
     },
 
@@ -93,7 +59,6 @@ export const userService = {
         const response = await apiClient.get(`/user/events/${id}/tickets`);
         return response.data;
     },
-
 
     bookEvent: async (data: { eventId: string, ticketType: string, tableId?: string }) => {
         const response = await apiClient.post('/user/events/book', data);
@@ -106,12 +71,7 @@ export const userService = {
     },
 
     getVenues: async () => {
-        const cacheKey = 'venues_all';
-        const cached = getCached(cacheKey);
-        if (cached) return cached;
-
         const response = await apiClient.get('/user/venues');
-        if (response.data?.success) setCache(cacheKey, response.data);
         return response.data;
     },
 
@@ -159,13 +119,8 @@ export const userService = {
 
     // Floor plan / Seat booking APIs
     getFloorPlan: async (eventId: string) => {
-        const cacheKey = `floorplan_${eventId}`;
-        const cached = getCached(cacheKey);
-        if (cached) return cached;
-
         try {
             const response = await apiClient.get(`/user/events/${eventId}/floor-plan`);
-            if (response.data?.success) setCache(cacheKey, response.data);
             return response.data;
         } catch {
             return { success: false, data: null };
@@ -194,7 +149,6 @@ export const userService = {
     },
 
     getMenuItems: async (eventId: string) => {
-        // BYPASS CACHE for Real-Time Pricing and Availability as requested
         const response = await apiClient.get(`/user/events/${eventId}/menu`);
         return response.data;
     },
@@ -219,7 +173,6 @@ export const userService = {
         return response.data;
     },
 
-    // ⭐ Reviews — Real API
     submitReview: async (data: {
         eventId?: string;
         hostId?: string;
@@ -234,7 +187,6 @@ export const userService = {
     },
 
     clearCache: () => {
-        Object.keys(_cache).forEach(key => delete _cache[key]);
-        console.log('[UserService] Professional cache clearance completed');
+        console.log('[UserService] Cache management delegated to TanStack Query & Redis');
     }
 };

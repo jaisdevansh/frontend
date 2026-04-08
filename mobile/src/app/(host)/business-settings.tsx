@@ -20,12 +20,12 @@ export default function BusinessSettings() {
     const { showToast } = useToast();
 
     const [form, setForm] = useState({
-        hostName: '',
+        name: '',            // backend: name
         profileImage: '',
-        businessName: '',
-        venueAddress: '',
+        brandName: '',       // backend: brandName (venue name)
+        location: '',        // backend: location (address string)
         contactNumber: '',
-        businessDescription: '',
+        bio: '',             // backend: bio
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -38,18 +38,17 @@ export default function BusinessSettings() {
     const fetchProfile = async () => {
         try {
             const res = await hostService.getProfile();
-            if (res.success) {
+            if (res.success && res.data) {
                 setForm({
-                    hostName: res.data.hostName || '',
-                    profileImage: res.data.profileImage || '',
-                    businessName: res.data.businessName || '',
-                    venueAddress: res.data.venueAddress || '',
+                    name:          res.data.name          || '',
+                    profileImage:  res.data.profileImage  || '',
+                    brandName:     res.data.brandName     || '',
+                    location:      res.data.location      || '',
                     contactNumber: res.data.contactNumber || '',
-                    businessDescription: res.data.businessDescription || '',
+                    bio:           res.data.bio           || '',
                 });
             }
         } catch (error: any) {
-            console.error('[BusinessSettings] Load error:', error);
             const msg = error.response?.data?.message || error.message || 'Connection failed';
             showToast(`Error: ${msg}`, 'error');
         } finally {
@@ -60,7 +59,15 @@ export default function BusinessSettings() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const res = await hostService.updateProfile(form);
+            // Send field names that the backend updateHostProfile expects
+            const res = await hostService.updateProfile({
+                name:          form.name,
+                profileImage:  form.profileImage,
+                brandName:     form.brandName,
+                location:      form.location,
+                contactNumber: form.contactNumber,
+                bio:           form.bio,
+            });
             if (res.success) {
                 showToast('Settings saved', 'success');
             }
@@ -109,7 +116,7 @@ export default function BusinessSettings() {
                         <Image source={{ uri: form.profileImage }} style={styles.avatar} />
                     ) : (
                         <View style={styles.avatarPlaceholder}>
-                            <Text style={styles.avatarText}>{form.hostName?.charAt(0) || 'H'}</Text>
+                            <Text style={styles.avatarText}>{form.name?.charAt(0) || 'H'}</Text>
                         </View>
                     )}
                     <TouchableOpacity style={styles.cameraBtn} onPress={pickImage}>
@@ -120,8 +127,8 @@ export default function BusinessSettings() {
                 <View style={styles.form}>
                     <Input
                         label="Host Name"
-                        value={form.hostName}
-                        onChangeText={(t) => setForm({ ...form, hostName: t })}
+                        value={form.name}
+                        onChangeText={(t) => setForm({ ...form, name: t })}
                         placeholder="Your Name"
                     />
                     <Input
@@ -132,22 +139,22 @@ export default function BusinessSettings() {
                         keyboardType="phone-pad"
                     />
                     <Input
-                        label="Business Name"
-                        value={form.businessName}
-                        onChangeText={(t) => setForm({ ...form, businessName: t })}
+                        label="Business / Venue Name"
+                        value={form.brandName}
+                        onChangeText={(t) => setForm({ ...form, brandName: t })}
                         placeholder="Business/Venue Name"
                     />
                     <Input
                         label="Venue Address"
-                        value={form.venueAddress}
-                        onChangeText={(t) => setForm({ ...form, venueAddress: t })}
+                        value={form.location}
+                        onChangeText={(t) => setForm({ ...form, location: t })}
                         placeholder="Full Address"
                         multiline
                     />
                     <Input
-                        label="Business Description"
-                        value={form.businessDescription}
-                        onChangeText={(t) => setForm({ ...form, businessDescription: t })}
+                        label="Bio / Description"
+                        value={form.bio}
+                        onChangeText={(t) => setForm({ ...form, bio: t })}
                         placeholder="Tell members about your venue"
                         multiline
                     />
@@ -175,7 +182,7 @@ export default function BusinessSettings() {
                         />
                     ) : (
                         <View style={[styles.avatarPlaceholder, { width: width * 0.8, height: width * 0.8, borderRadius: 20 }]}>
-                            <Text style={[styles.avatarText, { fontSize: 80 }]}>{form.hostName?.charAt(0) || 'H'}</Text>
+                            <Text style={[styles.avatarText, { fontSize: 80 }]}>{form.name?.charAt(0) || 'H'}</Text>
                         </View>
                     )}
                 </View>

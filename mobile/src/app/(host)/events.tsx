@@ -10,6 +10,7 @@ import { useToast } from '../../context/ToastContext';
 import { useAlert } from '../../context/AlertProvider';
 import { useEvents } from '../../hooks/useEvents';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Image } from 'expo-image';
 
 // Optimization: Event Card Component
 const EventCardList = React.memo(({ event, handleDeleteEvent, handleForceReveal, handleEventOptions, formatDate, calculateTotalRevenue, calculateFillPercentage, getTotalSold }: any) => {
@@ -20,18 +21,20 @@ const EventCardList = React.memo(({ event, handleDeleteEvent, handleForceReveal,
             onLongPress={() => handleDeleteEvent(event._id, event.title)}
             delayLongPress={500}
         >
-            <ImageBackground
-                source={{ uri: event.coverImage || 'https://images.unsplash.com/photo-1514525253361-bee8a197c0c1?auto=format&fit=crop&q=80&w=800' }}
-                style={styles.cardImage}
-                imageStyle={{ borderRadius: 24 }}
-            >
-                <View style={styles.imageOverlay}>
+            <View style={styles.cardImage}>
+                <Image 
+                    source={{ uri: event.coverImage || 'https://images.unsplash.com/photo-1514525253361-bee8a197c0c1?auto=format&fit=crop&q=80&w=800' }}
+                    style={{ position: 'absolute', width: '100%', height: '100%', borderRadius: 24 }}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                />
+                <View style={[styles.imageOverlay, { borderRadius: 24 }]}>
                     <View style={styles.dateBadge}>
                         <Text style={styles.dateText}>{day}</Text>
                         <Text style={styles.monthText}>{month}</Text>
                     </View>
                 </View>
-            </ImageBackground>
+            </View>
 
             <View style={styles.cardContent}>
                 <View style={styles.titleRow}>
@@ -146,10 +149,6 @@ export default function HostEvents() {
                 {
                     text: "Update Experience",
                     onPress: () => router.push({ pathname: '/(host)/create-event', params: { id: event._id } })
-                },
-                {
-                    text: "Manage Floors / Sections 🏗️",
-                    onPress: () => router.push({ pathname: '/(host)/floor-manager', params: { eventId: event._id } })
                 },
                 ...( (event.locationVisibility !== 'public' && !event.isLocationRevealed) ? [{
                     text: "Force Reveal Location 📍",

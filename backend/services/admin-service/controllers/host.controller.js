@@ -260,12 +260,14 @@ export const updateVenueProfile = async (req, res, next) => {
             coordinates
         } = req.body;
 
-        const updateObj = {
+        // Build a clean update object — only include fields that were explicitly sent
+        // so that a partial save (e.g. editing description) never wipes out coordinates or heroImage
+        const raw = {
             name,
             venueType,
             description,
             address,
-            capacity: parseInt(capacity) || 0,
+            capacity: capacity !== undefined ? (parseInt(capacity) || 0) : undefined,
             openingTime,
             closingTime,
             rules,
@@ -277,12 +279,17 @@ export const updateVenueProfile = async (req, res, next) => {
             hostId: req.user.id
         };
 
+        // Remove undefined keys so $set only touches the fields we received
+        const updateObj = Object.fromEntries(
+            Object.entries(raw).filter(([, v]) => v !== undefined && v !== null || typeof v === 'number')
+        );
+
         console.log(`[updateVenueProfile] Update object:`, JSON.stringify({ ...updateObj, heroImage: updateObj.heroImage ? 'TRUNCATED' : null }, null, 2));
 
         console.log(`[updateVenueProfile] Received update for host: ${req.user.id}`);
         const venue = await Venue.findOneAndUpdate(
             { hostId: req.user.id },
-            updateObj,
+            { $set: updateObj },
             { new: true, upsert: true, runValidators: true }
         );
         console.log(`[updateVenueProfile] DB update successful for venue: ${venue._id}`);

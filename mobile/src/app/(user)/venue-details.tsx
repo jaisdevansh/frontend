@@ -75,20 +75,30 @@ export default function VenueDetails() {
     const safeLat = realLat || 28.6139;
     const safeLng = realLng || 77.2090;
     const coords = { lat: safeLat, lng: safeLng };
-    const staticMapUrl = `https://maps.geoapify.com/v1/staticmap?style=dark-matter&width=600&height=320&center=lonlat:${coords.lng},${coords.lat}&zoom=15.5&marker=lonlat:${coords.lng},${coords.lat};color:%237c4dff;size:large&apiKey=${GEOAPIFY_KEY}`;
+    const staticMapUrl = `https://maps.geoapify.com/v1/staticmap?style=osm-carto&width=600&height=320&center=lonlat:${coords.lng},${coords.lat}&zoom=15.5&marker=lonlat:${coords.lng},${coords.lat};color:%237c4dff;size:large&apiKey=${GEOAPIFY_KEY}`;
 
     const openMaps = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         const addr = venueData?.address || venueData?.location?.address || venueData?.venueProfile?.address;
-        const destination = (realLat && realLng) ? `${realLat},${realLng}` : encodeURIComponent(addr || '');
-        if (!destination) return;
+
+        let destination: string;
+        if (realLat && realLng) {
+            destination = `${realLat},${realLng}`;
+        } else if (addr) {
+            destination = encodeURIComponent(addr);
+        } else if (name) {
+            destination = encodeURIComponent(name);
+        } else {
+            return;
+        }
 
         const url = Platform.select({
             ios: `http://maps.apple.com/?daddr=${destination}&dirflg=d`,
             android: `https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving`,
             default: `https://www.google.com/maps/dir/?api=1&destination=${destination}`
-        });
+        })!;
 
-        if (url) Linking.openURL(url);
+        Linking.openURL(url).catch(() => {});
     };
 
 
@@ -162,19 +172,19 @@ export default function VenueDetails() {
                                 style={StyleSheet.absoluteFillObject}
                                 resizeMode="cover"
                             />
-                            <TouchableOpacity style={styles.mapOverlay} activeOpacity={0.8} onPress={openMaps}>
-                                <LinearGradient colors={['transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.8)']} style={StyleSheet.absoluteFillObject} />
-                                <View style={{ position: 'absolute', bottom: 12, right: 12, flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 }}>
-                                    <Ionicons name="navigate-circle" size={18} color="#fff" style={{ marginRight: 6 }} />
-                                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Get Directions</Text>
-                                </View>
-                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.mapOverlay} activeOpacity={0.8} onPress={openMaps} />
                         </View>
-                        <View style={{ padding: 16 }}>
-                            <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '700' }}>{name}</Text>
-                            <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginTop: 4 }}>
-                                {venueData?.address || venueData?.venueProfile?.address || 'Premium Lounge & Nightclub'}
-                            </Text>
+                        <View style={{ padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '700' }}>{name}</Text>
+                                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginTop: 4 }}>
+                                    {venueData?.address || venueData?.venueProfile?.address || 'Premium Lounge & Nightclub'}
+                                </Text>
+                            </View>
+                            <TouchableOpacity onPress={openMaps} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 }}>
+                                <Ionicons name="navigate-circle" size={18} color="#fff" style={{ marginRight: 6 }} />
+                                <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Get Directions</Text>
+                            </TouchableOpacity>
                         </View>
                     </View>
 
@@ -254,7 +264,7 @@ export default function VenueDetails() {
                                             });
                                             console.log(`[PERF] VenueEvent Navigation took ${Date.now() - startTime}ms`);
                                             setTimeout(() => setLoading(false), 500);
-                                        }, 10);
+                                        }, 150);
                                     }}
                                     disabled={loading}
                                 >
@@ -288,7 +298,7 @@ export default function VenueDetails() {
                             router.push('/(user)/event-details');
                             console.log(`[PERF] VenueFooter Navigation took ${Date.now() - footStartTime}ms`);
                             setTimeout(() => setLoading(false), 500);
-                        }, 10);
+                        }, 150);
                     }}
                     disabled={loading}
                 >

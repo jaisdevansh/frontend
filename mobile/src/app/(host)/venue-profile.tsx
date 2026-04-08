@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, KeyboardAvoidingView, Platform as RNPlatform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStrictBack } from '../../hooks/useStrictBack';
@@ -204,8 +204,17 @@ export default function HostVenueProfile() {
     }
 
     return (
-        <View style={[styles.container, { paddingTop: insets.top }]}>
-            <ScrollView contentContainerStyle={styles.scrollContent}>
+        <KeyboardAvoidingView
+            style={[styles.container, { paddingTop: insets.top }]}
+            behavior={RNPlatform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={RNPlatform.OS === 'ios' ? 0 : 0}
+        >
+            <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="interactive"
+                showsVerticalScrollIndicator={false}
+            >
                 <TouchableOpacity style={styles.backBtn} onPress={() => goBack()}>
                     <Ionicons name="arrow-back" size={24} color="white" />
                 </TouchableOpacity>
@@ -382,7 +391,7 @@ export default function HostVenueProfile() {
                     loading={saving}
                 />
             </View>
-        </View>
+        </KeyboardAvoidingView>
     );
 }
 
@@ -393,7 +402,7 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         padding: SPACING.lg,
-        paddingBottom: 120,
+        paddingBottom: 180,
     },
     backBtn: {
         width: 44,

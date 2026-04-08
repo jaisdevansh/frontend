@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, TouchableOpacity, Dimensions, TextInput, ScrollView } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
@@ -28,6 +28,7 @@ export default function LoginScreen() {
     const [loading, setLoading] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
     const [inputType, setInputType] = useState<'phone' | 'email'>('phone');
+    const scrollerRef = useRef<ScrollView>(null);
 
     // Phone mode based on manual toggle
     const isPhoneMode = inputType === 'phone';
@@ -68,18 +69,60 @@ export default function LoginScreen() {
                 }
 
                 console.log('[FRONTEND DEBUG] Token acquired! Logging in context...');
+                
+                const refreshToken = parsed.queryParams?.refreshToken as string | undefined;
+                const userRole = (parsed.queryParams?.role as string) || 'user';
+                const onboarded = parsed.queryParams?.onboardingCompleted === 'true';
+                
+                console.log('[FRONTEND DEBUG] Auth data:', { 
+                    hasToken: !!token, 
+                    hasRefreshToken: !!refreshToken,
+                    userRole, 
+                    onboarded 
+                });
+                
+                // Parse name into firstName and lastName
+                const fullName = (parsed.queryParams?.name as string) || '';
+                const nameParts = fullName.trim().split(' ');
+                const firstName = nameParts[0] || '';
+                const lastName = nameParts.slice(1).join(' ') || '';
+                
+                // ⚡ FIX: Wait for login to complete before navigating
                 await login({
                     token,
-                    role:               (parsed.queryParams?.role as string) || 'user',
-                    hostId:             (parsed.queryParams?.hostId as string) || undefined,
-                    onboardingCompleted: parsed.queryParams?.onboardingCompleted === 'true',
+                    refreshToken,
+                    role: userRole,
+                    hostId: (parsed.queryParams?.hostId as string) || undefined,
+                    onboardingCompleted: onboarded,
                     user: {
-                        name:         parsed.queryParams?.name as string,
+                        id:           parsed.queryParams?.userId as string,
+                        _id:          parsed.queryParams?.userId as string,
+                        name:         fullName,
+                        firstName:    firstName,
+                        lastName:     lastName,
                         email:        parsed.queryParams?.email as string,
                         profileImage: parsed.queryParams?.profileImage as string,
+                        username:     parsed.queryParams?.username as string,
+                        phone:        parsed.queryParams?.phone as string,
+                        gender:       parsed.queryParams?.gender as string,
                     }
                 });
+                
+                console.log('[FRONTEND DEBUG] Login completed, auth state set');
+                console.log('[FRONTEND DEBUG] User data stored:', {
+                    name: fullName,
+                    firstName,
+                    lastName,
+                    profileImage: parsed.queryParams?.profileImage,
+                    username: parsed.queryParams?.username
+                });
+                
                 showToast('Welcome! 🎉', 'success');
+                
+                // ⚡ Let _layout.tsx handle navigation automatically based on auth state
+                // No manual navigation needed - the useEffect in _layout will detect
+                // the token and role change and navigate to the correct screen
+                console.log('[FRONTEND DEBUG] Auth complete, _layout will handle navigation');
             } else if (result.type === 'cancel' || result.type === 'dismiss') {
                 console.log('[FRONTEND DEBUG] User cancelled login');
             }
@@ -146,6 +189,7 @@ export default function LoginScreen() {
                 style={styles.keyboardView}
             >
                 <ScrollView 
+                    ref={scrollerRef}
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
@@ -210,7 +254,12 @@ export default function LoginScreen() {
                                         keyboardType={isPhoneMode ? 'phone-pad' : 'email-address'}
                                         autoCapitalize="none"
                                         autoCorrect={false}
-                                        onFocus={() => setIsFocused(true)}
+                                        onFocus={() => {
+                                            setIsFocused(true);
+                                            setTimeout(() => {
+                                                scrollerRef.current?.scrollTo({ y: 150, animated: true });
+                                            }, 100);
+                                        }}
                                         onBlur={() => setIsFocused(false)}
                                     />
                                 </View>

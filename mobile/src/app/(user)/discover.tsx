@@ -66,6 +66,34 @@ const GIFT_CATEGORIES = [
 const giftItemContainer = { width: CARD_W, marginBottom: 12 } as const;
 const columnWrapperStyle = { justifyContent: 'space-between' as const };
 
+// 🚀 HIGH PERFORMANCE MEMOIZED ITEMS 🚀
+const ChatRowItem = React.memo(({ item, onPress }: { item: any; onPress: (item: any) => void }) => {
+    const uName = item.user?.name || item.name || 'User';
+    const img = item.user?.profileImage || item.profileImage;
+    const msg = item.lastMsg || (item.tags?.length ? `Vibe: ${item.tags.join(', ')}` : "Tap to say hi!");
+
+    return (
+        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.03)', padding: 14, borderRadius: 22, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' }} onPress={() => onPress(item)}>
+            <View>
+                <Image source={{ uri: avatar(img) }} style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#222' }} cachePolicy="memory-disk" contentFit="cover" />
+                <View style={{ position: 'absolute', bottom: 0, right: 0, width: 14, height: 14, backgroundColor: '#10B981', borderRadius: 7, borderWidth: 2.5, borderColor: '#131521' }} />
+            </View>
+            <View style={{ flex: 1, marginLeft: 16 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: 0.2 }}>{uName}</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: '700', textTransform: 'uppercase' }}>Nearby</Text>
+                </View>
+                <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 4, fontWeight: '500' }} numberOfLines={1}>{msg}</Text>
+            </View>
+        </TouchableOpacity>
+    );
+}, (prev, next) => prev.item.id === next.item.id && prev.item._id === next.item._id && prev.item.lastMsg === next.item.lastMsg);
+
+const GiftGridItem = React.memo(({ item, cardWidth, onSelect }: { item: GiftItem; cardWidth: number; onSelect: (item: any) => void }) => (
+    <View style={{ width: cardWidth, marginBottom: 12 }}><GiftCard item={item} isSelected={false} onSelect={onSelect} /></View>
+), (prev, next) => prev.item._id === next.item._id);
+
+
 export default function DiscoverScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
@@ -140,6 +168,33 @@ export default function DiscoverScreen() {
     const pulseAnim1 = useRef(new Animated.Value(0)).current;
     const pulseAnim2 = useRef(new Animated.Value(0)).current;
 
+    // Helper function for retrying API calls with exponential backoff
+    const retryApiCall = async <T,>(
+        apiCall: () => Promise<T>,
+        maxRetries = 3,
+        initialDelay = 1000
+    ): Promise<T> => {
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                return await apiCall();
+            } catch (error: any) {
+                const status = error.response?.status;
+                const isColdStart = status === 502 || status === 503;
+                const isLastAttempt = attempt === maxRetries;
+                
+                if (isColdStart && !isLastAttempt) {
+                    const delay = initialDelay * Math.pow(2, attempt);
+                    console.log(`[Radar] Server cold start detected, retrying in ${delay}ms... (attempt ${attempt + 1}/${maxRetries})`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    continue;
+                }
+                
+                throw error;
+            }
+        }
+        throw new Error('Max retries exceeded');
+    };
+
     const initSystem = useCallback(async () => {
         try {
             const { status } = await Location.requestForegroundPermissionsAsync();
@@ -151,7 +206,13 @@ export default function DiscoverScreen() {
                 } catch (locErr) { console.warn('GPS disabled or unreachable, using default location.'); }
             }
 
-            const eventRes = await apiClient.get('/user/active-event');
+            // Retry active-event API call with exponential backoff
+            const eventRes = await retryApiCall(
+                () => apiClient.get('/user/active-event'),
+                3,
+                2000
+            );
+            
             if (eventRes.data?.success && eventRes.data.data) {
                 const booking = eventRes.data.data;
                 // eventId is populated → use ._id; hostId is raw string
@@ -160,8 +221,16 @@ export default function DiscoverScreen() {
                 if (eid) setActiveEventId(String(eid));
                 if (hid) setActiveHostId(String(hid));
             }
-        } catch (e) { console.error('Init error', e); } finally { setLoading(false); }
-    }, [setLocationName, setLoading]);
+        } catch (e: any) { 
+            // Silent fail for 502/503 - these are expected during cold starts
+            const status = e.response?.status;
+            if (status === 502 || status === 503) {
+                console.log('[Radar] Server still starting, will retry on next interaction');
+            } else {
+                console.error('Init error', e);
+            }
+        } finally { setLoading(false); }
+    }, [setLocationName, setLoading, showToast]);
 
     useEffect(() => {
         initSystem();
@@ -311,30 +380,12 @@ export default function DiscoverScreen() {
     ), [filteredUsers, resolveOpenChat]);
 
     const renderChatRow = useCallback(({ item }: { item: any }) => {
-        const uName = item.user?.name || item.name || 'User';
-        const img = item.user?.profileImage || item.profileImage;
-        const msg = item.lastMsg || (item.tags?.length ? `Vibe: ${item.tags.join(', ')}` : "Tap to say hi!");
-
-        return (
-            <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.03)', padding: 14, borderRadius: 22, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' }} onPress={() => resolveOpenChat(item)}>
-                <View>
-                    <Image source={{ uri: avatar(img) }} style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#222' }} cachePolicy="memory-disk" contentFit="cover" />
-                    <View style={{ position: 'absolute', bottom: 0, right: 0, width: 14, height: 14, backgroundColor: '#10B981', borderRadius: 7, borderWidth: 2.5, borderColor: '#131521' }} />
-                </View>
-                <View style={{ flex: 1, marginLeft: 16 }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: 0.2 }}>{uName}</Text>
-                        <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: '700', textTransform: 'uppercase' }}>Nearby</Text>
-                    </View>
-                    <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 4, fontWeight: '500' }} numberOfLines={1}>{msg}</Text>
-                </View>
-            </TouchableOpacity>
-        );
+        return <ChatRowItem item={item} onPress={resolveOpenChat} />;
     }, [resolveOpenChat]);
 
     const cardWidth = (width - 48) / 2; // 40px padding + 8px gap
     const renderGiftItem = useCallback(({ item }: { item: GiftItem }) => (
-        <View style={{ width: cardWidth, marginBottom: 12 }}><GiftCard item={item} isSelected={false} onSelect={onGiftSelect} /></View>
+        <GiftGridItem item={item} cardWidth={cardWidth} onSelect={onGiftSelect} />
     ), [onGiftSelect, cardWidth]);
 
     return (
@@ -425,7 +476,7 @@ export default function DiscoverScreen() {
             <Modal visible={chatModal.visible} animationType="slide" transparent>
                 <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                     <View style={styles.modalBg}>
-                        <View style={[styles.modalHeader, { paddingTop: insets.top + 10 }]}><TouchableOpacity style={styles.iconBtn} onPress={() => setChatModal({ visible: false, chatId: null, user: null, msgs: [] })}><Ionicons name="chevron-down" size={28} color="#FFF" /></TouchableOpacity><View style={styles.modalUserRow}><Image source={{ uri: chatModal.user?.profileImage }} style={styles.modalAv} contentFit="cover" /><View><Text style={styles.modalName}>{chatModal.user?.name}</Text>{isTyping[chatModal.chatId || ''] && <Text style={{color: '#7c4dff', fontSize: 10, fontWeight: '700'}}>typing...</Text>}</View></View><View style={{width: 44}} /></View>
+                        <View style={[styles.modalHeader, { paddingTop: insets.top + 10 }]}><TouchableOpacity style={styles.iconBtn} onPress={() => setChatModal({ visible: false, chatId: null, user: null, msgs: [] })}><Ionicons name="chevron-down" size={28} color="#FFF" /></TouchableOpacity><View style={styles.modalUserRow}><Image source={{ uri: chatModal.user?.profileImage }} style={styles.modalAv} contentFit="cover" cachePolicy="memory-disk" /><View><Text style={styles.modalName}>{chatModal.user?.name}</Text>{isTyping[chatModal.chatId || ''] && <Text style={{color: '#7c4dff', fontSize: 10, fontWeight: '700'}}>typing...</Text>}</View></View><View style={{width: 44}} /></View>
                         <FlashList 
                             data={messagesByPeer[chatModal.chatId || ''] || []}
                             keyExtractor={(item: any) => item._id || item.tempId}

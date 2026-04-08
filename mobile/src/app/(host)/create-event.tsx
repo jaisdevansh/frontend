@@ -110,60 +110,90 @@ export default function HostCreateEvent() {
         queryFn: async () => {
             const res = await hostService.getVenueProfile();
             if (res.success && res.data) {
-                const loc = {
-                    lat: res.data.coordinates?.lat || 28.6139,
-                    lng: res.data.coordinates?.long || 77.2090, 
-                    address: res.data.address || ''
-                };
-                setVenueLocation(loc);
-                if (!id) setLocationData(loc); 
+                const vCoords = res.data.coordinates;
+                const hasVenueCoords = vCoords?.lat && (vCoords?.long || vCoords?.lng);
+
+                if (hasVenueCoords) {
+                    // ✅ Venue has saved coordinates — use them
+                    const loc = {
+                        lat: parseFloat(vCoords.lat),
+                        lng: parseFloat(vCoords.long || vCoords.lng),
+                        address: res.data.address || ''
+                    };
+                    setVenueLocation(loc);
+                    if (!id) setLocationData(loc);
+                } else {
+                    // 📍 No venue coordinates — fall back to current GPS location
+                    try {
+                        const { status } = await Location.requestForegroundPermissionsAsync();
+                        if (status === 'granted') {
+                            const gps = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+                            const geocode = await Location.reverseGeocodeAsync(gps.coords);
+                            const formatted = geocode[0]
+                                ? [geocode[0].name, geocode[0].street, geocode[0].city].filter(Boolean).join(', ')
+                                : 'Current GPS Location';
+                            const loc = {
+                                lat: gps.coords.latitude,
+                                lng: gps.coords.longitude,
+                                address: formatted
+                            };
+                            setVenueLocation(loc);
+                            if (!id) setLocationData(loc);
+                        }
+                    } catch (_) {
+                        // GPS failed — leave locationData null, host can set manually
+                    }
+                }
             }
             return res.data;
         }
     });
 
-    const { isLoading: fetching } = useQuery({
+    const { data: eventData, isLoading: fetching } = useQuery({
         queryKey: ['eventDetails', id],
         queryFn: async () => {
             const res = await hostService.getEvent(id as string);
-            if (res.success) {
-                const event = res.data;
-                setTitle(event.title || '');
-                setDescription(event.description || '');
-                setDate(event.date ? dayjs(event.date).format('DD/MM/YYYY') : '');
-                setStartTime(event.startTime || '');
-                setEndTime(event.endTime || '');
-                setFloorCount(event.floorCount?.toString() || '1');
-                setCoverImage(event.coverImage || '');
-                setImages(event.images || []);
-
-                setLocationVisibility(event.locationVisibility || 'public');
-                setRevealTime(event.revealTime ? dayjs(event.revealTime).format('DD/MM/YYYY hh:mm A') : '');
-                setBookingOpenDate(event.bookingOpenDate ? dayjs(event.bookingOpenDate).format('DD/MM/YYYY hh:mm A') : '');
-                setFreeRefreshments(event.freeRefreshments || []);
-                
-                if (event.locationData) setLocationData(event.locationData);
-
-                if (event.houseRules) {
-                    setRuleDressCode(event.houseRules.some((r: any) => r.title?.includes('Dress Code')));
-                    setRuleIdRequired(event.houseRules.some((r: any) => r.title?.includes('ID Required') || r.title?.includes('Age')));
-                    setRuleNoPhotos(event.houseRules.some((r: any) => r.title?.includes('No-Photo')));
-                }
-
-                if (event.tickets && Array.isArray(event.tickets) && event.tickets.length > 0) {
-                    setTickets(event.tickets.map((t: any) => ({
-                        id: t._id,
-                        type: t.type,
-                        price: t.price?.toString() || '',
-                        capacity: t.capacity?.toString() || ''
-                    })));
-                }
-                return event;
-            }
+            if (res.success) return res.data;
             throw new Error('Failed to load event');
         },
         enabled: !!id,
     });
+
+    useEffect(() => {
+        if (eventData) {
+            const event = eventData;
+            setTitle(event.title || '');
+            setDescription(event.description || '');
+            setDate(event.date ? dayjs(event.date).format('DD/MM/YYYY') : '');
+            setStartTime(event.startTime || '');
+            setEndTime(event.endTime || '');
+            setFloorCount(event.floorCount?.toString() || '1');
+            setCoverImage(event.coverImage || '');
+            setImages(event.images || []);
+
+            setLocationVisibility(event.locationVisibility || 'public');
+            setRevealTime(event.revealTime ? dayjs(event.revealTime).format('DD/MM/YYYY hh:mm A') : '');
+            setBookingOpenDate(event.bookingOpenDate ? dayjs(event.bookingOpenDate).format('DD/MM/YYYY hh:mm A') : '');
+            setFreeRefreshments(event.freeRefreshments || []);
+            
+            if (event.locationData) setLocationData(event.locationData);
+
+            if (event.houseRules) {
+                setRuleDressCode(event.houseRules.some((r: any) => r.title?.includes('Dress Code')));
+                setRuleIdRequired(event.houseRules.some((r: any) => r.title?.includes('ID Required') || r.title?.includes('Age')));
+                setRuleNoPhotos(event.houseRules.some((r: any) => r.title?.includes('No-Photo')));
+            }
+
+            if (event.tickets && Array.isArray(event.tickets) && event.tickets.length > 0) {
+                setTickets(event.tickets.map((t: any) => ({
+                    id: t._id,
+                    type: t.type,
+                    price: t.price?.toString() || '',
+                    capacity: t.capacity?.toString() || ''
+                })));
+            }
+        }
+    }, [eventData]);
 
     const pickImage = async () => {
         try {
@@ -237,7 +267,13 @@ export default function HostCreateEvent() {
         const houseRules = [];
         if (ruleDressCode) houseRules.push({ icon: 'shirt-outline', title: 'Dress Code: Smart Sophisticated', detail: 'No sportswear, trainers, or caps.' });
         if (ruleIdRequired) houseRules.push({ icon: 'person-outline', title: 'ID Required (21+ only)', detail: 'Valid government-issued photo ID is mandatory.' });
-        if (ruleNoPhotos) houseRules.push({ icon: 'camera-off-outline', title: 'Strict No-Photo Policy', detail: 'Photography is strictly prohibited inside the venue.' });
+        if (ruleNoPhotos) houseRules.push({ icon: 'eye-off-outline', title: 'Strict No-Photo Policy', detail: 'Photography is strictly prohibited inside the venue.' });
+
+        // Resolve locationData: prioritize venueLocation if toggle is ON, else manual locationData
+        let finalLocation = locationData;
+        if (useVenueLocation && venueLocation) {
+            finalLocation = venueLocation;
+        }
 
         const eventData = {
             title,
@@ -259,7 +295,7 @@ export default function HostCreateEvent() {
                 capacity: parseInt(t.capacity) || 0
             })),
             freeRefreshments,
-            locationData: useVenueLocation ? venueLocation : locationData,
+            locationData: finalLocation,
             status: targetStatus
         };
 
@@ -434,7 +470,10 @@ export default function HostCreateEvent() {
                                 value={useVenueLocation} 
                                 onValueChange={(val) => {
                                     setUseVenueLocation(val);
-                                    if (val && venueLocation) setLocationData(venueLocation);
+                                    // ONLY overwrite locationData if we actually have valid venue coordinates
+                                    if (val && venueLocation && venueLocation.lat && venueLocation.lng) {
+                                        setLocationData(venueLocation);
+                                    }
                                 }} 
                                 trackColor={{ false: '#333', true: COLORS.primary }} 
                                 thumbColor="#FFF" 

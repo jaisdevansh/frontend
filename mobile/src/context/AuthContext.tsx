@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DeviceEventEmitter } from 'react-native';
 import apiClient from '../services/apiClient';
 import { useQueryClient } from '@tanstack/react-query';
-import { prefetchAdminData, prefetchUserData } from '../services/prefetchService';
+import { prefetchAdminData, prefetchUserData, prefetchHostData } from '../services/prefetchService';
 
 export type UserRole = 'admin' | 'host' | 'staff' | 'user' | null;
 
@@ -48,27 +48,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const loadAuth = async () => {
         try {
+            console.log('[AuthContext] 🔄 Loading auth from AsyncStorage...');
             const raw = await AsyncStorage.getItem('auth');
             const rawUser = await AsyncStorage.getItem('auth_user');
+            
             if (raw) {
                 const data = JSON.parse(raw);
+                console.log('[AuthContext] ✅ Auth data found:', { 
+                    hasToken: !!data.token, 
+                    role: data.role,
+                    hasRefreshToken: !!data.refreshToken 
+                });
+                
                 let userData = { onboardingCompleted: false, user: null };
                 if (rawUser) {
                     userData = JSON.parse(rawUser);
+                    console.log('[AuthContext] ✅ User data found:', { 
+                        onboardingCompleted: userData.onboardingCompleted,
+                        hasUser: !!userData.user 
+                    });
                 }
                 
                 setAuthState({ ...data, ...userData });
                 
-                // 🚨 CRITICAL: Set global API header IMMEDIATELY upon reloading auth.
-                // This guarantees every subsequent query has the persistent session token.
+                // 🚨 CRITICAL: Set global API header IMMEDIATELY upon reloading auth
                 if (data.token) {
                     apiClient.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+                    console.log('[AuthContext] ✅ Token attached to API client on app restart');
                 }
+            } else {
+                console.log('[AuthContext] ℹ️ No saved auth found (fresh install or logged out)');
             }
         } catch (e) {
-            console.error('[Auth] Local load failed:', e);
+            console.error('[AuthContext] ❌ Local load failed:', e);
         } finally {
-            setIsLoading(false); // Only render app AFTER load is complete
+            setIsLoading(false);
+            console.log('[AuthContext] ✅ Auth loading complete');
         }
     };
 
@@ -81,6 +96,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const role = authState.role.toLowerCase();
         if (role === 'admin') {
             prefetchAdminData(queryClient);
+        } else if (role === 'host') {
+            prefetchHostData(queryClient);
         } else {
             prefetchUserData(queryClient);
         }
@@ -106,16 +123,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
     };
 
-    const login = async (authData: { token: string; role: string; hostId?: string | null; user?: any; onboardingCompleted?: boolean }) => {
-        // Remove default role fallbacks
+    const login = async (authData: { token: string; role: string; refreshToken?: string; hostId?: string | null; user?: any; onboardingCompleted?: boolean }) => {
+        console.log('[AuthContext] Login called with:', { 
+            hasToken: !!authData.token, 
+            role: authData.role,
+            hasRefreshToken: !!authData.refreshToken,
+            onboardingCompleted: authData.onboardingCompleted 
+        });
+        
+        // Validate role
         if (!authData.role) {
             throw new Error('Invalid authentication role received from server.');
         }
 
         const normalizedRole = authData.role.toLowerCase() as UserRole;
         if (!['admin', 'host', 'staff', 'user'].includes(normalizedRole as string)) {
-             throw new Error('Invalid authentication role received from server.');
+            throw new Error('Invalid authentication role received from server.');
         }
+
+        console.log('[AuthContext] Role validated:', normalizedRole);
+
+        // ── STEP 1: Wipe ALL previous-user React Query cache BEFORE setting new state ──
+        await queryClient.cancelQueries();
+        queryClient.clear();
 
         const payload: AuthState = {
             token: authData.token,
@@ -125,31 +155,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             onboardingCompleted: authData.onboardingCompleted ?? true
         };
 
-        // Strict requirement: save exact object for 'auth'
-        await AsyncStorage.setItem('auth', JSON.stringify({
-            token: payload.token,
+        console.log('[AuthContext] Payload prepared:', { 
+            hasToken: !!payload.token,
             role: payload.role,
-            hostId: payload.hostId
-        }));
-        
-        await AsyncStorage.setItem('auth_user', JSON.stringify({
-            onboardingCompleted: payload.onboardingCompleted,
-            user: payload.user
-        }));
-        
-        setAuthState(payload);
+            onboardingCompleted: payload.onboardingCompleted 
+        });
 
-        // Attach to global axios instance
+        // ── STEP 2: Persist credentials to AsyncStorage FIRST (critical for session persistence) ──
+        try {
+            await AsyncStorage.setItem('auth', JSON.stringify({
+                token: payload.token,
+                role: payload.role,
+                hostId: payload.hostId,
+                refreshToken: authData.refreshToken || null,
+            }));
+
+            await AsyncStorage.setItem('auth_user', JSON.stringify({
+                onboardingCompleted: payload.onboardingCompleted,
+                user: payload.user,
+            }));
+
+            console.log('[AuthContext] ✅ Data persisted to AsyncStorage');
+        } catch (storageError) {
+            console.error('[AuthContext] ❌ AsyncStorage failed:', storageError);
+            throw new Error('Failed to save session. Please try again.');
+        }
+
+        // ── STEP 3: Attach token to API client ──
         apiClient.defaults.headers.common['Authorization'] = `Bearer ${authData.token}`;
+        console.log('[AuthContext] ✅ Token attached to API client');
 
-        // 🔥 Fire-and-forget prefetch for all role-specific data
+        // ── STEP 4: Update React state ──
+        setAuthState(payload);
+        console.log('[AuthContext] ✅ Auth state updated in React');
+
+        // ── STEP 5: Prefetch data after navigation settles ──
         setTimeout(() => {
+            console.log('[AuthContext] Starting data prefetch for role:', normalizedRole);
+            // Force invalidate any cached profile data to ensure fresh fetch
+            queryClient.invalidateQueries({ queryKey: ['user', 'profile'] });
+            queryClient.invalidateQueries({ queryKey: ['profile'] });
+            
             if (normalizedRole === 'admin') {
                 prefetchAdminData(queryClient);
+            } else if (normalizedRole === 'host') {
+                prefetchHostData(queryClient);
             } else {
                 prefetchUserData(queryClient);
             }
-        }, 500); // small delay so navigation completes first
+        }, 300);
+        
+        console.log('[AuthContext] ✅ Login completed successfully');
     };
 
     const setOnboardingStatus = async (status: boolean) => {
@@ -164,15 +220,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const logout = async () => {
+        // ── Clear ALL user data from every layer ──────────────────────────────
         await AsyncStorage.removeItem('auth');
         await AsyncStorage.removeItem('auth_user');
         delete apiClient.defaults.headers.common['Authorization'];
+
+        // Wipe React Query cache so no previous-user data leaks into next login
+        await queryClient.cancelQueries();
+        queryClient.clear();
+
         setAuthState({
             token: null,
             role: null,
             hostId: null,
             user: null,
-            onboardingCompleted: false
+            onboardingCompleted: false,
         });
     };
 

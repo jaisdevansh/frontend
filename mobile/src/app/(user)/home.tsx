@@ -28,40 +28,107 @@ const FlashList = SafeFlashList;
 const { width } = Dimensions.get('window');
 const DATE_OPTIONS = ['Today', 'Tomorrow', 'This Weekend', 'Next Week'];
 
+// 🚀 HIGH PERFORMANCE MEMOIZED EVENT CARD 🚀
+const EventCardItem = React.memo(({ item, isLoading, onBodyPress, onDetailsPress, coverImageProps }: any) => {
+    const dateObj = item.date ? new Date(item.date) : new Date();
+    const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
+    
+    return (
+        <TouchableOpacity 
+            style={[styles.eventCard, isLoading && { opacity: 0.8 }]}
+            activeOpacity={0.9}
+            onPress={onBodyPress}
+        >
+            <ExpoImageBackground source={hero(item.coverImage) || 'https://images.unsplash.com/photo-1545128485-c400e7702796?q=80&w=800'} style={styles.cardImageBg} imageStyle={{ borderRadius: 28 }} {...coverImageProps}>
+                {isLoading && (
+                    <View style={styles.cardLoaderOverlay}>
+                        <ActivityIndicator size="large" color="#fff" />
+                    </View>
+                )}
+                <View style={styles.cardTopRow}>
+                    <View style={styles.dateBadge}><Ionicons name="calendar-outline" size={12} color="#fff" /><Text style={styles.dateBadgeTxt}>{dateStr}</Text></View>
+                    <View style={styles.verifiedBadge}><Ionicons name="checkmark-circle" size={12} color="#fff" /><Text style={styles.verifiedBadgeTxt}>VERIFIED</Text></View>
+                </View>
+                <LinearGradient colors={['transparent', 'rgba(10,10,10,0.85)', '#0a0a0a']} style={styles.cardContentBottom}>
+                    <Text style={styles.cardEventTitle}>{item.title}</Text>
+                    
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                        <Ionicons name="location-sharp" size={12} color="#7c4dff" />
+                        <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '500' }}>
+                            {item.locationVisibility === 'public' && item.locationData?.address 
+                                ? item.locationData.address.split(',')[0] 
+                                : 'Location Revealed Post-Booking'}
+                        </Text>
+                    </View>
+
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, marginBottom: 18, backgroundColor: 'rgba(255,255,255,0.06)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, alignSelf: 'flex-start' }}>
+                        <Image 
+                            source={{ uri: avatar(item.hostId?.profileImage, item.hostId?.name || 'Host') }} 
+                            style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: '#3B82F6' }} 
+                            cachePolicy="memory-disk"
+                            contentFit="cover"
+                        />
+                        <Text style={styles.cardEventHost}>
+                            {item.hostId?.name || 'Collective Underground'}
+                        </Text>
+                    </View>
+
+                        <View style={styles.cardFooterStats}>
+                            <View style={styles.statsRowLeft}>
+                                <View style={styles.statChip}><Text style={styles.statChipTxt}>₹{item.displayPrice?.toLocaleString() || '2,500'}</Text></View>
+                                <View style={styles.statChip}><MaterialCommunityIcons name="account-group" size={14} color="#22c55e" /><Text style={styles.statChipTxt}>{item.occupancy || '20%'}</Text></View>
+                            </View>
+                        <TouchableOpacity 
+                            style={styles.requestBtn} 
+                            disabled={isLoading}
+                            onPress={onDetailsPress}
+                        >
+                            {isLoading ? (
+                                <ActivityIndicator size="small" color="#fff" style={{ width: 40 }} />
+                            ) : (
+                                <Text style={styles.requestBtnTxt}>Details</Text>
+                            )}
+                        </TouchableOpacity>
+                    </View>
+                </LinearGradient>
+            </ExpoImageBackground>
+        </TouchableOpacity>
+    );
+}, (prevProps, nextProps) => {
+    return prevProps.isLoading === nextProps.isLoading && prevProps.item._id === nextProps.item._id;
+});
+
+
 export default function HomeScreen() {
     const router = useRouter();
     const { user: authUser } = useAuth();
     const insets = useSafeAreaInsets();
     const prefetchEvent = usePrefetchEvent();
     
-    // ── SUPER-FAST REACT QUERY ARCHITECTURE ──
-    const { data: eventsData, isLoading: isEventsLoading, refetch: refetchEvents } = useQuery({
+    // ── SUPER-FAST PARALLEL DATA FETCHING ──
+    const eventsQuery = useQuery({
         queryKey: ['home_events'],
-        queryFn: async () => {
-            const res = await userService.getEvents();
-            return res.success && Array.isArray(res.data) ? res.data : [];
-        },
-        staleTime: 1000 * 60 * 5 // 5 min instant cache
+        queryFn: () => userService.getEvents().then(res => res.data || []),
+        staleTime: 600000, // 10 min
     });
 
-    const { data: venuesData } = useQuery({
-        queryKey: ['home_venues'],
-        queryFn: async () => {
-            const res = await userService.getVenues();
-            return res.success && Array.isArray(res.data) ? res.data : [];
-        },
-        staleTime: 1000 * 60 * 10
-    });
-
-    const { data: profileData } = useQuery({
+    const profileQuery = useQuery({
         queryKey: ['user_profile'],
-        queryFn: async () => {
-            const res = await userService.getProfile();
-            console.log("[Home] Fetched Profile from Backend:", res.data?.name, res.data?.profileImage);
-            return res.success ? res.data : null;
-        },
-        staleTime: 1000 * 60 * 30
+        queryFn: () => userService.getProfile().then(res => res.data),
+        staleTime: 1800000, // 30 min
     });
+
+    const venuesQuery = useQuery({
+        queryKey: ['home_venues'],
+        queryFn: () => userService.getVenues().then(res => res.data || []),
+        staleTime: 600000,
+    });
+
+    const isEventsLoading = eventsQuery.isLoading;
+    const refetchEvents = eventsQuery.refetch;
+    const profileData = profileQuery.data;
+    const venuesData = venuesQuery.data;
+    const eventsData = eventsQuery.data;
 
     // Extract UI data
     const profileImage = authUser?.profileImage || profileData?.profileImage || null;
@@ -180,93 +247,31 @@ export default function HomeScreen() {
         transition: 200
     }), []);
 
-    const renderEvent = useCallback(({ item, index }: { item: any; index: number }) => {
-        const dateObj = item.date ? new Date(item.date) : new Date();
-        const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
+    const handleEventPress = useCallback((id: string, cover: string) => {
+        setLoadingEventId(id);
+        Haptics.selectionAsync();
         
+        // Priority 1: Navigation
+        router.push({ pathname: '/(user)/event-details', params: { eventId: id } });
+
+        // Priority 2: Background prefetch (after nav starts)
+        InteractionManager.runAfterInteractions(() => {
+            prefetchEvent(id, cover);
+            setLoadingEventId(null);
+        });
+    }, [router, prefetchEvent]);
+
+    const renderEvent = useCallback(({ item }: { item: any }) => {
         return (
-            <TouchableOpacity 
-                style={[styles.eventCard, loadingEventId === item._id && { opacity: 0.8 }]}
-                activeOpacity={0.9}
-                onPress={() => {
-                    log("STEP 1: CLICK EVENT", item?._id);
-                    setLoadingEventId(item._id);
-                    Haptics.selectionAsync();
-                    
-                    setTimeout(() => {
-                        log("STEP 2: NAVIGATION START");
-                        router.push({ pathname: '/(user)/event-details', params: { eventId: item._id } });
-                        setTimeout(() => setLoadingEventId(null), 500);
-                    }, 50);
-
-                    InteractionManager.runAfterInteractions(() => {
-                        prefetchEvent(item._id, item.coverImage);
-                    });
-                }}
-            >
-                <ExpoImageBackground source={hero(item.coverImage) || 'https://images.unsplash.com/photo-1545128485-c400e7702796?q=80&w=800'} style={styles.cardImageBg} imageStyle={{ borderRadius: 28 }} {...coverImageProps}>
-                    {loadingEventId === item._id && (
-                        <View style={styles.cardLoaderOverlay}>
-                            <ActivityIndicator size="large" color="#fff" />
-                        </View>
-                    )}
-                    <View style={styles.cardTopRow}>
-                        <View style={styles.dateBadge}><Ionicons name="calendar-outline" size={12} color="#fff" /><Text style={styles.dateBadgeTxt}>{dateStr}</Text></View>
-                        <View style={styles.verifiedBadge}><Ionicons name="checkmark-circle" size={12} color="#fff" /><Text style={styles.verifiedBadgeTxt}>VERIFIED</Text></View>
-                    </View>
-                    <LinearGradient colors={['transparent', 'rgba(10,10,10,0.85)', '#0a0a0a']} style={styles.cardContentBottom}>
-                        <Text style={styles.cardEventTitle}>{item.title}</Text>
-                        
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                            <Ionicons name="location-sharp" size={12} color="#7c4dff" />
-                            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '500' }}>
-                                {item.locationVisibility === 'public' && item.locationData?.address 
-                                    ? item.locationData.address.split(',')[0] 
-                                    : 'Location Revealed Post-Booking'}
-                            </Text>
-                        </View>
-
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6, backgroundColor: 'rgba(255,255,255,0.03)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, alignSelf: 'flex-start' }}>
-                            <Image 
-                                source={{ uri: avatar(item.hostId?.profileImage, item.hostId?.name || 'Host') }} 
-                                style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 1, borderColor: '#3B82F6' }} 
-                                cachePolicy="memory-disk"
-                                contentFit="cover"
-                            />
-                            <Text style={styles.cardEventHost}>
-                                {item.hostId?.name || 'Collective Underground'}
-                            </Text>
-                        </View>
-
-                            <View style={styles.cardFooterStats}>
-                                <View style={styles.statsRowLeft}>
-                                    <View style={styles.statChip}><Text style={styles.statChipTxt}>₹{item.displayPrice?.toLocaleString() || '2,500'}</Text></View>
-                                    <View style={styles.statChip}><MaterialCommunityIcons name="account-group" size={14} color="#22c55e" /><Text style={styles.statChipTxt}>{item.occupancy || '20%'}</Text></View>
-                                </View>
-                            <TouchableOpacity 
-                                style={styles.requestBtn} 
-                                disabled={loadingEventId === item._id}
-                                onPress={() => {
-                                    setLoadingEventId(item._id);
-                                    Haptics.selectionAsync();
-                                    setTimeout(() => {
-                                        router.push({ pathname: '/(user)/event-details', params: { eventId: item._id } });
-                                        setTimeout(() => setLoadingEventId(null), 800);
-                                    }, 50);
-                                }}
-                            >
-                                {loadingEventId === item._id ? (
-                                    <ActivityIndicator size="small" color="#fff" style={{ width: 40 }} />
-                                ) : (
-                                    <Text style={styles.requestBtnTxt}>Details</Text>
-                                )}
-                            </TouchableOpacity>
-                        </View>
-                    </LinearGradient>
-                </ExpoImageBackground>
-            </TouchableOpacity>
+            <EventCardItem 
+                item={item} 
+                isLoading={loadingEventId === item._id} 
+                coverImageProps={coverImageProps}
+                onBodyPress={() => handleEventPress(item._id, item.coverImage)}
+                onDetailsPress={() => handleEventPress(item._id, item.coverImage)}
+            />
         );
-    }, [loadingEventId, router, prefetchEvent, coverImageProps]);
+    }, [loadingEventId, handleEventPress, coverImageProps]);
 
     const ListHeader = useCallback(() => (
         <View>
@@ -471,7 +476,7 @@ const styles = StyleSheet.create({
     verifiedBadgeTxt: { color: '#fff', fontSize: 10, fontWeight: '800' },
     cardContentBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, paddingTop: 60 },
     cardEventTitle: { color: '#fff', fontSize: 24, fontWeight: '800', marginBottom: 4 },
-    cardEventHost: { color: 'rgba(255,255,255,0.5)', fontSize: 13, marginBottom: 20 },
+    cardEventHost: { color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '600' },
     cardFooterStats: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     statsRowLeft: { flexDirection: 'row', gap: 12 },
     statChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#151515', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, gap: 8 },

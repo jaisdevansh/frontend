@@ -19,6 +19,9 @@ const { width } = Dimensions.get('window');
 
 const GEOAPIFY_KEY = process.env.EXPO_PUBLIC_GEOAPIFY_KEY || 'e6f13848c19246eab1bef2662e18ebd0';
 
+// ── Safe array helper: always returns a real array ───────────────────────────
+const safeArray = <T,>(val: any): T[] => (Array.isArray(val) ? val : []);
+
 const EventDetails = () => {
     const router = useRouter();
     const navigation = useNavigation();
@@ -27,12 +30,14 @@ const EventDetails = () => {
     const eventId = params.eventId as string;
 
     const [activeSlide, setActiveSlide] = useState(0);
+    const flatListRef = useRef<FlatList>(null);
+    const scrollTimer = useRef<any>(null);
+    const isUserInteracting = useRef(false);
 
     // ── Performance Tracking ──────────────────────────────────────────────────
     useEffect(() => {
         log(`STEP 3: SCREEN OPEN`);
         log(`STEP 4: PARAM eventId: ${eventId}`);
-        // Fresh timestamp each mount — avoids stale ref after back-navigation
         const mountedAt = Date.now();
         log(`[PERF] EventDetails mounting...`);
         InteractionManager.runAfterInteractions(() => {
@@ -46,9 +51,9 @@ const EventDetails = () => {
     const goBack = useStrictBack('/(user)/discover');
 
     // ── React Query: instant from cache, silent background refresh ──────────
-    const { data: eventBasic, isLoading: isBasicLoading, isFetching: isBasicFetching } = useEventBasicQuery(eventId);
-    const { data: eventDetails, isLoading: isDetailsLoading } = useEventDetailsQuery(eventId);
-    
+    const { data: eventBasic, isLoading: isBasicLoading, isFetching: isBasicFetching, isError: isBasicError } = useEventBasicQuery(eventId);
+    const { data: eventDetails, isLoading: isDetailsLoading, isError: isDetailsError } = useEventDetailsQuery(eventId);
+
     // useMemo: stable object ref, prevents new {} on every render causing downstream re-render cascade
     const event = useMemo(() => {
         if (!eventBasic && !eventDetails) return null;
@@ -56,8 +61,23 @@ const EventDetails = () => {
     }, [eventBasic, eventDetails]);
 
     const isLoading = isBasicLoading || isDetailsLoading;
-    const isFetching = isBasicFetching;
+    const isError = isBasicError && isDetailsError; // Only show overall error if BOTH failed
     const invalidateEvent = useInvalidateEvent();
+
+    // ── Step 7: Log event data before render ─────────────────────────────────
+    useEffect(() => {
+        if (event && event._id) {
+            log(`EVENT DATA: ${JSON.stringify({
+                _id: event._id,
+                title: event.title,
+                ticketsCount: safeArray(event.tickets).length,
+                imagesCount: safeArray(event?.images || (event?.coverImage ? [event.coverImage] : [])).length,
+                houseRulesCount: safeArray(event.houseRules).length,
+                freeRefreshmentsCount: safeArray(event.freeRefreshments).length,
+                locationVisibility: event.locationVisibility,
+            })}`);
+        }
+    }, [event]);
 
     // ── Socket.io: real-time updates invalidate cache ────────────────────────
     useEffect(() => {
@@ -65,58 +85,87 @@ const EventDetails = () => {
         const sock = io(API_BASE_URL, { transports: ['websocket'] });
 
         sock.on('location_revealed', (data: any) => {
-            if (data.eventId === eventId) {
+            if (data?.eventId === eventId) {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 showToast('Location Revealed! 📍', 'success');
                 invalidateEvent(eventId);
             }
         });
         sock.on('event_updated', (data: any) => {
-            if (data.eventId === eventId) invalidateEvent(eventId);
+            if (data?.eventId === eventId) invalidateEvent(eventId);
         });
-        sock.on('venue_updated', (data: any) => {
-            // Use eventId only (no stale closure over event object)
+        sock.on('venue_updated', (_data: any) => {
             invalidateEvent(eventId);
         });
 
-        return () => { sock.disconnect(); }; // ✅ guaranteed cleanup
+        return () => { sock.disconnect(); };
     }, [eventId, invalidateEvent, showToast]);
 
-    const onScroll = (e: any) => setActiveSlide(Math.round(e.nativeEvent.contentOffset.x / width));
+    const internalIndex = useRef(0);
+    const onScroll = useCallback((e: any) => {
+        const index = Math.round(e.nativeEvent.contentOffset.x / width);
+        setActiveSlide(index);
+        internalIndex.current = index;
+    }, []);
 
     const handleBookNow = useCallback(() => {
         if (!event) return;
-        
-        // Push instantly! No delays or re-rendering state blocking JS execution.
-        const vName = event.venue?.name || event.hostId?.name || 'Exclusive Venue';
-        router.push({
-            pathname: '/(user)/ticket-selection',
-            params: {
-                eventId: event._id,
-                title: event.title,
-                venueName: vName,
-                coverImage: event.coverImage || event.images?.[0] || '',
-                hostId: event.hostId?._id || event.hostId,
-                price: event.tickets?.length > 0 ? event.tickets[0].price : 0,
-            },
-        });
+
+        const tickets = safeArray<any>(event.tickets);
+        const vName = (event.venue as any)?.name || (event.hostId as any)?.name || 'Exclusive Venue';
+        const coverImg = (event.coverImage as string) || safeArray<any>(event.images)[0] || '';
+        const lowestPriceVal: number = tickets.length > 0 ? (Number((tickets[0] as any)?.price) || 0) : 0;
 
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setBookingLoader(true);
+
         setTimeout(() => {
             router.push({
                 pathname: '/(user)/ticket-selection',
                 params: {
                     eventId: event._id,
-                    title: event.title,
-                    venueName: event.venueId?.name || '',
-                    coverImage: event.coverImage || '',
-                    hostId: event.hostId?._id || event.hostId?.id || ''
-                }
+                    title: event.title || '',
+                    venueName: vName,
+                    coverImage: coverImg,
+                    hostId: event.hostId?._id || event.hostId || '',
+                    price: lowestPriceVal,
+                },
             });
             setTimeout(() => setBookingLoader(false), 500);
-        }, 800);
+        }, 150);
     }, [event, router]);
+
+    // ── Step 6: Derive data for carousel hook ────────────────────────────────
+    const eventImages = useMemo(() => {
+        const images = safeArray<any>(event?.images);
+        if (images.length > 0) return images;
+        if (event?.coverImage) return [event.coverImage];
+        return ['https://images.unsplash.com/photo-1514525253361-bee8a197c0c1?auto=format&fit=crop&q=80&w=800'];
+    }, [event?.images, event?.coverImage]);
+
+    // ── Ultra-Robust Auto Carousel Logic ─────────────────────────────────────
+    useEffect(() => {
+        if (!eventImages || eventImages.length <= 1 || isLoading) return;
+
+        const startAutoScroll = () => {
+            if (scrollTimer.current) clearInterval(scrollTimer.current);
+            scrollTimer.current = setInterval(() => {
+                if (isUserInteracting.current) return;
+                
+                internalIndex.current = (internalIndex.current + 1) % eventImages.length;
+                flatListRef.current?.scrollToIndex({
+                    index: internalIndex.current,
+                    animated: true
+                });
+            }, 4000);
+        };
+
+        const interactionTimeout = setTimeout(startAutoScroll, 500);
+        return () => {
+            clearTimeout(interactionTimeout);
+            if (scrollTimer.current) clearInterval(scrollTimer.current);
+        };
+    }, [eventImages.length, isLoading]);
 
     // ── Loading State: only show spinner if no cached data at all ───────────
     if (!eventId) {
@@ -136,250 +185,329 @@ const EventDetails = () => {
         <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
             <StatusBar barStyle="light-content" backgroundColor="#030303" />
             <ActivityIndicator color={COLORS.primary} size="large" />
+            <Text style={{ color: 'rgba(255,255,255,0.4)', marginTop: 16, fontSize: 13, fontWeight: '600' }}>Entering Experience...</Text>
+        </View>
+    );
+
+    // Show loading if still fetching (retrying)
+    if ((isBasicFetching || isDetailsLoading) && !event) return (
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+            <StatusBar barStyle="light-content" backgroundColor="#030303" />
+            <ActivityIndicator color={COLORS.primary} size="large" />
+            <Text style={{ color: 'rgba(255,255,255,0.4)', marginTop: 16, fontSize: 13, fontWeight: '600' }}>Loading event details...</Text>
         </View>
     );
 
     if (!event) {
         log("ERROR: EVENT DATA NOT FOUND", eventId);
         return (
-            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 30 }]}>
                 <StatusBar barStyle="light-content" backgroundColor="#030303" />
-                <Text style={{ color: '#FFF' }}>Event not found.</Text>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 20 }}>
-                    <Text style={{ color: COLORS.primary }}>Go Back</Text>
+                <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(239, 68, 68, 0.1)', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+                    <Ionicons name="search-outline" size={32} color="#EF4444" />
+                </View>
+                <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '800' }}>Event details not found</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.4)', textAlign: 'center', marginTop: 10, lineHeight: 20 }}>
+                    This event may have been updated or moved. Try refreshing your discovery list.
+                </Text>
+                
+                <TouchableOpacity 
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); invalidateEvent(eventId); }} 
+                    style={{ marginTop: 30, backgroundColor: COLORS.primary, paddingHorizontal: 30, paddingVertical: 14, borderRadius: 16 }}
+                >
+                    <Text style={{ color: '#FFF', fontWeight: '800' }}>Retry Now</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 24 }}>
+                    <Text style={{ color: 'rgba(255,255,255,0.4)', fontWeight: '700' }}>Go Back</Text>
                 </TouchableOpacity>
             </View>
         );
     }
 
-    const eventImages = event.images?.length > 0 ? event.images : event.coverImage ? [event.coverImage] : ['https://images.unsplash.com/photo-1514525253361-bee8a197c0c1?auto=format&fit=crop&q=80&w=800'];
-    const lowestPrice = event.tickets?.length > 0 ? Math.min(...event.tickets.map((t: any) => t.price)) : null;
+    // ── Step 7: Final data preparation ───────────────────────────────────────
+    const tickets   = safeArray<any>(event.tickets);
+    const houseRulesRaw = safeArray<any>(event.houseRules);
+    const refreshments  = safeArray<any>(event.freeRefreshments);
 
-    const houseRules = event.houseRules?.length > 0 ? event.houseRules : [
+    const lowestPrice = tickets.length > 0
+        ? Math.min(...tickets.map((t: any) => Number(t?.price) || 0))
+        : null;
+
+    const houseRules = houseRulesRaw.length > 0 ? houseRulesRaw : [
         { icon: 'shirt-outline', title: 'Dress Code: Smart Sophisticated', detail: 'No sportswear, trainers, or caps. Smart attire is required.' },
         { icon: 'person-outline', title: 'ID Required (21+ only)', detail: 'Valid government-issued photo ID is mandatory.' },
-        { icon: 'camera-off-outline', title: 'Strict No-Photo Policy', detail: 'Photography is strictly prohibited inside the venue.' },
+        { icon: 'eye-off-outline', title: 'Strict No-Photo Policy', detail: 'Photography is strictly prohibited inside the venue.' },
     ];
 
     const isLocationMasked = (event.locationVisibility === 'hidden' || event.locationVisibility === 'delayed') && !event.isLocationRevealed;
     const venueName = isLocationMasked ? 'Secret Location 🤫' : (event.venueId?.name || event.hostId?.name || event.title || 'Exclusive Event');
-    const venueAddress = isLocationMasked 
+    const venueAddress = isLocationMasked
         ? (event.locationVisibility === 'delayed' ? 'Location reveals at scheduled time' : 'Location drops exact coordinates before event')
         : (event.locationData?.address || event.venueId?.address || event.hostId?.location?.address || event.hostId?.venueProfile?.address || '');
     const realLat = parseFloat(event.locationData?.lat || event.venueId?.coordinates?.lat || event.hostId?.location?.coordinates?.[1] || event.hostId?.venueProfile?.coordinates?.lat as any);
     const realLng = parseFloat(event.locationData?.lng || event.venueId?.coordinates?.long || event.venueId?.coordinates?.lng || event.hostId?.location?.coordinates?.[0] || event.hostId?.venueProfile?.coordinates?.lng as any);
-    
+
     const safeLat = realLat || 28.6139;
     const safeLng = realLng || 77.2090;
     const coords = { lat: safeLat, lng: safeLng };
-    const staticMapUrl = `https://maps.geoapify.com/v1/staticmap?style=dark-matter&width=600&height=320&center=lonlat:${coords.lng},${coords.lat}&zoom=15.5&marker=lonlat:${coords.lng},${coords.lat};color:%237c4dff;size:large&apiKey=${GEOAPIFY_KEY}`;
+    const staticMapUrl = `https://maps.geoapify.com/v1/staticmap?style=osm-carto&width=600&height=320&center=lonlat:${coords.lng},${coords.lat}&zoom=15.5&marker=lonlat:${coords.lng},${coords.lat};color:%237c4dff;size:large&apiKey=${GEOAPIFY_KEY}`;
 
     const openMaps = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        if (isLocationMasked) return;
-
-        const destination = (realLat && realLng) ? `${realLat},${realLng}` : encodeURIComponent(venueAddress);
-        if (!destination) {
-            showToast('Address or coordinates not available', 'error');
+        if (isLocationMasked) {
+            showToast('Location is hidden until event time', 'info');
             return;
         }
-        
+
+        // Build destination: prefer coordinates, fall back to address, then venue name
+        let destination: string;
+        if (realLat && realLng) {
+            destination = `${realLat},${realLng}`;
+        } else if (venueAddress) {
+            destination = encodeURIComponent(venueAddress);
+        } else if (venueName && venueName !== 'Secret Location 🤫') {
+            destination = encodeURIComponent(venueName);
+        } else {
+            showToast('Location not available yet', 'info');
+            return;
+        }
+
         const url = Platform.select({
             ios: `http://maps.apple.com/?daddr=${destination}&dirflg=d`,
             android: `https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving`,
             default: `https://www.google.com/maps/dir/?api=1&destination=${destination}`
-        });
+        })!;
 
-        if (url) {
-            Linking.canOpenURL(url).then(supported => {
-                if (supported) Linking.openURL(url);
-                else showToast('Could not open map app', 'error');
-            });
-        }
+        Linking.openURL(url).catch(() => showToast('Could not open maps app', 'error'));
     };
 
-    return (
-        <View style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-            <ScrollView contentContainerStyle={{ paddingBottom: 130 + insets.bottom }} showsVerticalScrollIndicator={false}>
+    // ── Step Extra: try/catch wrapper around entire render ───────────────────
+    try {
+        return (
+            <View style={styles.container}>
+                <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+                <ScrollView contentContainerStyle={{ paddingBottom: 130 + insets.bottom }} showsVerticalScrollIndicator={false}>
 
-                {/* HERO */}
-                <View style={{ width, height: 340 }}>
-                    <FlatList data={eventImages} horizontal pagingEnabled showsHorizontalScrollIndicator={false}
-                        keyExtractor={(_, i) => i.toString()} onScroll={onScroll} scrollEventThrottle={16}
-                        renderItem={({ item, index }) => {
-                            if (index === 0) console.time("[IMAGE_LOAD] Event");
-                            return (
-                                <Image 
-                                    source={{ uri: hero(item) }} 
-                                    style={{ width, height: 340 }} 
-                                    contentFit="cover" 
-                                    transition={300} 
-                                    cachePolicy="memory-disk" 
-                                    onLoad={() => { if (index === 0) console.timeEnd("[IMAGE_LOAD] Event"); }}
-                                />
-                            );
-                        }}
-                    />
-                    <LinearGradient colors={['transparent', 'rgba(3,3,3,0.7)', '#030303']} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 200 }} />
+                    {/* HERO */}
+                    <View style={{ width, height: 340 }}>
+                        <FlatList
+                            ref={flatListRef}
+                            data={eventImages}
+                            horizontal
+                            pagingEnabled
+                            showsHorizontalScrollIndicator={false}
+                            keyExtractor={(_item, i) => String(i)}
+                            onScroll={onScroll}
+                            scrollEventThrottle={16}
+                            onScrollBeginDrag={() => { isUserInteracting.current = true; }}
+                            onScrollEndDrag={() => { isUserInteracting.current = false; }}
+                            onScrollToIndexFailed={(info) => {
+                                // Fallback: if scroll fails (common on quick mounting), just jump to index
+                                flatListRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false });
+                            }}
+                            renderItem={({ item, index }: { item: any; index: number }) => {
+                                if (index === 0) console.time("[IMAGE_LOAD] Event");
+                                return (
+                                    <Image
+                                        source={{ uri: hero(item) || '' }}
+                                        style={{ width, height: 340 }}
+                                        contentFit="cover"
+                                        transition={300}
+                                        cachePolicy="memory-disk"
+                                        onLoad={() => { if (index === 0) console.timeEnd("[IMAGE_LOAD] Event"); }}
+                                    />
+                                );
+                            }}
+                        />
+                        <LinearGradient colors={['transparent', 'rgba(3,3,3,0.7)', '#030303']} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 200 }} />
 
-                    <View style={[styles.topBar, { top: insets.top + 10 }]}>
-                        <TouchableOpacity style={styles.circleBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); goBack(); }}>
-                            <Ionicons name="chevron-back" size={22} color="#FFF" />
-                        </TouchableOpacity>
-                        <Text style={styles.topTitle}>Event Details</Text>
-                        <TouchableOpacity style={styles.circleBtn}>
-                            <Ionicons name="share-outline" size={22} color="#FFF" />
-                        </TouchableOpacity>
-                    </View>
-
-                    {eventImages.length > 1 && (
-                        <View style={{ position: 'absolute', bottom: 55, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 6 }}>
-                            {eventImages.map((_: any, i: number) => <View key={i} style={[styles.dot, i === activeSlide && styles.dotActive]} />)}
+                        <View style={[styles.topBar, { top: insets.top + 10 }]}>
+                            <TouchableOpacity style={styles.circleBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); goBack(); }}>
+                                <Ionicons name="chevron-back" size={22} color="#FFF" />
+                            </TouchableOpacity>
+                            <Text style={styles.topTitle}>Event Details</Text>
+                            <TouchableOpacity style={styles.circleBtn}>
+                                <Ionicons name="share-outline" size={22} color="#FFF" />
+                            </TouchableOpacity>
                         </View>
-                    )}
 
-                    <View style={{ position: 'absolute', bottom: 22, left: 20, flexDirection: 'row', gap: 8 }}>
-                        <View style={styles.heroBadge}><Ionicons name="lock-closed" size={10} color="#fff" /><Text style={styles.heroBadgeText}>PRIVATE PARTY</Text></View>
-                        <View style={[styles.heroBadge, { borderColor: 'rgba(34,197,94,0.3)' }]}><Ionicons name="checkmark-circle" size={10} color="#22c55e" /><Text style={[styles.heroBadgeText, { color: '#22c55e' }]}>VERIFIED HOST</Text></View>
+                        {eventImages.length > 1 && (
+                            <View style={{ position: 'absolute', bottom: 55, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 6 }}>
+                                {eventImages.map((_: any, i: number) => <View key={i} style={[styles.dot, i === activeSlide && styles.dotActive]} />)}
+                            </View>
+                        )}
+
+                        <View style={{ position: 'absolute', bottom: 22, left: 20, flexDirection: 'row', gap: 8 }}>
+                            <View style={styles.heroBadge}><Ionicons name="lock-closed" size={10} color="#fff" /><Text style={styles.heroBadgeText}>PRIVATE PARTY</Text></View>
+                            <View style={[styles.heroBadge, { borderColor: 'rgba(34,197,94,0.3)' }]}><Ionicons name="checkmark-circle" size={10} color="#22c55e" /><Text style={[styles.heroBadgeText, { color: '#22c55e' }]}>VERIFIED HOST</Text></View>
+                        </View>
                     </View>
-                </View>
 
-                {/* CONTENT */}
-                <View style={styles.content}>
-                    <Text style={styles.eventTitle}>{event.title}</Text>
-                    <Text style={styles.description}>{event.description}</Text>
+                    {/* CONTENT */}
+                    <View style={styles.content}>
+                        <Text style={styles.eventTitle}>{event?.title || ''}</Text>
+                        <Text style={styles.description}>{event?.description || ''}</Text>
 
-                    {/* BOOK NOW */}
-                    <TouchableOpacity style={styles.bookBtn} activeOpacity={0.85} onPress={handleBookNow} disabled={bookingLoader}>
-                        <LinearGradient colors={['#6d28d9', '#4f46e5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.bookBtnInner}>
-                            {bookingLoader ? (
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                                    <ActivityIndicator size="small" color="#fff" />
-                                    <Text style={styles.bookBtnText}>Processing...</Text>
+                        {/* BOOK NOW */}
+                        <TouchableOpacity style={styles.bookBtn} activeOpacity={0.85} onPress={handleBookNow} disabled={bookingLoader}>
+                            <LinearGradient colors={['#6d28d9', '#4f46e5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.bookBtnInner}>
+                                {bookingLoader ? (
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                        <ActivityIndicator size="small" color="#fff" />
+                                        <Text style={styles.bookBtnText}>Processing...</Text>
+                                    </View>
+                                ) : (
+                                    <Text style={styles.bookBtnText}>{lowestPrice ? 'Book Now  ·  ₹' + lowestPrice : 'Book Now'}</Text>
+                                )}
+                            </LinearGradient>
+                        </TouchableOpacity>
+
+                        {/* HOST INFO */}
+                        <View style={styles.hostContainer}>
+                            <Image
+                                source={{ uri: avatar(event.hostId?.profileImage, event.hostId?.name) || '' }}
+                                style={styles.hostAvatar}
+                                cachePolicy="memory-disk"
+                            />
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.hostLabel}>HOSTED BY</Text>
+                                <Text style={styles.hostName}>
+                                    {event.hostId?.name || (event.hostId?.firstName ? `${event.hostId.firstName} ${event.hostId.lastName || ''}`.trim() : 'Collective Underground')}
+                                </Text>
+                            </View>
+                            <View style={styles.hostStats}>
+                                <Text style={styles.hostStatsTxt}>{event.attendeeCount || '100+'} ATTENDING</Text>
+                                <Text style={styles.hostStatsSub}>{event.startTime || '10PM'} - {event.endTime || 'LATE'}</Text>
+                            </View>
+                        </View>
+
+                        {/* HOUSE RULES */}
+                        <Text style={styles.sectionLabel}>HOUSE RULES</Text>
+                        <View style={styles.rulesCard}>
+                            {houseRules.map((rule: any, i: number) => {
+                                const t = (rule?.title || '').toLowerCase();
+                                let iconColor = COLORS.primary;
+                                let bgColor = 'rgba(124, 77, 255, 0.1)';
+                                
+                                if (t.includes('dress') || t.includes('code')) {
+                                    iconColor = '#eab308'; // Yellow
+                                    bgColor = 'rgba(234, 179, 8, 0.15)';
+                                } else if (t.includes('id ') || t.includes('age') || t.includes('21+')) {
+                                    iconColor = '#22c55e'; // Green
+                                    bgColor = 'rgba(34, 197, 94, 0.15)';
+                                } else if (t.includes('photo') || t.includes('camera')) {
+                                    iconColor = '#ef4444'; // Red
+                                    bgColor = 'rgba(239, 68, 68, 0.15)';
+                                }
+
+                                return (
+                                    <TouchableOpacity key={i} style={[styles.ruleRow, i < houseRules.length - 1 && styles.ruleRowBorder]}
+                                        onPress={() => { Haptics.selectionAsync(); setExpandedRule(expandedRule === i ? null : i); }} activeOpacity={0.7}>
+                                        <View style={styles.ruleLeft}>
+                                            <View style={[styles.ruleIconBox, { backgroundColor: bgColor }]}><Ionicons name={rule?.icon || 'information-circle-outline'} size={16} color={iconColor} /></View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={styles.ruleTitle}>{rule?.title || ''}</Text>
+                                                {expandedRule === i && rule?.detail && <Text style={styles.ruleDetail}>{rule.detail}</Text>}
+                                            </View>
+                                        </View>
+                                        <Ionicons name={expandedRule === i ? 'chevron-up' : 'chevron-down'} size={16} color="rgba(255,255,255,0.3)" />
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+
+                        {/* LOCATION MAP */}
+                        <Text style={[styles.sectionLabel, { marginTop: 28 }]}>LOCATION</Text>
+                        <View style={styles.mapCard}>
+                            {isLocationMasked ? (
+                                <View style={{ height: 160, backgroundColor: '#0a0a14', alignItems: 'center', justifyContent: 'center' }}>
+                                    <View style={styles.maskedIconCircle}>
+                                        <Ionicons name="lock-closed" size={32} color="#7c4dff" />
+                                    </View>
+                                    <Text style={styles.maskedTxt}>
+                                        {event.locationVisibility === 'delayed' ? 'Reveals at scheduled time ⏳' : 'Reveals 4 hours before entry'}
+                                    </Text>
                                 </View>
                             ) : (
-                                <Text style={styles.bookBtnText}>{lowestPrice ? 'Book Now  \u00b7  \u20b9' + lowestPrice : 'Book Now'}</Text>
+                                <View style={{ height: 160, overflow: 'hidden' }}>
+                                    <Image
+                                        source={{ uri: staticMapUrl }}
+                                        style={StyleSheet.absoluteFillObject}
+                                        contentFit="cover"
+                                    />
+                                    <TouchableOpacity style={styles.mapOverlay} activeOpacity={0.8} onPress={openMaps} />
+                                </View>
+                            )}
+                            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 14, gap: 12 }}>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.mapVenueName}>{venueName}</Text>
+                                    {venueAddress ? <Text style={[styles.mapAddress, (event.locationVisibility === 'hidden' && !event.isLocationRevealed) && { color: COLORS.primary }]} numberOfLines={1}>{venueAddress}</Text> : null}
+                                </View>
+                                <TouchableOpacity onPress={openMaps} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 }}>
+                                    <Ionicons name="navigate-circle" size={18} color="#fff" style={{ marginRight: 6 }} />
+                                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Get Directions</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        {/* COMPLIMENTARY REFRESHMENTS */}
+                        {refreshments.length > 0 && (
+                            <View style={{ marginTop: 12 }}>
+                                <Text style={styles.sectionLabel}>COMPLIMENTARY REFRESHMENTS</Text>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 20 }}>
+                                    {refreshments.map((item: any, idx: number) => (
+                                        <View key={idx} style={styles.inclusionCard}>
+                                            <LinearGradient colors={['rgba(124, 77, 255, 0.15)', 'rgba(79, 70, 229, 0.05)']} style={styles.inclusionInner}>
+                                                <Ionicons name={(item?.icon || 'star') as any} size={20} color={COLORS.primary} />
+                                                <View>
+                                                    <Text style={styles.inclusionTitle}>{item?.title || ''}</Text>
+                                                    {item?.description ? <Text style={styles.inclusionDesc} numberOfLines={1}>{item.description}</Text> : null}
+                                                </View>
+                                            </LinearGradient>
+                                        </View>
+                                    ))}
+                                </ScrollView>
+                            </View>
+                        )}
+
+                    </View>
+                </ScrollView>
+
+                {/* FOOTER */}
+                <View style={[styles.stickyFooter, { paddingBottom: insets.bottom > 0 ? insets.bottom + 8 : 20 }]}>
+                    <View style={{ flex: 1 }}>
+                        {lowestPrice && <><Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: '600' }}>From</Text><Text style={{ color: '#fff', fontSize: 22, fontWeight: '900' }}>{'₹'}{lowestPrice}</Text></>}
+                    </View>
+                    <TouchableOpacity style={styles.footerBtn} onPress={handleBookNow} activeOpacity={0.85} disabled={bookingLoader}>
+                        <LinearGradient colors={['#6d28d9', '#4f46e5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14 }}>
+                            {bookingLoader ? (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, width: 100, justifyContent: 'center' }}>
+                                    <ActivityIndicator size="small" color="#fff" />
+                                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Wait...</Text>
+                                </View>
+                            ) : (
+                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>Book Now</Text>
                             )}
                         </LinearGradient>
                     </TouchableOpacity>
-
-                    {/* HOST INFO */}
-                    <View style={styles.hostContainer}>
-                        <Image 
-                            source={{ uri: avatar(event.hostId?.profileImage, event.hostId?.name) }} 
-                            style={styles.hostAvatar} 
-                            cachePolicy="memory-disk" 
-                        />
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.hostLabel}>HOSTED BY</Text>
-                            <Text style={styles.hostName}>
-                                {event.hostId?.name || (event.hostId?.firstName ? `${event.hostId.firstName} ${event.hostId.lastName || ''}`.trim() : 'Collective Underground')}
-                            </Text>
-                        </View>
-                        <View style={styles.hostStats}>
-                            <Text style={styles.hostStatsTxt}>{event.attendeeCount || '100+'} ATTENDING</Text>
-                            <Text style={styles.hostStatsSub}>{event.startTime || '10PM'} - {event.endTime || 'LATE'}</Text>
-                        </View>
-                    </View>
-
-                    {/* HOUSE RULES */}
-                    <Text style={styles.sectionLabel}>HOUSE RULES</Text>
-                    <View style={styles.rulesCard}>
-                        {houseRules.map((rule: any, i: number) => (
-                            <TouchableOpacity key={i} style={[styles.ruleRow, i < houseRules.length - 1 && styles.ruleRowBorder]}
-                                onPress={() => { Haptics.selectionAsync(); setExpandedRule(expandedRule === i ? null : i); }} activeOpacity={0.7}>
-                                <View style={styles.ruleLeft}>
-                                    <View style={styles.ruleIconBox}><Ionicons name={rule.icon || 'information-circle-outline'} size={16} color="rgba(255,255,255,0.7)" /></View>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.ruleTitle}>{rule.title}</Text>
-                                        {expandedRule === i && rule.detail && <Text style={styles.ruleDetail}>{rule.detail}</Text>}
-                                    </View>
-                                </View>
-                                <Ionicons name={expandedRule === i ? 'chevron-up' : 'chevron-down'} size={16} color="rgba(255,255,255,0.3)" />
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-
-                    {/* LOCATION MAP */}
-                    <Text style={[styles.sectionLabel, { marginTop: 28 }]}>LOCATION</Text>
-                    <View style={styles.mapCard}>
-                        { isLocationMasked ? (
-                            <View style={{ height: 160, backgroundColor: '#0a0a14', alignItems: 'center', justifyContent: 'center' }}>
-                                <View style={styles.maskedIconCircle}>
-                                    <Ionicons name="lock-closed" size={32} color="#7c4dff" />
-                                </View>
-                                <Text style={styles.maskedTxt}>
-                                    {event.locationVisibility === 'delayed' ? 'Reveals at scheduled time ⏳' : 'Reveals 4 hours before entry'}
-                                </Text>
-                            </View>
-                        ) : (
-                            <View style={{ height: 160, overflow: 'hidden' }}>
-                                <Image
-                                    source={{ uri: staticMapUrl }}
-                                    style={StyleSheet.absoluteFillObject}
-                                    contentFit="cover"
-                                />
-                                <TouchableOpacity style={styles.mapOverlay} activeOpacity={0.8} onPress={openMaps}>
-                                    <LinearGradient colors={['transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.8)']} style={StyleSheet.absoluteFillObject} />
-                                    <View style={{ position: 'absolute', bottom: 12, right: 12, flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 }}>
-                                        <Ionicons name="navigate-circle" size={18} color="#fff" style={{ marginRight: 6 }} />
-                                        <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Get Directions</Text>
-                                    </View>
-                                </TouchableOpacity>
-                            </View>
-                        )}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 14, gap: 12 }}>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.mapVenueName}>{venueName}</Text>
-                                {venueAddress ? <Text style={[styles.mapAddress, (event.locationVisibility === 'hidden' && !event.isLocationRevealed) && { color: COLORS.primary }]} numberOfLines={1}>{venueAddress}</Text> : null}
-                            </View>
-                        </View>
-                    </View>
-
-                    {/* COMPLIMENTARY REFRESHMENTS */}
-                    {event.freeRefreshments && event.freeRefreshments.length > 0 && (
-                        <View style={{ marginTop: 12 }}>
-                            <Text style={styles.sectionLabel}>COMPLIMENTARY REFRESHMENTS</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 20 }}>
-                                {event.freeRefreshments.map((item: any, idx: number) => (
-                                    <View key={idx} style={styles.inclusionCard}>
-                                        <LinearGradient colors={['rgba(124, 77, 255, 0.15)', 'rgba(79, 70, 229, 0.05)']} style={styles.inclusionInner}>
-                                            <Ionicons name={(item.icon || 'star') as any} size={20} color={COLORS.primary} />
-                                            <View>
-                                                <Text style={styles.inclusionTitle}>{item.title}</Text>
-                                                {item.description ? <Text style={styles.inclusionDesc} numberOfLines={1}>{item.description}</Text> : null}
-                                            </View>
-                                        </LinearGradient>
-                                    </View>
-                                ))}
-                            </ScrollView>
-                        </View>
-                    )}
-
                 </View>
-            </ScrollView>
-
-            {/* FOOTER */}
-            <View style={[styles.stickyFooter, { paddingBottom: insets.bottom > 0 ? insets.bottom + 8 : 20 }]}>
-                <View style={{ flex: 1 }}>
-                    {lowestPrice && <><Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: '600' }}>From</Text><Text style={{ color: '#fff', fontSize: 22, fontWeight: '900' }}>{'\u20b9'}{lowestPrice}</Text></>}
-                </View>
-                <TouchableOpacity style={styles.footerBtn} onPress={handleBookNow} activeOpacity={0.85} disabled={bookingLoader}>
-                    <LinearGradient colors={['#6d28d9', '#4f46e5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14 }}>
-                        {bookingLoader ? (
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, width: 100, justifyContent: 'center' }}>
-                                <ActivityIndicator size="small" color="#fff" />
-                                <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Wait...</Text>
-                            </View>
-                        ) : (
-                            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>Book Now</Text>
-                        )}
-                    </LinearGradient>
+            </View>
+        );
+    } catch (e: any) {
+        log("RENDER ERROR: " + e?.message);
+        return (
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 24 }]}>
+                <StatusBar barStyle="light-content" backgroundColor="#030303" />
+                <Ionicons name="alert-circle-outline" size={48} color={COLORS.primary} style={{ marginBottom: 16 }} />
+                <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '700', marginBottom: 8 }}>Error loading screen</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, textAlign: 'center', marginBottom: 24 }}>Something went wrong while displaying this event.</Text>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={{ backgroundColor: COLORS.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}>
+                    <Text style={{ color: '#FFF', fontWeight: '700' }}>Go Back</Text>
                 </TouchableOpacity>
             </View>
-        </View>
-    );
+        );
+    }
 }
 
 const styles = StyleSheet.create({
@@ -405,11 +533,11 @@ const styles = StyleSheet.create({
     hostStats: { alignItems: 'flex-end' },
     hostStatsTxt: { color: '#22c55e', fontSize: 11, fontWeight: '800' },
     hostStatsSub: { color: 'rgba(255,255,255,0.35)', fontSize: 10, fontWeight: '600', marginTop: 2 },
-    rulesCard: { backgroundColor: '#0D0D0D', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', overflow: 'hidden', marginBottom: 28 },
+    rulesCard: { backgroundColor: 'rgba(124, 77, 255, 0.03)', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(124, 77, 255, 0.3)', overflow: 'hidden', marginBottom: 28 },
     ruleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 15 },
-    ruleRowBorder: { borderBottomWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+    ruleRowBorder: { borderBottomWidth: 1, borderColor: 'rgba(124, 77, 255, 0.15)' },
     ruleLeft: { flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1, marginRight: 8 },
-    ruleIconBox: { width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
+    ruleIconBox: { width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(124, 77, 255, 0.1)', alignItems: 'center', justifyContent: 'center' },
     ruleTitle: { color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: '600' },
     ruleDetail: { color: 'rgba(255,255,255,0.4)', fontSize: 12, marginTop: 5, lineHeight: 18 },
     mapCard: { backgroundColor: '#0D0D0D', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', overflow: 'hidden', marginBottom: 16 },
