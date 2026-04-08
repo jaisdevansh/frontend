@@ -220,37 +220,59 @@ const BarChartSvg = ({ data }: { data: { value: number; label: string }[] }) => 
 
 // ─── SVG Pie Chart ────────────────────────────────────────────────────────────
 const PieChart = ({ segments }: { segments: { value: number; color: string; name: string }[] }) => {
-    const R = 65, cx = 75, cy = 75;
+    const size = 140;
+    const center = size / 2;
+    const radius = 55;
     const totalVal = segments.reduce((a, s) => a + s.value, 0) || 1;
 
-    let currentAngle = -Math.PI / 2;
-    const slices = segments.map(seg => {
-        const angle = (seg.value / totalVal) * 2 * Math.PI;
-        const x1 = cx + R * Math.cos(currentAngle);
-        const y1 = cy + R * Math.sin(currentAngle);
-        const x2 = cx + R * Math.cos(currentAngle + angle);
-        const y2 = cy + R * Math.sin(currentAngle + angle);
-        const large = angle > Math.PI ? 1 : 0;
-        const d = `M ${cx} ${cy} L ${x1} ${y1} A ${R} ${R} 0 ${large} 1 ${x2} ${y2} Z`;
-        currentAngle += angle;
-        return { d, color: seg.color, percentage: ((seg.value / totalVal) * 100).toFixed(1) };
+    // Filter out zero values
+    const validSegments = segments.filter(s => s.value > 0);
+    
+    let currentAngle = -90; // Start from top
+    const slices = validSegments.map(seg => {
+        const percentage = (seg.value / totalVal) * 100;
+        const angle = (percentage / 100) * 360;
+        const startAngle = currentAngle;
+        const endAngle = currentAngle + angle;
+        
+        // Convert to radians
+        const startRad = (startAngle * Math.PI) / 180;
+        const endRad = (endAngle * Math.PI) / 180;
+        
+        const x1 = center + radius * Math.cos(startRad);
+        const y1 = center + radius * Math.sin(startRad);
+        const x2 = center + radius * Math.cos(endRad);
+        const y2 = center + radius * Math.sin(endRad);
+        
+        const largeArc = angle > 180 ? 1 : 0;
+        const pathData = `M ${center} ${center} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+        
+        currentAngle = endAngle;
+        
+        return { 
+            path: pathData, 
+            color: seg.color, 
+            percentage: percentage.toFixed(1),
+            name: seg.name,
+            value: seg.value
+        };
     });
 
     return (
         <View style={{ alignItems: 'center', gap: 20 }}>
-            <Svg width={150} height={150} viewBox="0 0 150 150">
+            <Svg width={size} height={size}>
                 {slices.map((slice, i) => (
-                    <Path key={i} d={slice.d} fill={slice.color} />
+                    <Path key={i} d={slice.path} fill={slice.color} />
                 ))}
             </Svg>
             <View style={{ width: '100%', gap: 14 }}>
-                {segments.map((seg, i) => (
+                {slices.map((slice, i) => (
                     <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                        <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: seg.color }} />
+                        <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: slice.color }} />
                         <View style={{ flex: 1 }}>
-                            <Text style={{ color: C.dim, fontSize: 11, fontWeight: '700' }}>{seg.name}</Text>
-                            <Text style={{ color: C.white, fontWeight: '900', fontSize: 16 }}>{fmt(seg.value)}</Text>
-                            <Text style={{ color: C.dim, fontSize: 10, fontWeight: '600', marginTop: 2 }}>{slices[i].percentage}%</Text>
+                            <Text style={{ color: C.dim, fontSize: 11, fontWeight: '700' }}>{slice.name}</Text>
+                            <Text style={{ color: C.white, fontWeight: '900', fontSize: 16 }}>{fmt(slice.value)}</Text>
+                            <Text style={{ color: C.dim, fontSize: 10, fontWeight: '600', marginTop: 2 }}>{slice.percentage}%</Text>
                         </View>
                     </View>
                 ))}
