@@ -34,60 +34,44 @@ export default function LoginScreen() {
     const isPhoneMode = inputType === 'phone';
 
     const insets = useSafeAreaInsets();
-    const { login } = useAuth();
+    const { login, logout } = useAuth();
     const router = useRouter();
     const goBack = useStrictBack('/(auth)/welcome');
     const { showToast } = useToast();
 
     // ── Google OAuth via backend deep-link ──────────────────────────────────
     const handleGoogleLogin = async () => {
+        const startTime = Date.now();
         try {
-            console.log('[FRONTEND DEBUG] Initiate Google Login...');
             setLoading(true);
+            
+            // ⚡ CRITICAL: Clear all cache BEFORE Google login to prevent stale data
+            await logout(); // This clears AsyncStorage and React Query cache
+            
             const redirectUri = Linking.createURL('auth');
             const authUrl = `${GOOGLE_AUTH_URL}?redirectUri=${encodeURIComponent(redirectUri)}`;
             
-            const result = await WebBrowser.openAuthSessionAsync(
-                authUrl,
-                redirectUri
-            );
-
-            console.log('[FRONTEND DEBUG] Browser result type:', result.type);
+            const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
 
             if (result.type === 'success' && result.url) {
-                console.log('[FRONTEND DEBUG] Received URL:', result.url);
                 const parsed = Linking.parse(result.url);
-                console.log('[FRONTEND DEBUG] Parsed query params:', parsed.queryParams);
-                
                 const token = parsed.queryParams?.token as string | undefined;
                 const error = parsed.queryParams?.error as string | undefined;
 
                 if (error || !token) {
-                    console.error('[FRONTEND DEBUG] Error or Mission Token:', error || 'No Token');
                     showToast('Google login failed. Please try again.', 'error');
                     return;
                 }
-
-                console.log('[FRONTEND DEBUG] Token acquired! Logging in context...');
                 
                 const refreshToken = parsed.queryParams?.refreshToken as string | undefined;
                 const userRole = (parsed.queryParams?.role as string) || 'user';
                 const onboarded = parsed.queryParams?.onboardingCompleted === 'true';
                 
-                console.log('[FRONTEND DEBUG] Auth data:', { 
-                    hasToken: !!token, 
-                    hasRefreshToken: !!refreshToken,
-                    userRole, 
-                    onboarded 
-                });
-                
-                // Parse name into firstName and lastName
                 const fullName = (parsed.queryParams?.name as string) || '';
                 const nameParts = fullName.trim().split(' ');
                 const firstName = nameParts[0] || '';
                 const lastName = nameParts.slice(1).join(' ') || '';
                 
-                // ⚡ FIX: Wait for login to complete before navigating
                 await login({
                     token,
                     refreshToken,
@@ -108,26 +92,11 @@ export default function LoginScreen() {
                     }
                 });
                 
-                console.log('[FRONTEND DEBUG] Login completed, auth state set');
-                console.log('[FRONTEND DEBUG] User data stored:', {
-                    name: fullName,
-                    firstName,
-                    lastName,
-                    profileImage: parsed.queryParams?.profileImage,
-                    username: parsed.queryParams?.username
-                });
-                
+                console.log(`[⚡ PERF] Google login: ${Date.now() - startTime}ms`);
                 showToast('Welcome! 🎉', 'success');
-                
-                // ⚡ Let _layout.tsx handle navigation automatically based on auth state
-                // No manual navigation needed - the useEffect in _layout will detect
-                // the token and role change and navigate to the correct screen
-                console.log('[FRONTEND DEBUG] Auth complete, _layout will handle navigation');
-            } else if (result.type === 'cancel' || result.type === 'dismiss') {
-                console.log('[FRONTEND DEBUG] User cancelled login');
             }
         } catch (error: any) {
-            console.error('[FRONTEND DEBUG] Error:', error);
+            console.error('[Login] Google error:', error);
             showToast('Google login service error', 'error');
         } finally {
             setLoading(false);
