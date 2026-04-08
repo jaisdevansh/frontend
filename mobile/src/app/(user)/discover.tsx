@@ -134,11 +134,17 @@ export default function DiscoverScreen() {
     const hostGifts = useQuery({
         queryKey: ['host', 'gifts', activeHostId],
         queryFn: async () => {
-            if (!activeHostId) return [];
+            if (!activeHostId) {
+                console.log('⚠️ No activeHostId for gifts');
+                return [];
+            }
+            console.log('🎁 Fetching gifts for hostId:', activeHostId);
             try {
                 const res = await apiClient.get(`/user/host/${activeHostId}/gifts`);
+                console.log('✅ Gifts response:', res.data?.data?.length || 0, 'items');
                 return res.data?.success && res.data.data ? res.data.data : [];
             } catch (e) {
+                console.error('❌ Gifts fetch error:', e);
                 return [];
             }
         },
@@ -184,7 +190,7 @@ export default function DiscoverScreen() {
                 
                 if (isColdStart && !isLastAttempt) {
                     const delay = initialDelay * Math.pow(2, attempt);
-                    console.log(`[Radar] Server cold start detected, retrying in ${delay}ms... (attempt ${attempt + 1}/${maxRetries})`);
+                    console.log('Waking up backend...');
                     await new Promise(resolve => setTimeout(resolve, delay));
                     continue;
                 }
@@ -218,14 +224,18 @@ export default function DiscoverScreen() {
                 const eid = booking.eventId?._id || booking.eventId;
                 const hid = booking.hostId;
                 
+                console.log('🔍 Active Booking:', { eventId: eid, hostId: hid });
+                
                 if (eid) setActiveEventId(String(eid));
                 if (hid) setActiveHostId(String(hid));
+            } else {
+                console.log('❌ No active booking found');
             }
         } catch (e: any) { 
             // Silent fail for 502/503 - these are expected during cold starts
             const status = e.response?.status;
             if (status === 502 || status === 503) {
-                console.log('[Radar] Server still starting, will retry on next interaction');
+                console.log('Waking up backend...');
             } else {
                 console.error('Init error', e);
             }

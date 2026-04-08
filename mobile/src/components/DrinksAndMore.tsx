@@ -54,6 +54,8 @@ export default function DrinksAndMore({ eventId, hostId, zone, tableId }: { even
                 ? `/user/events/${eventId}/menu`
                 : null;
 
+        console.log('🍽️ DrinksAndMore:', { hostId, eventId, url });
+
         // ⚡ Parallel fetch — menu + orders at the same time
         const fetchAll = async () => {
             const promises: Promise<any>[] = [];
@@ -62,6 +64,7 @@ export default function DrinksAndMore({ eventId, hostId, zone, tableId }: { even
                 promises.push(
                     apiClient.get(url).then((res: any) => {
                         const data = res.data?.data;
+                        console.log('✅ Menu response:', data?.length || 0, 'items');
                         if (data && data.length > 0) {
                             setDrinks(data.map((item: any) => ({
                                 _id: item._id,

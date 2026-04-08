@@ -27,7 +27,6 @@ export interface NearbyUser {
 }
 
 export const useDiscovery = (eventId?: string | null) => {
-    // 📡 Nearby People Registry
     const nearby = useQuery({
         queryKey: ['discovery', 'nearby', eventId],
         queryFn: async () => {
@@ -36,22 +35,20 @@ export const useDiscovery = (eventId?: string | null) => {
                 const res = await apiClient.get(`/discovery/nearby/${eventId}`);
                 return res.data.success && res.data.data ? res.data.data : [];
             } catch (e: any) {
-                // Silent fail for 502/503 (cold start) - will retry automatically
                 const status = e.response?.status;
                 if (status === 502 || status === 503) {
-                    console.log('[Discovery] Server waking up, will retry...');
+                    console.log('Waking up backend...');
                 }
                 return [];
             }
         },
         enabled: !!eventId,
-        staleTime: 1000 * 30, // 30s
-        refetchInterval: 1000 * 60, // Poll every minute
-        retry: 4, // Increased from 3 to 4
-        retryDelay: (attemptIndex) => Math.min(2000 * 2 ** attemptIndex, 15000), // 2s, 4s, 8s, 15s
+        staleTime: 1000 * 30,
+        refetchInterval: 1000 * 60,
+        retry: 4,
+        retryDelay: (attemptIndex) => Math.min(2000 * 2 ** attemptIndex, 15000),
     });
 
-    // 🎁 Premium Retail Inventory (Gifts)
     const gifts = useQuery({
         queryKey: ['discovery', 'gifts', eventId],
         queryFn: async () => {
@@ -62,19 +59,18 @@ export const useDiscovery = (eventId?: string | null) => {
             } catch (e: any) {
                 const status = e.response?.status;
                 if (status === 502 || status === 503) {
-                    console.log('[Discovery] Server waking up, will retry...');
+                    console.log('Waking up backend...');
                 }
                 return [];
             }
         },
         enabled: !!eventId,
-        staleTime: 1000 * 60 * 2,     // 2 min — refresh regularly
+        staleTime: 1000 * 60 * 2,
         gcTime: 1000 * 60 * 15,
         retry: 4,
         retryDelay: (attemptIndex) => Math.min(2000 * 2 ** attemptIndex, 15000),
     });
 
-    // 🍸 Event Menu (Drink Requests)
     const menu = useQuery({
         queryKey: ['discovery', 'menu', eventId],
         queryFn: async () => {
@@ -85,7 +81,7 @@ export const useDiscovery = (eventId?: string | null) => {
             } catch (e: any) {
                 const status = e.response?.status;
                 if (status === 502 || status === 503) {
-                    console.log('[Discovery] Server waking up, will retry...');
+                    console.log('Waking up backend...');
                 }
                 return [];
             }

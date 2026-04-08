@@ -31,7 +31,7 @@ export const wakeUpServer = () => {
     const ping = (delay: number, attempt: number) => setTimeout(async () => {
         if (_serverAwake || attempt > MAX_WAKE_ATTEMPTS) return;
         
-        console.log(`[Server] Wake attempt ${attempt}/${MAX_WAKE_ATTEMPTS}...`);
+        console.log(`Waking up backend...`);
         
         try {
             // Parallel ping both servers with 30s timeout (Render needs time)
@@ -41,9 +41,9 @@ export const wakeUpServer = () => {
             ]);
             
             _serverAwake = true;
-            console.log(`[Server] ✅ Backend is AWAKE (attempt ${attempt})`);
+            console.log(`Backend is ready`);
         } catch (err) {
-            console.log(`[Server] Still waking... (attempt ${attempt})`);
+            console.log(`Waking up backend...`);
             
             // Exponential backoff: 0s, 5s, 10s, 15s, 20s, 30s, 40s, 50s
             const nextDelay = Math.min(5000 * attempt, 50000);
@@ -125,7 +125,7 @@ apiClient.interceptors.response.use(
         if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT' || 
             error.response?.status === 502 || error.response?.status === 503 || error.response?.status === 504) {
             
-            console.log('[API] Cold start detected, waking server...');
+            console.log('Waking up backend...');
             _serverAwake = false;
             wakeUpServer();
             
