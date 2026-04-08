@@ -189,8 +189,8 @@ const LineAreaChart = ({ data }: { data: { value: number; label: string }[] }) =
 
 // ─── SVG Bar Chart ─────────────────────────────────────────────────────────────
 const BarChartSvg = ({ data }: { data: { value: number; label: string }[] }) => {
-    const barW = 12;
-    const gap = 8;
+    const barW = 16;
+    const gap = 6;
     const padL = 45, padR = 16, padT = 16, padB = 36;
     const H = 150;
     const W = Math.max(width - 48, padL + data.length * (barW + gap) + padR);
@@ -198,7 +198,7 @@ const BarChartSvg = ({ data }: { data: { value: number; label: string }[] }) => 
     const maxVal = Math.max(...data.map(d => d.value), 1);
     const every = Math.max(Math.floor(data.length / 6), 1);
 
-    const ticks = [0, 0.5, 1].map(f => ({
+    const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => ({
         y: padT + chartH - f * chartH,
         label: fmtShort(f * maxVal),
     }));
@@ -209,12 +209,12 @@ const BarChartSvg = ({ data }: { data: { value: number; label: string }[] }) => 
                 <Defs>
                     <LinearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
                         <Stop offset="0" stopColor={C.primary} stopOpacity={1} />
-                        <Stop offset="1" stopColor={C.accent} stopOpacity={0.7} />
+                        <Stop offset="1" stopColor={C.accent} stopOpacity={0.8} />
                     </LinearGradient>
                 </Defs>
 
-                {/* Minimal grid lines */}
-                {ticks.map((t, i) => (
+                {/* Grid lines */}
+                {ticks.filter((_, i) => i % 2 === 0).map((t, i) => (
                     <G key={i}>
                         <Line x1={padL} y1={t.y} x2={W - padR} y2={t.y} stroke={C.muted + '20'} strokeWidth={1} strokeDasharray="4 4" />
                         <SvgText x={padL - 6} y={t.y + 4} fontSize={10} fill={C.dim} textAnchor="end">{t.label}</SvgText>
@@ -224,12 +224,19 @@ const BarChartSvg = ({ data }: { data: { value: number; label: string }[] }) => 
                 {/* Bars */}
                 {data.map((d, i) => {
                     const x = padL + i * (barW + gap);
-                    const barH = Math.max((d.value / maxVal) * chartH, 2);
+                    const barH = d.value > 0 ? Math.max((d.value / maxVal) * chartH, 4) : 0;
                     const y = padT + chartH - barH;
                     return (
                         <G key={i}>
-                            {d.value > 0 && (
-                                <Rect x={x} y={y} width={barW} height={barH} rx={3} fill="url(#barGrad)" />
+                            {barH > 0 && (
+                                <Rect 
+                                    x={x} 
+                                    y={y} 
+                                    width={barW} 
+                                    height={barH} 
+                                    rx={3} 
+                                    fill="url(#barGrad)" 
+                                />
                             )}
                             {(i % every === 0 || i === data.length - 1) && (
                                 <SvgText x={x + barW / 2} y={H - 4} fontSize={9} fill={C.dim} textAnchor="middle">
