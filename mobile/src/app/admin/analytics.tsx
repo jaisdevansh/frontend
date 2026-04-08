@@ -134,16 +134,16 @@ const LineAreaChart = ({ data }: { data: { value: number; label: string }[] }) =
             <Svg width={W} height={H}>
                 <Defs>
                     <LinearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-                        <Stop offset="0" stopColor={C.primary} stopOpacity={0.25} />
-                        <Stop offset="0.5" stopColor={C.primary} stopOpacity={0.1} />
+                        <Stop offset="0" stopColor={C.primary} stopOpacity={0.3} />
+                        <Stop offset="0.5" stopColor={C.primary} stopOpacity={0.15} />
                         <Stop offset="1" stopColor={C.primary} stopOpacity={0} />
                     </LinearGradient>
                 </Defs>
 
-                {/* Minimal grid lines */}
-                {ticks.filter((_, i) => i % 2 === 0).map((t, i) => (
+                {/* Grid lines */}
+                {ticks.map((t, i) => (
                     <G key={i}>
-                        <Line x1={padL} y1={t.y} x2={W - padR} y2={t.y} stroke={C.muted + '20'} strokeWidth={1} strokeDasharray="4 4" />
+                        <Line x1={padL} y1={t.y} x2={W - padR} y2={t.y} stroke={C.muted + '30'} strokeWidth={1} />
                         <SvgText x={padL - 6} y={t.y + 4} fontSize={10} fill={C.dim} textAnchor="end">{t.label}</SvgText>
                     </G>
                 ))}
@@ -151,16 +151,15 @@ const LineAreaChart = ({ data }: { data: { value: number; label: string }[] }) =
                 {/* Gradient fill under line */}
                 {areaPath ? <Path d={areaPath} fill="url(#areaGrad)" /> : null}
 
-                {/* Dashed line (stock market style) */}
+                {/* Solid line */}
                 {linePath ? (
                     <Path 
                         d={linePath} 
                         stroke={C.primary} 
-                        strokeWidth={2.5} 
+                        strokeWidth={3} 
                         fill="none" 
                         strokeLinecap="round" 
                         strokeLinejoin="round"
-                        strokeDasharray="6 4"
                     />
                 ) : null}
 
@@ -174,10 +173,10 @@ const LineAreaChart = ({ data }: { data: { value: number; label: string }[] }) =
                         )}
                         {p.value > 0 && (
                             <>
-                                <Circle cx={p.x} cy={p.y} r={i === lastNonZeroIdx ? 6 : 3.5} fill={C.card} />
-                                <Circle cx={p.x} cy={p.y} r={i === lastNonZeroIdx ? 4 : 2} fill={i === lastNonZeroIdx ? C.accent : C.primary} />
+                                <Circle cx={p.x} cy={p.y} r={i === lastNonZeroIdx ? 7 : 4} fill={C.card} />
+                                <Circle cx={p.x} cy={p.y} r={i === lastNonZeroIdx ? 5 : 2.5} fill={i === lastNonZeroIdx ? C.accent : C.primary} />
                                 {i === lastNonZeroIdx && (
-                                    <Circle cx={p.x} cy={p.y} r={8} fill={C.accent} opacity={0.2} />
+                                    <Circle cx={p.x} cy={p.y} r={10} fill={C.accent} opacity={0.2} />
                                 )}
                             </>
                         )}
@@ -190,14 +189,14 @@ const LineAreaChart = ({ data }: { data: { value: number; label: string }[] }) =
 
 // ─── SVG Bar Chart ─────────────────────────────────────────────────────────────
 const BarChartSvg = ({ data }: { data: { value: number; label: string }[] }) => {
-    const barW = 18;
-    const gap = 12;
-    const padL = 40, padR = 16, padT = 16, padB = 36;
+    const barW = 12;
+    const gap = 8;
+    const padL = 45, padR = 16, padT = 16, padB = 36;
     const H = 150;
-    const W = Math.max(width - 96, padL + data.length * (barW + gap) + padR);
+    const W = Math.max(width - 48, padL + data.length * (barW + gap) + padR);
     const chartH = H - padT - padB;
     const maxVal = Math.max(...data.map(d => d.value), 1);
-    const every = Math.ceil(data.length / 7);
+    const every = Math.max(Math.floor(data.length / 6), 1);
 
     const ticks = [0, 0.5, 1].map(f => ({
         y: padT + chartH - f * chartH,
@@ -214,21 +213,25 @@ const BarChartSvg = ({ data }: { data: { value: number; label: string }[] }) => 
                     </LinearGradient>
                 </Defs>
 
+                {/* Minimal grid lines */}
                 {ticks.map((t, i) => (
                     <G key={i}>
-                        <Line x1={padL} y1={t.y} x2={W - padR} y2={t.y} stroke={C.muted + '40'} strokeWidth={1} />
-                        <SvgText x={padL - 6} y={t.y + 4} fontSize={9} fill={C.dim} textAnchor="end">{t.label}</SvgText>
+                        <Line x1={padL} y1={t.y} x2={W - padR} y2={t.y} stroke={C.muted + '20'} strokeWidth={1} strokeDasharray="4 4" />
+                        <SvgText x={padL - 6} y={t.y + 4} fontSize={10} fill={C.dim} textAnchor="end">{t.label}</SvgText>
                     </G>
                 ))}
 
+                {/* Bars */}
                 {data.map((d, i) => {
                     const x = padL + i * (barW + gap);
-                    const barH = Math.max((d.value / maxVal) * chartH, 3);
+                    const barH = Math.max((d.value / maxVal) * chartH, 2);
                     const y = padT + chartH - barH;
                     return (
                         <G key={i}>
-                            <Rect x={x} y={y} width={barW} height={barH} rx={4} fill="url(#barGrad)" />
-                            {i % every === 0 && (
+                            {d.value > 0 && (
+                                <Rect x={x} y={y} width={barW} height={barH} rx={3} fill="url(#barGrad)" />
+                            )}
+                            {(i % every === 0 || i === data.length - 1) && (
                                 <SvgText x={x + barW / 2} y={H - 4} fontSize={9} fill={C.dim} textAnchor="middle">
                                     {d.label}
                                 </SvgText>
