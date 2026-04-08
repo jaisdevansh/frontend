@@ -17,7 +17,7 @@ interface AuthState {
 
 interface AuthContextType extends AuthState {
     isLoading: boolean;
-    login: (authData: { token: string; role: string; hostId?: string | null; user?: any; onboardingCompleted?: boolean }) => Promise<void>;
+    login: (authData: { token: string; role: string; refreshToken?: string; hostId?: string | null; user?: any; onboardingCompleted?: boolean }) => Promise<void>;
     updateUser: (userData: Partial<any>) => Promise<void>;
     setOnboardingStatus: (status: boolean) => Promise<void>;
     logout: () => Promise<void>;

@@ -215,16 +215,11 @@ export default function DiscoverScreen() {
             
             if (eventRes.data?.success && eventRes.data.data) {
                 const booking = eventRes.data.data;
-                // eventId is populated → use ._id; hostId is already a string
                 const eid = booking.eventId?._id || booking.eventId;
-                const hid = booking.hostId; // hostId is already a string from backend
-                
-                console.log('[Active Event] Loaded:', { eventId: eid, hostId: hid, status: booking.status });
+                const hid = booking.hostId;
                 
                 if (eid) setActiveEventId(String(eid));
                 if (hid) setActiveHostId(String(hid));
-            } else {
-                console.log('[Active Event] No active booking found');
             }
         } catch (e: any) { 
             // Silent fail for 502/503 - these are expected during cold starts
