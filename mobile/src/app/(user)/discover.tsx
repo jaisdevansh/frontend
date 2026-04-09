@@ -135,17 +135,13 @@ export default function DiscoverScreen() {
         queryKey: ['host', 'gifts', activeHostId],
         queryFn: async () => {
             if (!activeHostId) {
-                console.log('⚠️ No activeHostId for gifts');
-                return [];
+return [];
             }
-            console.log('🎁 Fetching gifts for hostId:', activeHostId);
-            try {
+try {
                 const res = await apiClient.get(`/user/host/${activeHostId}/gifts`);
-                console.log('✅ Gifts response:', res.data?.data?.length || 0, 'items');
-                return res.data?.success && res.data.data ? res.data.data : [];
+return res.data?.success && res.data.data ? res.data.data : [];
             } catch (e) {
-                console.error('❌ Gifts fetch error:', e);
-                return [];
+return [];
             }
         },
         enabled: !!activeHostId,
@@ -190,8 +186,7 @@ export default function DiscoverScreen() {
                 
                 if (isColdStart && !isLastAttempt) {
                     const delay = initialDelay * Math.pow(2, attempt);
-                    console.log('Waking up backend...');
-                    await new Promise(resolve => setTimeout(resolve, delay));
+await new Promise(resolve => setTimeout(resolve, delay));
                     continue;
                 }
                 
@@ -209,7 +204,7 @@ export default function DiscoverScreen() {
                     const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
                     const reverse = await Location.reverseGeocodeAsync({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
                     if (reverse && reverse.length > 0) setLocationName(reverse[0].name || reverse[0].street || 'Private Event');
-                } catch (locErr) { console.warn('GPS disabled or unreachable, using default location.'); }
+                } catch (locErr) { }
             }
 
             // Retry active-event API call with exponential backoff
@@ -224,21 +219,16 @@ export default function DiscoverScreen() {
                 const eid = booking.eventId?._id || booking.eventId;
                 const hid = booking.hostId;
                 
-                console.log('🔍 Active Booking:', { eventId: eid, hostId: hid });
-                
-                if (eid) setActiveEventId(String(eid));
+if (eid) setActiveEventId(String(eid));
                 if (hid) setActiveHostId(String(hid));
             } else {
-                console.log('❌ No active booking found');
-            }
+}
         } catch (e: any) { 
             // Silent fail for 502/503 - these are expected during cold starts
             const status = e.response?.status;
             if (status === 502 || status === 503) {
-                console.log('Waking up backend...');
-            } else {
-                console.error('Init error', e);
-            }
+} else {
+}
         } finally { setLoading(false); }
     }, [setLocationName, setLoading, showToast]);
 
@@ -353,7 +343,7 @@ export default function DiscoverScreen() {
 
     // ─── RENDERERS ───
     const ChatListHeader = useCallback(() => (
-        <View style={{ marginBottom: 24 }}>
+        <View style={{ marginBottom: 12 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <Text style={{ color: '#fff', fontWeight: '900', fontSize: 15, textTransform: 'uppercase', letterSpacing: 1.5 }}>Live on Radar</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(16, 185, 129, 0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
@@ -554,20 +544,16 @@ export default function DiscoverScreen() {
                                             message: giftModal.msg,
                                             totalAmount: giftModal.item.price
                                         };
-                                        console.log('🎁 [discover] Proceeding with Confirm & Pay. Payload:', JSON.stringify(payload, null, 2));
-
-                                        // Premium Simulated Delay to imply secure Razorpay routing
+// Premium Simulated Delay to imply secure Razorpay routing
                                         setTimeout(async () => {
                                             try {
                                                 const res = await apiClient.post('/api/v1/drink-requests/send', payload);
-                                                console.log('✅ [discover] Gift Sent successfully Response:', res.data);
-                                                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                                                 showToast('Gift Sent successfully! 🎉', 'success'); 
                                                 setGiftModal({ visible: false, user: null, item: null, msg: '', processing: false });
                                                 refetchAll();
                                             } catch (error: any) { 
-                                                console.error('❌ [discover] Gift Payment Error:', error?.response?.data || error?.message || error);
-                                                setGiftModal(p => ({ ...p, processing: false })); 
+setGiftModal(p => ({ ...p, processing: false })); 
                                                 setCustomAlert({ visible: true, title: 'Error', message: 'Failed to process gift order. Check console logs.' }); 
                                             }
                                         }, 1800);
@@ -657,18 +643,18 @@ export default function DiscoverScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#030303' },
-    radarZone: { height: height * 0.42, justifyContent: 'space-between', paddingBottom: 20 },
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20 },
-    iconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
+    radarZone: { paddingBottom: 10, paddingTop: 6 },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 4 },
+    iconBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
     headerCent: { alignItems: 'center' },
     navTitle: { color: 'rgba(255,255,255,0.6)', fontSize: 10, fontWeight: '900', letterSpacing: 2 },
     navSub: { color: '#FFF', fontSize: 13, fontWeight: '800', marginTop: 2 },
-    radarVisuals: { height: 160, alignItems: 'center', justifyContent: 'center' },
-    pulseRing: { position: 'absolute', width: 64, height: 64, borderRadius: 32, borderWidth: 1, borderColor: '#7c4dff' },
-    radarCenter: { width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(124, 77, 255, 0.2)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(124, 77, 255, 0.4)' },
-    crowdBadge: { alignSelf: 'center', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: 'rgba(124, 77, 255, 0.1)' },
-    crowdTxt: { color: '#7c4dff', fontSize: 11, fontWeight: '800' },
-    toggleWrap: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
+    radarVisuals: { height: 110, alignItems: 'center', justifyContent: 'center' },
+    pulseRing: { position: 'absolute', width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: '#7c4dff' },
+    radarCenter: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(124, 77, 255, 0.2)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(124, 77, 255, 0.4)' },
+    crowdBadge: { alignSelf: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: 'rgba(124, 77, 255, 0.1)', marginBottom: 6 },
+    crowdTxt: { color: '#7c4dff', fontSize: 10, fontWeight: '800' },
+    toggleWrap: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 8 },
     toggleLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: '700' },
     sheetZone: { flex: 1, backgroundColor: '#050505', borderTopLeftRadius: 32, borderTopRightRadius: 32, overflow: 'hidden' },
     tabNav: { flexDirection: 'row', padding: 8, backgroundColor: '#080808' },

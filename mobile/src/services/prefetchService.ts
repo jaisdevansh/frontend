@@ -11,13 +11,14 @@ import adminService from './adminService';
 const STALE = 5 * 60 * 1000; // 5 min
 
 // ─── Pre-warm USER screens ────────────────────────────────────────────────────
-export const prefetchUserData = (qc: QueryClient) => {
+export const prefetchUserData = (qc: QueryClient, userId: string | null) => {
+    if (!userId) return;
     // Fire all in parallel — no awaiting, pure background
-    qc.prefetchQuery({ queryKey: ['user-profile'], queryFn: userService.getProfile, staleTime: STALE });
+    qc.prefetchQuery({ queryKey: ['user-profile', userId], queryFn: userService.getProfile, staleTime: 0 });
     qc.prefetchQuery({ queryKey: ['events-list'], queryFn: userService.getEvents, staleTime: STALE });
     qc.prefetchQuery({ queryKey: ['venues-list'], queryFn: userService.getVenues, staleTime: STALE });
-    qc.prefetchQuery({ queryKey: ['my-bookings'], queryFn: userService.getMyBookings, staleTime: STALE });
-    qc.prefetchQuery({ queryKey: ['active-event'], queryFn: userService.getActiveEvent, staleTime: STALE });
+    qc.prefetchQuery({ queryKey: ['my-bookings', userId], queryFn: userService.getMyBookings, staleTime: STALE });
+    qc.prefetchQuery({ queryKey: ['active-event', userId], queryFn: userService.getActiveEvent, staleTime: STALE });
 };
 
 // ─── Pre-warm HOST screens ────────────────────────────────────────────────────

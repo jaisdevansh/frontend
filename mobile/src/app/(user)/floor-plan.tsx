@@ -16,6 +16,7 @@ import { userService } from '../../services/userService';
 import { useAlert } from '../../context/AlertProvider';
 import { useStrictBack } from '../../hooks/useStrictBack';
 import { useBookingStore } from '../../store/bookingStore';
+import { useFloorPlanQuery } from '../../hooks/useEventQuery';
 import { Seat } from '../../features/booking/components/Seat';
 import { io } from 'socket.io-client';
 import { API_BASE_URL } from '../../services/apiClient';
@@ -61,49 +62,47 @@ export default function FloorPlan() {
         clearSelection();
     }, [eventId]);
 
-    const loadFloor = useCallback(async () => {
-        if (!eventId) return;
-        setLoading(true);
-        try {
-            const res = await userService.getFloorPlan(eventId);
-            if (res?.success && res.data?.zones?.length > 0) {
-                setZonesMetadata(res.data.zones);
-                
-                // Flexible Match: Try param zone, then first zone
-                const zoneData = res.data.zones.find((z: any) => 
-                    z.name?.toLowerCase() === targetZone.toLowerCase() || 
-                    targetZone.toLowerCase().includes(z.name?.toLowerCase())
-                ) || res.data.zones[0];
+    // Use React Query for instant prefetched loads
+    const { data: floorPlanData, isLoading, refetch } = useFloorPlanQuery(eventId);
 
-                if (zoneData && zoneData.seats) {
-                    const mappedSeats = zoneData.seats.map((s: any) => ({
-                        id: s.id || s._id,
-                        number: s.number,
-                        zone: zoneData.name,
-                        status: s.status || 'available',
-                        price: s.price || zoneData.price || 0
-                    }));
-                    setSeats(mappedSeats);
-                }
-            } else {
-                setSeats([]);
-            }
-        } catch (err) {
-            console.error('Floor Plan Load Error:', err);
-        } finally {
-            setLoading(false);
+    useEffect(() => {
+        if (!eventId || isLoading || !floorPlanData) {
+            setLoading(isLoading);
+            return;
         }
-    }, [eventId, targetZone]);
 
-    useEffect(() => { loadFloor(); }, [loadFloor]);
+        const resData = floorPlanData;
+        if (resData?.zones?.length > 0) {
+            setZonesMetadata(resData.zones);
+            
+            const zoneData = resData.zones.find((z: any) => 
+                z.name?.toLowerCase() === targetZone.toLowerCase() || 
+                targetZone.toLowerCase().includes(z.name?.toLowerCase())
+            ) || resData.zones[0];
+
+            if (zoneData && zoneData.seats) {
+                const mappedSeats = zoneData.seats.map((s: any) => ({
+                    id: s.id || s._id,
+                    number: s.number,
+                    zone: zoneData.name,
+                    status: s.status || 'available',
+                    price: s.price || zoneData.price || 0
+                }));
+                setSeats(mappedSeats);
+            }
+        } else {
+            setSeats([]);
+        }
+        setLoading(false);
+    }, [floorPlanData, eventId, targetZone, isLoading]);
 
     useEffect(() => {
         const socket = io(API_BASE_URL);
         socket.on('inventory_update', (data: any) => {
-            if (data.eventId === eventId) loadFloor();
+            if (data.eventId === eventId) refetch();
         });
         return () => { socket.disconnect(); };
-    }, [eventId, loadFloor]);
+    }, [eventId, refetch]);
 
     const renderSeat = useCallback(({ item }: { item: SeatData }) => (
         <Seat
@@ -141,7 +140,7 @@ export default function FloorPlan() {
                 eventId, seatIds: selectedIds, guestCount: guests, zone: targetZone
             }).catch(() => {
                 showAlert('Wait', 'Some seats are no longer available.');
-                loadFloor();
+                refetch();
             }).finally(() => {
                 setLocking(false);
             });

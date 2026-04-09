@@ -157,8 +157,8 @@ export const usePrefetchEvent = () => {
     return async (eventId: string, coverImage?: string) => {
         const tasks: Promise<any>[] = [
             queryClient.prefetchQuery({
-                queryKey: eventKeys.full(eventId),
-                queryFn: () => fetchEventFull(eventId),
+                queryKey: eventKeys.floorPlan(eventId),
+                queryFn: () => fetchFloorPlan(eventId),
                 staleTime: 5 * 60 * 1000,
             }),
         ];

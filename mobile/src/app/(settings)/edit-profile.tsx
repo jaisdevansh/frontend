@@ -88,6 +88,21 @@ export default function EditProfile() {
     const [saving, setSaving] = useState(false);
     const [locating, setLocating] = useState(false);
     
+    // 🔥 FIX DATA LEAKAGE: Always sync component state when authUser changes 
+    // (handles React Navigation caching old component instances after logout/login)
+    useEffect(() => {
+        if (authUser) {
+            setName(authUser.name || '');
+            setFirstName(authUser.firstName || (authUser.name?.split(' ')[0] ?? ''));
+            setLastName(authUser.lastName || (authUser.name?.split(' ').slice(1).join(' ') ?? ''));
+            setUsername(authUser.username || '');
+            setInitialUsername(authUser.username || '');
+            setEmail(authUser.email || '');
+            setPhone(authUser.phone || '');
+            setProfileImage(authUser.profileImage || '');
+        }
+    }, [authUser?.name, authUser?.username, authUser?.email, authUser?.phone, authUser?.profileImage, authUser?.id]);
+    
     // Username Systems
     const [initialUsername, setInitialUsername] = useState(authUser?.username || '');
     const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');

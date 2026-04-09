@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, FlatList, ActivityIndicator, StatusBar, Linking, Platform, InteractionManager } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, FlatList, ActivityIndicator, StatusBar, Linking, Platform, InteractionManager, Share } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useNavigation, useLocalSearchParams } from 'expo-router';
@@ -269,6 +269,22 @@ const EventDetails = () => {
         Linking.openURL(url).catch(() => showToast('Could not open maps app', 'error'));
     };
 
+    const handleShare = async () => {
+        if (!event) return;
+        try {
+            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            const appLink = 'https://entryclub.com/download'; // 🌐 Final production app link
+            const message = `Check out "${event.title}" on Entry Club! 🥂\n\n${event.description || ''}\n\nBook your spot here: ${appLink}`;
+            
+            await Share.share({
+                message,
+                title: event.title,
+            });
+        } catch (error) {
+            showToast('Unable to share event', 'error');
+        }
+    };
+
     // ── Step Extra: try/catch wrapper around entire render ───────────────────
     try {
         return (
@@ -289,6 +305,10 @@ const EventDetails = () => {
                             scrollEventThrottle={16}
                             onScrollBeginDrag={() => { isUserInteracting.current = true; }}
                             onScrollEndDrag={() => { isUserInteracting.current = false; }}
+                            removeClippedSubviews={true}
+                            initialNumToRender={5}
+                            maxToRenderPerBatch={5}
+                            windowSize={5}
                             onScrollToIndexFailed={(info) => {
                                 // Fallback: if scroll fails (common on quick mounting), just jump to index
                                 flatListRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false });
@@ -312,7 +332,7 @@ const EventDetails = () => {
                                 <Ionicons name="chevron-back" size={22} color="#FFF" />
                             </TouchableOpacity>
                             <Text style={styles.topTitle}>Event Details</Text>
-                            <TouchableOpacity style={styles.circleBtn}>
+                            <TouchableOpacity style={styles.circleBtn} onPress={handleShare}>
                                 <Ionicons name="share-outline" size={22} color="#FFF" />
                             </TouchableOpacity>
                         </View>

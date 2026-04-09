@@ -37,8 +37,7 @@ export const useDiscovery = (eventId?: string | null) => {
             } catch (e: any) {
                 const status = e.response?.status;
                 if (status === 502 || status === 503) {
-                    console.log('Waking up backend...');
-                }
+}
                 return [];
             }
         },
@@ -59,8 +58,7 @@ export const useDiscovery = (eventId?: string | null) => {
             } catch (e: any) {
                 const status = e.response?.status;
                 if (status === 502 || status === 503) {
-                    console.log('Waking up backend...');
-                }
+}
                 return [];
             }
         },
@@ -81,8 +79,7 @@ export const useDiscovery = (eventId?: string | null) => {
             } catch (e: any) {
                 const status = e.response?.status;
                 if (status === 502 || status === 503) {
-                    console.log('Waking up backend...');
-                }
+}
                 return [];
             }
         },

@@ -65,42 +65,36 @@ const MENU_ITEMS = [
     },
 ];
 
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+
 export default function UserProfile() {
     const router = useRouter();
-    const { logout, user: authUser } = useAuth();
+    const queryClient = useQueryClient();
+    const { logout, user: authUser, userId } = useAuth();
     const { showToast } = useToast();
     const [isImageVisible, setImageVisible] = useState(false);
-    
-    // We start seamlessly with whatever authUser we have to completely eliminate loading spinners
-    const [profile, setProfile] = useState<any>(authUser || null);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-    // 🔥 KEY FIX: When AuthContext updates (e.g. after onboarding or edit-profile saves),
-    // sync local profile state immediately — name/image appear without extra fetch
-    useEffect(() => {
-        if (authUser) {
-            setProfile((prev: any) => {
-                const merged = prev ? { ...prev, ...authUser } : authUser;
-                return merged;
-            });
-        }
-    }, [authUser]);
-
+    // 🚀 SENIOR FIX: Use TanStack Query with userId in the key for TOTAL data isolation.
+    // User1 has ID 'a' -> key ['user-profile', 'a']
+    // User2 has ID 'b' -> key ['user-profile', 'b']
+    // No collision possible, even if components stay mounted.
+    const profileRes = useQuery<any>({
+        queryKey: ['user-profile', userId],
+        queryFn: userService.getProfile,
+        enabled: !!userId,
+        staleTime: 0, 
+        gcTime: 0,
+        refetchOnMount: true,
+        refetchOnWindowFocus: true
+    });
+    
+    const profile = profileRes.data?.data || profileRes.data;
 
     useFocusEffect(
         useCallback(() => {
-            let isActive = true;
-            const fetchProfile = async () => {
-                try {
-                    const res = await userService.getProfile();
-                    if (res.success && isActive) setProfile(res.data);
-                } catch (error: any) {
-                    // silently fail, use AuthContext
-                }
-            };
-            fetchProfile();
-            return () => { isActive = false; };
-        }, [])
+            if (userId) profileRes.refetch();
+        }, [userId, profileRes.refetch])
     );
 
     const handleLogout = async () => {
@@ -109,6 +103,18 @@ export default function UserProfile() {
         catch { await logout(); }
         finally { setIsLoggingOut(false); }
     };
+
+    // ── BLOCK OLD DATA RENDER ──
+    // If we are loading and don't have any profile data at all, show a loader.
+    // If it fails or we have authUser fallback, let them see the profile so they can still sign out.
+    if (profileRes.isLoading && !profile && !authUser) {
+        return (
+            <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color="#818CF8" />
+                <Text style={{ color: 'rgba(255,255,255,0.4)', marginTop: 12, fontSize: 13 }}>Loading secure profile...</Text>
+            </SafeAreaView>
+        );
+    }
 
     const defaultImage = 'https://via.placeholder.com/100';
     let profileImageUrl = profile?.profileImage || authUser?.profileImage || defaultImage;

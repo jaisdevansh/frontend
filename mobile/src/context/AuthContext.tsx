@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DeviceEventEmitter } from 'react-native';
+import { jwtDecode } from 'jwt-decode';
 import apiClient from '../services/apiClient';
 import { useQueryClient } from '@tanstack/react-query';
 import { prefetchAdminData, prefetchUserData, prefetchHostData } from '../services/prefetchService';
@@ -9,6 +10,7 @@ export type UserRole = 'admin' | 'host' | 'staff' | 'user' | null;
 
 interface AuthState {
     token: string | null;
+    userId: string | null;
     role: UserRole;
     hostId: string | null;
     onboardingCompleted: boolean;
@@ -28,6 +30,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [authState, setAuthState] = useState<AuthState>({
         token: null,
+        userId: null,
         role: null,
         hostId: null,
         onboardingCompleted: false,
@@ -56,11 +59,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 let userData = { onboardingCompleted: false, user: null };
                 if (rawUser) userData = JSON.parse(rawUser);
                 
-                setAuthState({ ...data, ...userData });
-                
                 if (data.token) {
+                    try {
+                        const decoded: any = jwtDecode(data.token);
+                        if (decoded && decoded.role) {
+                            data.role = decoded.role; // 🧠 STRICT OVERRIDE: Trust the JWT, not the async storage strings
+                        }
+                        if (decoded && decoded.hostId) {
+                            data.hostId = decoded.hostId;
+                        }
+                        if (decoded && (decoded.id || decoded.sub)) {
+                            data.userId = decoded.id || decoded.sub;
+                        }
+                    } catch (decodeErr) {
+                        console.warn('[Auth] JWT decode soft fail:', decodeErr);
+                    }
+                    
                     apiClient.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
                 }
+                
+                setAuthState({ ...data, ...userData });
             }
         } catch (e) {
             console.error('[Auth] Load failed:', e);
@@ -81,7 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else if (role === 'host') {
             prefetchHostData(queryClient);
         } else {
-            prefetchUserData(queryClient);
+            prefetchUserData(queryClient, authState.userId);
         }
     }, [authState.token, authState.onboardingCompleted]);
 
@@ -116,20 +134,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             throw new Error('Invalid authentication role received from server.');
         }
 
-        // ── STEP 1: Wipe ALL previous-user React Query cache BEFORE setting new state ──
+        // ⚡ SENIOR ENGINEER FIX: HARD RESET everything before starting new session
+        try {
+            await AsyncStorage.clear(); 
+            apiClient.defaults.headers.common['Authorization'] = '';
+            delete apiClient.defaults.headers.common['Authorization'];
+        } catch (e) {
+            console.error('[Auth] Hard reset failed:', e);
+        }
+
         await queryClient.cancelQueries();
         queryClient.clear();
         
-        // ⚡ CRITICAL: Also clear AsyncStorage cached data to prevent stale profile
-        try {
-            await AsyncStorage.removeItem('user_profile_cache');
-            await AsyncStorage.removeItem('cached_profile');
-        } catch (e) {
-            console.error('[Auth] Cache clear failed:', e);
-        }
-
+        const decoded: any = jwtDecode(authData.token);
         const payload: AuthState = {
             token: authData.token,
+            userId: decoded?.id || decoded?.sub || null,
             role: normalizedRole,
             hostId: authData.hostId || null,
             user: authData.user || null,
@@ -170,7 +190,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             } else if (normalizedRole === 'host') {
                 prefetchHostData(queryClient);
             } else {
-                prefetchUserData(queryClient);
+                prefetchUserData(queryClient, payload.userId);
             }
         }, 300);
     };
@@ -187,45 +207,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const logout = async () => {
-        console.log('[Auth] Starting logout - clearing ALL user data...');
+        console.log('[Auth] Starting HARD logout - clearing EVERYTHING...');
         
-        // ── Clear ALL user data from every layer ──────────────────────────────
-        await AsyncStorage.removeItem('auth');
-        await AsyncStorage.removeItem('auth_user');
-        await AsyncStorage.removeItem('user_profile_cache');
-        await AsyncStorage.removeItem('cached_profile');
-        
-        // Clear any other potential cached keys
         try {
-            const allKeys = await AsyncStorage.getAllKeys();
-            const cacheKeys = allKeys.filter(key => 
-                key.includes('cache') || 
-                key.includes('profile') || 
-                key.includes('user_')
-            );
-            if (cacheKeys.length > 0) {
-                await AsyncStorage.multiRemove(cacheKeys);
-                console.log('[Auth] Cleared additional cache keys:', cacheKeys);
-            }
+            // ── MANDATORY RESET ──
+            await AsyncStorage.removeItem('auth');
+            await AsyncStorage.removeItem('auth_user');
+            await AsyncStorage.clear();
+            
+            // Force wipe axios common headers
+            apiClient.defaults.headers.common['Authorization'] = '';
+            delete apiClient.defaults.headers.common['Authorization'];
+            
+            // Wipe React Query entirely
+            await queryClient.cancelQueries();
+            queryClient.removeQueries(); // Completely drop them from memory instantly
+            queryClient.clear();
         } catch (e) {
-            console.error('[Auth] Error clearing additional cache:', e);
+            console.error('[Auth] Logout cleanup failed:', e);
         }
-        
-        delete apiClient.defaults.headers.common['Authorization'];
-
-        // Wipe React Query cache so no previous-user data leaks into next login
-        await queryClient.cancelQueries();
-        queryClient.clear();
 
         setAuthState({
             token: null,
+            userId: null,
             role: null,
             hostId: null,
-            user: null,
+            user: null, // Reset state to null
             onboardingCompleted: false,
         });
         
-        console.log('[Auth] Logout complete - all data cleared');
+        console.log('[Auth] Logout complete - ZERO data remains');
     };
 
     return (

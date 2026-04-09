@@ -169,22 +169,18 @@ export default function HostVenueProfile() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const [venueUpdate, curatorUpdate] = await Promise.all([
-                hostService.updateVenueProfile({
-                    ...form,
-                    capacity: parseInt(form.capacity) || 0
-                }),
-                userService.updateProfile({
-                    name: curator.name,
-                    profileImage: curator.profileImage
-                })
-            ]);
+            // Only update venue profile, not user profile
+            // Host profile is managed separately in host backend
+            const venueUpdate = await hostService.updateVenueProfile({
+                ...form,
+                capacity: parseInt(form.capacity) || 0
+            });
 
-            if (venueUpdate.success && curatorUpdate.success) {
-                showToast('Business Profile Updated!', 'success');
+            if (venueUpdate.success) {
+                showToast('Venue Profile Updated!', 'success');
                 goBack();
             } else {
-                showToast('Partially updated, please check results', 'info');
+                showToast('Failed to update venue profile', 'error');
             }
         } catch (error: any) {
             console.error('Save Venue Error:', error);

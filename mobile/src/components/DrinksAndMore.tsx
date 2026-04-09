@@ -22,7 +22,9 @@ const { width } = Dimensions.get('window');
 const SERVICE_FEE_RATE = 0.05; // 5%
 
 const CATEGORIES = ['All', 'Cocktail', 'Mocktail', 'Soft Drink'];
-const TIPS = [20, 50, 100, 150];
+const TIPS = [20, 50, 100, 150]; // Custom tip amounts
+
+const MOCK_DRINKS: any[] = [];
 
 type CartItem = { _id: string; name: string; price: number; type: string; image: string; description: string; qty: number; };
 
@@ -31,7 +33,7 @@ export default function DrinksAndMore({ eventId, hostId, zone, tableId }: { even
     const router = useRouter();
     const { showToast } = useToast();
 
-    const [drinks, setDrinks] = useState<any[]>([]);
+    const [drinks, setDrinks] = useState<any[]>(MOCK_DRINKS);
     const [loadingMenu, setLoadingMenu] = useState(false);
     const [category, setCategory] = useState('All');
     const [cart, setCart] = useState<{ [key: string]: CartItem }>({});
@@ -54,18 +56,19 @@ export default function DrinksAndMore({ eventId, hostId, zone, tableId }: { even
                 ? `/user/events/${eventId}/menu`
                 : null;
 
-        console.log('🍽️ DrinksAndMore:', { hostId, eventId, url });
+        if (hostId || eventId) {
+}
 
         // ⚡ Parallel fetch — menu + orders at the same time
         const fetchAll = async () => {
+            setLoadingMenu(true);
             const promises: Promise<any>[] = [];
 
             if (url) {
                 promises.push(
                     apiClient.get(url).then((res: any) => {
                         const data = res.data?.data;
-                        console.log('✅ Menu response:', data?.length || 0, 'items');
-                        if (data && data.length > 0) {
+if (data && data.length > 0) {
                             setDrinks(data.map((item: any) => ({
                                 _id: item._id,
                                 name: item.name,
@@ -74,9 +77,13 @@ export default function DrinksAndMore({ eventId, hostId, zone, tableId }: { even
                                 description: item.description || item.desc || '',
                                 image: item.image || 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=400',
                             })));
+                        } else {
+                            // If API returns empty, show nothing instead of mock data
+                            setDrinks([]);
                         }
-                        // If API returns empty, MOCK_DRINKS stays as the UI data
-                    }).catch(() => {})
+                    }).catch(() => {
+                        setDrinks([]);
+                    })
                 );
             }
 
@@ -87,6 +94,7 @@ export default function DrinksAndMore({ eventId, hostId, zone, tableId }: { even
             );
 
             await Promise.all(promises);
+            setLoadingMenu(false);
         };
 
         fetchAll();
@@ -181,11 +189,7 @@ export default function DrinksAndMore({ eventId, hostId, zone, tableId }: { even
             tipAmount,
         };
 
-        console.log('[ORDER DEBUG] Payload:', JSON.stringify(orderPayload, null, 2));
-        console.log('[ORDER DEBUG] Total Amount:', total);
-
-
-        const result = await initiateFoodPayment(
+const result = await initiateFoodPayment(
             {
                 amount: total,
                 receipt: `food_${Date.now()}`.substring(0, 40),
@@ -201,10 +205,7 @@ export default function DrinksAndMore({ eventId, hostId, zone, tableId }: { even
             }
         );
 
-        console.log('[ORDER DEBUG] Payment Result:', JSON.stringify(result, null, 2));
-
-
-        setProcessing(false);
+setProcessing(false);
 
         if (result.success) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -301,7 +302,11 @@ export default function DrinksAndMore({ eventId, hostId, zone, tableId }: { even
                 estimatedItemSize={120}
                 contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
-                ListEmptyComponent={loadingMenu ? null : (
+                ListEmptyComponent={loadingMenu ? (
+                    <View style={{ alignItems: 'center', paddingTop: 60 }}>
+                        <ActivityIndicator color="#2563EB" />
+                    </View>
+                ) : (
                     <View style={{ alignItems: 'center', paddingTop: 60 }}>
                         <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 14 }}>No items available</Text>
                     </View>

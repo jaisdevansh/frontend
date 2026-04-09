@@ -193,9 +193,24 @@ const TableSelection = () => {
 
                 <View style={{ paddingHorizontal: 20 }}>
                     {loading ? (
-                        <View style={{ paddingVertical: 100, alignItems: 'center' }}>
-                            <ActivityIndicator size="large" color={COLORS.primary} />
-                            <Text style={{ color: 'rgba(255,255,255,0.4)', marginTop: 12, fontSize: 13, fontWeight: '600' }}>Fetching latest offers...</Text>
+                        <View style={{ gap: 16 }}>
+                            <View style={{ width: 120, height: 20, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 4, marginBottom: 10 }} />
+                            <View style={styles.guestsRow}>
+                                <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.05)' }} />
+                                <View style={{ width: 40, height: 32, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 4 }} />
+                                <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.05)' }} />
+                            </View>
+                            <View style={{ width: 100, height: 20, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 4, marginTop: 10 }} />
+                            <View style={{ flexDirection: 'row', gap: 10 }}>
+                                <View style={{ width: 70, height: 80, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.05)' }} />
+                                <View style={{ width: 70, height: 80, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.05)' }} />
+                                <View style={{ width: 70, height: 80, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.05)' }} />
+                            </View>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 20 }}>
+                                {[1,2,3,4].map(key => (
+                                    <View key={key} style={{ width: (width - 52) / 2, height: 160, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 18 }} />
+                                ))}
+                            </View>
                         </View>
                     ) : (
                         <>
