@@ -10,18 +10,14 @@ import { DeviceEventEmitter } from 'react-native';
  * Standard logic for development environments to ensure connectivity.
  */
 const getBaseUrl = () => {
-    // Local Testing URL points to localhost/LAN IP
-    // return 'http://10.225.202.18:3001';
-    
     // Production Render URL
     return 'https://entry-user-backend.onrender.com';
+    // Local Testing URL (uncomment for local dev)
+    // return 'http://10.225.202.18:3001';
 };
 
 export const API_BASE_URL = getBaseUrl();
-// 🔧 LOCAL DEV: Admin backend running locally on port 3002
-export const ADMIN_API_BASE_URL = 'http://10.225.202.18:3002';
-// Production fallback (uncomment when deploying):
-// export const ADMIN_API_BASE_URL = 'https://entry-admin-backend.onrender.com';
+export const ADMIN_API_BASE_URL = 'https://entry-admin-backend.onrender.com';
 
 // 🚀 ULTRA-AGGRESSIVE WAKE-UP: Ping server with exponential backoff
 // Render free tier sleeps after 15min inactivity, takes 30-60s to wake up
