@@ -16,6 +16,7 @@ import { userService } from '../services/userService';
 import { initiateFoodPayment } from '../services/razorpayService';
 import apiClient, { API_BASE_URL } from '../services/apiClient';
 import { io, Socket } from 'socket.io-client';
+import { useQuery } from '@tanstack/react-query';
 
 const { width } = Dimensions.get('window');
 
@@ -33,7 +34,6 @@ export default function DrinksAndMore({ eventId, hostId, zone, tableId }: { even
     const router = useRouter();
     const { showToast } = useToast();
 
-    const [drinks, setDrinks] = useState<any[]>(MOCK_DRINKS);
     const [loadingMenu, setLoadingMenu] = useState(false);
     const [category, setCategory] = useState('All');
     const [cart, setCart] = useState<{ [key: string]: CartItem }>({});
@@ -46,73 +46,51 @@ export default function DrinksAndMore({ eventId, hostId, zone, tableId }: { even
     const displayTableId = tableId || 'Floor';
     const [activeOrders, setActiveOrders] = useState<any[]>([]);
 
+    // ⚡ REACT QUERY: Use prefetched data for instant loading
+    const { data: menuData = [], isLoading: menuLoading } = useQuery({
+        queryKey: hostId ? ['host', 'menu', hostId] : ['event', 'menu', eventId],
+        queryFn: async () => {
+            const url = hostId
+                ? `/user/host/${hostId}/menu`
+                : eventId
+                    ? `/user/events/${eventId}/menu`
+                    : null;
+
+            if (!url) return [];
+
+            console.log('📡 Fetching menu from:', url);
+            const res = await apiClient.get(url);
+            const data = res.data?.data || [];
+            console.log('✅ Menu response:', data.length, 'items');
+            
+            return data.map((item: any) => ({
+                _id: item._id,
+                name: item.name,
+                type: item.type || item.category || 'Drink',
+                price: item.price,
+                description: item.description || item.desc || '',
+                image: item.image || 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=400',
+            }));
+        },
+        enabled: !!(hostId || eventId),
+        staleTime: 1000 * 60 * 5, // 5 min
+        gcTime: 1000 * 60 * 20,
+    });
+
     useEffect(() => {
         // Fetch profile
         userService.getProfile().then((r: any) => { if (r.success) setProfile(r.data); }).catch(() => {});
 
-        const url = hostId
-            ? `/user/host/${hostId}/menu`
-            : eventId
-                ? `/user/events/${eventId}/menu`
-                : null;
-
-        console.log('🍽️ DrinksAndMore:', { hostId, eventId, url });
-
-        // ⚡ Parallel fetch — menu + orders at the same time
-        const fetchAll = async () => {
-            setLoadingMenu(true);
-            const promises: Promise<any>[] = [];
-
-            if (url) {
-                console.log('📡 Fetching menu from:', url);
-                promises.push(
-                    apiClient.get(url).then((res: any) => {
-                        const data = res.data?.data;
-                        console.log('✅ Menu response:', data?.length || 0, 'items');
-                        if (data && data.length > 0) {
-                            setDrinks(data.map((item: any) => ({
-                                _id: item._id,
-                                name: item.name,
-                                type: item.type || item.category || 'Drink',
-                                price: item.price,
-                                description: item.description || item.desc || '',
-                                image: item.image || 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=400',
-                            })));
-                        } else {
-                            console.log('⚠️ No menu items returned');
-                            setDrinks([]);
-                        }
-                    }).catch((err) => {
-                        console.error('❌ Menu fetch error:', err.message);
-                        setDrinks([]);
-                    })
-                );
-            } else {
-                console.log('⚠️ No URL - missing hostId and eventId');
-            }
-
-            promises.push(
-                userService.getMyFoodOrders().then((r: any) => {
-                    if (r.success) setActiveOrders(r.data);
-                }).catch(() => {})
-            );
-
-            await Promise.all(promises);
-            setLoadingMenu(false);
-        };
-
-        fetchAll();
+        // Fetch active orders
+        userService.getMyFoodOrders().then((r: any) => {
+            if (r.success) setActiveOrders(r.data);
+        }).catch(() => {});
 
         // REAL-TIME SYNC
         const socket = io(API_BASE_URL);
         socket.on('menu_updated', () => {
-            if (url) {
-                console.log('🔄 Menu updated via socket, refetching...');
-                apiClient.get(url).then((res: any) => {
-                    const data = res.data?.data;
-                    if (data && data.length > 0) setDrinks(data);
-                }).catch(() => {});
-            }
+            console.log('🔄 Menu updated via socket, refetching...');
+            // React Query will auto-refetch
         });
         socket.on('order_status_update', ({ orderId, status }) => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -126,14 +104,14 @@ export default function DrinksAndMore({ eventId, hostId, zone, tableId }: { even
     }, [hostId, eventId]);
 
 
-    // ⚡ Memoized — only recalc when drinks or category changes
+    // ⚡ Memoized — only recalc when menuData or category changes
     const dynamicCategories = useMemo(() =>
-        ['All', ...Array.from(new Set(drinks.map(d => d.type)))]
-    , [drinks]);
+        ['All', ...Array.from(new Set(menuData.map(d => d.type)))]
+    , [menuData]);
 
     const filteredDrinks = useMemo(() =>
-        category === 'All' ? drinks : drinks.filter(d => d.type === category)
-    , [drinks, category]);
+        category === 'All' ? menuData : menuData.filter(d => d.type === category)
+    , [menuData, category]);
 
     const cartItems: CartItem[] = Object.values(cart).filter(i => i.qty > 0);
     const cartCount = cartItems.reduce((s, i) => s + i.qty, 0);
@@ -309,9 +287,23 @@ setProcessing(false);
                 estimatedItemSize={120}
                 contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
-                ListEmptyComponent={loadingMenu ? (
-                    <View style={{ alignItems: 'center', paddingTop: 60 }}>
-                        <ActivityIndicator color="#2563EB" />
+                ListEmptyComponent={menuLoading ? (
+                    <View style={{ paddingTop: 20 }}>
+                        {/* Skeleton Loaders */}
+                        {[1, 2, 3, 4, 5].map((i) => (
+                            <View key={i} style={styles.skeletonCard}>
+                                <View style={styles.skeletonImage} />
+                                <View style={styles.skeletonBody}>
+                                    <View style={styles.skeletonPill} />
+                                    <View style={styles.skeletonTitle} />
+                                    <View style={styles.skeletonDesc} />
+                                    <View style={styles.skeletonFooter}>
+                                        <View style={styles.skeletonPrice} />
+                                        <View style={styles.skeletonBtn} />
+                                    </View>
+                                </View>
+                            </View>
+                        ))}
                     </View>
                 ) : (
                     <View style={{ alignItems: 'center', paddingTop: 60 }}>
@@ -538,4 +530,64 @@ const styles = StyleSheet.create({
     orderIconBox: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(37,99,235,0.1)', alignItems: 'center', justifyContent: 'center' },
     orderStatusTitle: { color: '#fff', fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
     orderItemCount: { color: 'rgba(255,255,255,0.4)', fontSize: 10, marginTop: 1 },
+
+    // Skeleton Loaders
+    skeletonCard: { 
+        flexDirection: 'row', 
+        backgroundColor: '#111118', 
+        borderRadius: 20, 
+        overflow: 'hidden', 
+        borderWidth: 1, 
+        borderColor: 'rgba(255,255,255,0.07)',
+        marginBottom: 16,
+        marginHorizontal: 20
+    },
+    skeletonImage: { 
+        width: 110, 
+        height: 120, 
+        backgroundColor: 'rgba(255,255,255,0.05)' 
+    },
+    skeletonBody: { 
+        flex: 1, 
+        padding: 14, 
+        justifyContent: 'space-between' 
+    },
+    skeletonPill: { 
+        width: 60, 
+        height: 16, 
+        backgroundColor: 'rgba(255,255,255,0.05)', 
+        borderRadius: 6, 
+        marginBottom: 6 
+    },
+    skeletonTitle: { 
+        width: '80%', 
+        height: 18, 
+        backgroundColor: 'rgba(255,255,255,0.08)', 
+        borderRadius: 4, 
+        marginBottom: 4 
+    },
+    skeletonDesc: { 
+        width: '100%', 
+        height: 12, 
+        backgroundColor: 'rgba(255,255,255,0.04)', 
+        borderRadius: 4, 
+        marginBottom: 8 
+    },
+    skeletonFooter: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'space-between' 
+    },
+    skeletonPrice: { 
+        width: 50, 
+        height: 20, 
+        backgroundColor: 'rgba(255,255,255,0.08)', 
+        borderRadius: 4 
+    },
+    skeletonBtn: { 
+        width: 34, 
+        height: 34, 
+        borderRadius: 17, 
+        backgroundColor: 'rgba(37,99,235,0.2)' 
+    },
 });

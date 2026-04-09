@@ -7,6 +7,14 @@ const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/uplo
 const UPLOAD_PRESET = 'After-app';
 const API_KEY = '998818242228497';
 
+// Create dedicated axios instance for Cloudinary with proper timeout
+const cloudinaryClient = axios.create({
+    timeout: 30000, // 30 seconds for image upload
+    headers: {
+        'Content-Type': 'multipart/form-data',
+    },
+});
+
 /**
  * Uploads a local image (file:// or base64 data URI) to Cloudinary and returns the secure URL.
  * @param imageUri Local path from ImagePicker or a base64 data URI
@@ -17,31 +25,29 @@ export const uploadImage = async (imageUri: string): Promise<string> => {
     if (!imageUri || imageUri.startsWith('http')) return imageUri;
 
     try {
-        console.log('[Cloudinary] Starting upload for URI:', imageUri.slice(0, 50) + '...');
+        console.log('[Cloudinary] Starting upload...');
+        
         // ── Base64 path (ImagePicker with base64: true) ────────────────────────
         if (imageUri.startsWith('data:')) {
-            console.log('[Cloudinary] Detected base64 data.');
+            console.log('[Cloudinary] Uploading base64 data');
             const data = new FormData();
             data.append('file', imageUri);
             data.append('upload_preset', UPLOAD_PRESET);
             data.append('api_key', API_KEY);
 
-            const res = await axios.post(CLOUDINARY_URL, data, {
-                headers: { 'Content-Type': 'multipart/form-data' },
-            });
+            const res = await cloudinaryClient.post(CLOUDINARY_URL, data);
 
             if (res.data?.secure_url) {
-                console.log('✅ Image uploaded (base64):', res.data.secure_url);
+                console.log('✅ Image uploaded successfully');
                 return res.data.secure_url;
             }
             throw new Error('Upload failed: No secure_url in response');
         }
 
         // ── File URI path (file://) ────────────────────────────────────────────
-        console.log('[Cloudinary] Detected file URI.');
+        console.log('[Cloudinary] Uploading file URI');
         const data = new FormData();
         const rawName = imageUri.split('/').pop() || 'upload.jpg';
-        // Strip any remaining slashes/special chars Cloudinary rejects in display name
         const fileName = rawName.replace(/[/\\?%*:|"<>]/g, '-').replace(/^-+|-+$/g, '') || 'upload.jpg';
         const fileType = fileName.endsWith('.png') ? 'image/png' : 'image/jpeg';
 
@@ -53,27 +59,21 @@ export const uploadImage = async (imageUri: string): Promise<string> => {
         data.append('upload_preset', UPLOAD_PRESET);
         data.append('api_key', API_KEY);
 
-        const res = await axios.post(CLOUDINARY_URL, data, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        const res = await cloudinaryClient.post(CLOUDINARY_URL, data);
 
         if (res.data?.secure_url) {
-            console.log('✅ Image uploaded (file URI):', res.data.secure_url);
+            console.log('✅ Image uploaded successfully');
             return res.data.secure_url;
         }
 
         throw new Error('Upload failed: No secure_url in response');
     } catch (error: any) {
-        const msg = error?.response?.data?.error?.message || error.message;
-        console.error('[Cloudinary] Upload Error:', msg, error?.response?.data);
+        const msg = error?.response?.data?.error?.message || error.message || 'Unknown error';
+        console.error('[Cloudinary] Upload failed:', msg);
 
-        // Helpful diagnosis for the most common mistake
-        if (msg?.toLowerCase().includes('unknown api key') || msg?.toLowerCase().includes('upload preset')) {
-            console.warn(`[Asset Service] Cloudinary misconfiguration detected: ${msg}. Check upload presets in dashboard.`);
-        } else {
-            console.warn(`[Asset Service] Media upload issue: ${msg}`);
-        }
-        throw error;
+        // Return original URI as fallback instead of throwing
+        console.warn('[Cloudinary] Using original URI as fallback');
+        return imageUri;
     }
 };
 

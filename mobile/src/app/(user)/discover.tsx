@@ -28,7 +28,8 @@ import { MatchCard } from '../../features/discovery/components/MatchCard';
 import { GiftCard } from '../../features/gifts/components/GiftCard';
 import { avatar } from '../../services/cloudinaryService';
 import { useDiscovery } from '../../hooks/useDiscovery';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { prefetchMenuAndGifts } from '../../services/prefetchService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -100,6 +101,7 @@ export default function DiscoverScreen() {
     const { showToast } = useToast();
     const { showBanner } = useNotification();
     const { user: currentUser, token } = useAuth();
+    const queryClient = useQueryClient();
     
     // Store State
     const { 
@@ -135,13 +137,35 @@ export default function DiscoverScreen() {
         queryKey: ['host', 'gifts', activeHostId],
         queryFn: async () => {
             if (!activeHostId) {
-return [];
+                console.log('🎁 [hostGifts] No activeHostId, skipping fetch');
+                return [];
             }
-try {
+            console.log('🎁 [hostGifts] Fetching for hostId:', activeHostId);
+            try {
                 const res = await apiClient.get(`/user/host/${activeHostId}/gifts`);
-return res.data?.success && res.data.data ? res.data.data : [];
+                console.log('🎁 [hostGifts] Response:', res.data?.success, 'Count:', res.data?.data?.length || 0);
+                return res.data?.success && res.data.data ? res.data.data : [];
+            } catch (e: any) {
+                console.error('🎁 [hostGifts] Error:', e.message);
+                return [];
+            }
+        },
+        enabled: !!activeHostId,
+        staleTime: 1000 * 60 * 2, // 2 min
+        gcTime: 1000 * 60 * 20,
+        placeholderData: [], // Show empty array while loading
+    });
+
+    // 🍽️ HOST-SPECIFIC MENU — background refresh
+    const hostMenu = useQuery({
+        queryKey: ['host', 'menu', activeHostId],
+        queryFn: async () => {
+            if (!activeHostId) return [];
+            try {
+                const res = await apiClient.get(`/user/host/${activeHostId}/menu`);
+                return res.data?.success && res.data.data ? res.data.data : [];
             } catch (e) {
-return [];
+                return [];
             }
         },
         enabled: !!activeHostId,
@@ -150,7 +174,7 @@ return [];
     });
 
     // Never block the whole UI on hostGifts load — it has placeholderData
-    const queryLoading = queryLoadingBase;
+    const queryLoading = queryLoadingBase || hostGifts.isLoading || gifts.isLoading;
 
     // ─── Chat Sockets Integration ───
 
@@ -219,10 +243,16 @@ await new Promise(resolve => setTimeout(resolve, delay));
                 const eid = booking.eventId?._id || booking.eventId;
                 const hid = booking.hostId;
                 
-if (eid) setActiveEventId(String(eid));
-                if (hid) setActiveHostId(String(hid));
+                console.log('📍 [initSystem] Booking data:', { eid, hid, booking });
+                
+                if (eid) setActiveEventId(String(eid));
+                if (hid) {
+                    console.log('📍 [initSystem] Setting activeHostId:', String(hid));
+                    setActiveHostId(String(hid));
+                }
             } else {
-}
+                console.log('📍 [initSystem] No active booking found');
+            }
         } catch (e: any) { 
             // Silent fail for 502/503 - these are expected during cold starts
             const status = e.response?.status;
@@ -245,6 +275,14 @@ if (eid) setActiveEventId(String(eid));
             ])).start();
         }, 1250);
     }, [initSystem]);
+
+    // ⚡ INSTAGRAM/ZEPTO STYLE: Prefetch menu & gifts when hostId is set
+    useEffect(() => {
+        if (activeHostId) {
+            console.log('🚀 [Prefetch] Starting instant load for hostId:', activeHostId);
+            prefetchMenuAndGifts(queryClient, activeHostId);
+        }
+    }, [activeHostId, queryClient]);
 
     useEffect(() => {
         const currentSocket = useChatStore.getState().socket;
@@ -456,7 +494,24 @@ if (eid) setActiveEventId(String(eid));
                                         refreshing={refreshing} 
                                         estimatedItemSize={220} 
                                         contentContainerStyle={styles.giftGridScroll} 
-                                        ListEmptyComponent={queryLoading && !refreshing ? <ActivityIndicator color="#7c4dff" style={{ marginTop: 40 }} /> : null}
+                                        ListEmptyComponent={queryLoading && !refreshing ? (
+                                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 20, paddingTop: 20 }}>
+                                                {[1, 2, 3, 4, 5, 6].map((i) => (
+                                                    <View key={i} style={{ width: (width - 48) / 2, backgroundColor: '#111118', borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' }}>
+                                                        <View style={{ width: '100%', height: 140, backgroundColor: 'rgba(255,255,255,0.05)' }} />
+                                                        <View style={{ padding: 12 }}>
+                                                            <View style={{ width: 60, height: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 4, marginBottom: 8 }} />
+                                                            <View style={{ width: '80%', height: 16, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 4, marginBottom: 6 }} />
+                                                            <View style={{ width: '100%', height: 10, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 4, marginBottom: 12 }} />
+                                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                <View style={{ width: 50, height: 18, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 4 }} />
+                                                                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(124,77,255,0.2)' }} />
+                                                            </View>
+                                                        </View>
+                                                    </View>
+                                                ))}
+                                            </View>
+                                        ) : null}
                                     />
                                 </View>
                             )}

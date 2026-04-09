@@ -7,17 +7,22 @@ import { DeviceEventEmitter } from 'react-native';
 /**
  * API CONFIGURATION
  * -----------------
- * Standard logic for development environments to ensure connectivity.
+ * Production URLs for Render deployment
  */
 const getBaseUrl = () => {
     // Production Render URL
     return 'https://entry-user-backend.onrender.com';
-    // Local Testing URL (uncomment for local dev)
+    
+    // Local Testing URL for debugging (uncomment for local development)
     // return 'http://10.225.202.18:3001';
 };
 
 export const API_BASE_URL = getBaseUrl();
+// Production Admin API
 export const ADMIN_API_BASE_URL = 'https://entry-admin-backend.onrender.com';
+
+// Local admin backend for debugging (uncomment for local development)
+// export const ADMIN_API_BASE_URL = 'http://10.225.202.18:3002';
 
 // 🚀 ULTRA-AGGRESSIVE WAKE-UP: Ping server with exponential backoff
 // Render free tier sleeps after 15min inactivity, takes 30-60s to wake up
@@ -71,7 +76,7 @@ const apiClient = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
-    timeout: 60000, 
+    timeout: 15000, // 15 seconds - faster timeout
 });
 
 // ── Auth Token Injection ──────────────────────────────────────────────────────

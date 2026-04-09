@@ -13,6 +13,8 @@ import dayjs from 'dayjs';
 import { thumb } from '../../services/cloudinaryService';
 import { Ionicons } from '@expo/vector-icons';
 import apiClient from '../../services/apiClient';
+import { ListSkeleton } from '../../components/Skeletons/ListSkeleton';
+import { useSmartRefresh } from '../../hooks/useSmartRefresh';
 
 type Tab = 'upcoming' | 'past' | 'orders';
 
@@ -38,6 +40,39 @@ export default function MyBookings() {
     
     const params = useLocalSearchParams<{ tab?: Tab }>();
 
+    // ⚡ SMART REFRESH: Separate for bookings and orders
+    const { refreshing: refreshingBookings, onRefresh: onRefreshBookings } = useSmartRefresh({
+        endpoint: '/user/bookings',
+        checkUpdatesEndpoint: '/user/bookings/check-updates',
+        cacheKey: 'bookings_lastFetch',
+        onRefresh: async () => {
+            const res = await userService.getMyBookings();
+            if (res.success && res.data) {
+                // Backend now returns { bookings: [], pagination: {} }
+                const bookingsData = res.data.bookings || res.data;
+                setAllBookings(Array.isArray(bookingsData) ? bookingsData : []);
+            }
+        },
+    });
+
+    const { refreshing: refreshingOrders, onRefresh: onRefreshOrders } = useSmartRefresh({
+        endpoint: '/user/orders/my',
+        checkUpdatesEndpoint: '/user/orders/check-updates',
+        cacheKey: 'orders_lastFetch',
+        onRefresh: async () => {
+            const res = await apiClient.get('/user/orders/my');
+            if (res.data?.success) {
+                // Backend now returns { orders: [], pagination: {} }
+                const ordersData = res.data.data?.orders || res.data.data;
+                setOrders(Array.isArray(ordersData) ? ordersData : []);
+            }
+        },
+    });
+
+    // Combined refreshing state based on active tab
+    const refreshing = activeTab === 'orders' ? refreshingOrders : refreshingBookings;
+    const onRefresh = activeTab === 'orders' ? onRefreshOrders : onRefreshBookings;
+
     React.useEffect(() => {
         if (params.tab && ['upcoming', 'past', 'orders'].includes(params.tab)) {
             setActiveTab(params.tab as Tab);
@@ -51,7 +86,11 @@ export default function MyBookings() {
                 try {
                     setLoading(true);
                     const res = await userService.getMyBookings();
-                    if (res.success && res.data && active) setAllBookings(res.data);
+                    if (res.success && res.data && active) {
+                        // Backend now returns { bookings: [], pagination: {} }
+                        const bookingsData = res.data.bookings || res.data;
+                        setAllBookings(Array.isArray(bookingsData) ? bookingsData : []);
+                    }
                 } catch (error: any) {
                     // silently fail in production
                 } finally {
@@ -62,7 +101,11 @@ export default function MyBookings() {
                 try {
                     setLoadingOrders(true);
                     const res = await apiClient.get('/user/orders/my');
-                    if (res.data?.success && active) setOrders(res.data.data || []);
+                    if (res.data?.success && active) {
+                        // Backend now returns { orders: [], pagination: {} }
+                        const ordersData = res.data.data?.orders || res.data.data;
+                        setOrders(Array.isArray(ordersData) ? ordersData : []);
+                    }
                 } catch { } // silent on orders
                 finally { if (active) setLoadingOrders(false); }
             };
@@ -256,11 +299,11 @@ export default function MyBookings() {
                 estimatedItemSize={145}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
+                onRefresh={onRefresh}
+                refreshing={refreshing}
                 ListEmptyComponent={(
                     loading || loadingOrders ? (
-                        <View style={{ flex: 1, alignItems: 'center', marginTop: 80 }}>
-                            <ActivityIndicator size="large" color={COLORS.primary} />
-                        </View>
+                        <ListSkeleton count={5} itemHeight={145} />
                     ) : (
                         <View style={styles.emptyContainer}>
                             <View style={styles.glowOverlay} />

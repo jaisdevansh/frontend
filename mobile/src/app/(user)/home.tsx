@@ -21,6 +21,8 @@ import { usePrefetchEvent } from '../../hooks/useEventQuery';
 import { hero, avatar } from '../../services/cloudinaryService';
 import { useAuth } from '../../context/AuthContext';
 import { log } from '../../utils/logger';
+import { EventCardSkeleton } from '../../components/Skeletons/EventCardSkeleton';
+import { useSmartRefresh } from '../../hooks/useSmartRefresh';
 
 import { InteractionManager } from 'react-native';
 const FlashList = SafeFlashList;
@@ -149,14 +151,18 @@ export default function HomeScreen() {
     const [priceRange, setPriceRange] = useState([0, 10000]);
     const [sliderTempPrice, setSliderTempPrice] = useState(10000);
     const [userLoc, setUserLoc] = useState<{lat: number, lng: number} | null>(null);
-    const [refreshing, setRefreshing] = useState(false);
 
-    const onRefresh = useCallback(async () => {
-        setRefreshing(true);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        await refetchEvents();
-        setRefreshing(false);
-    }, [refetchEvents]);
+    // ⚡ SMART REFRESH: Only fetch when updates are available
+    const { refreshing, onRefresh } = useSmartRefresh({
+        endpoint: '/user/events',
+        checkUpdatesEndpoint: '/user/events/check-updates',
+        cacheKey: 'events_lastFetch',
+        onRefresh: async () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            await refetchEvents();
+        },
+        debounceMs: 2000,
+    });
 
     useEffect(() => {
         const loadLocation = async () => {
@@ -307,7 +313,11 @@ export default function HomeScreen() {
         </View>
     ), [cityName, profileImage, profileName, router]);
 
-    const listEmptyComponent = useCallback(() => loading ? <ActivityIndicator color="#7c4dff" style={{ marginTop: 40 }} /> : null, [loading]);
+    const listEmptyComponent = useCallback(() => loading ? (
+        <View style={{ paddingHorizontal: 20 }}>
+            {[1, 2, 3].map((i) => <EventCardSkeleton key={i} />)}
+        </View>
+    ) : null, [loading]);
     const keyExtractor = useCallback((item: any) => item._id || item.id, []);
 
     return (
