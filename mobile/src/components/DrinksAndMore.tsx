@@ -56,8 +56,7 @@ export default function DrinksAndMore({ eventId, hostId, zone, tableId }: { even
                 ? `/user/events/${eventId}/menu`
                 : null;
 
-        if (hostId || eventId) {
-}
+        console.log('🍽️ DrinksAndMore:', { hostId, eventId, url });
 
         // ⚡ Parallel fetch — menu + orders at the same time
         const fetchAll = async () => {
@@ -65,10 +64,12 @@ export default function DrinksAndMore({ eventId, hostId, zone, tableId }: { even
             const promises: Promise<any>[] = [];
 
             if (url) {
+                console.log('📡 Fetching menu from:', url);
                 promises.push(
                     apiClient.get(url).then((res: any) => {
                         const data = res.data?.data;
-if (data && data.length > 0) {
+                        console.log('✅ Menu response:', data?.length || 0, 'items');
+                        if (data && data.length > 0) {
                             setDrinks(data.map((item: any) => ({
                                 _id: item._id,
                                 name: item.name,
@@ -78,13 +79,16 @@ if (data && data.length > 0) {
                                 image: item.image || 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=400',
                             })));
                         } else {
-                            // If API returns empty, show nothing instead of mock data
+                            console.log('⚠️ No menu items returned');
                             setDrinks([]);
                         }
-                    }).catch(() => {
+                    }).catch((err) => {
+                        console.error('❌ Menu fetch error:', err.message);
                         setDrinks([]);
                     })
                 );
+            } else {
+                console.log('⚠️ No URL - missing hostId and eventId');
             }
 
             promises.push(
@@ -102,10 +106,13 @@ if (data && data.length > 0) {
         // REAL-TIME SYNC
         const socket = io(API_BASE_URL);
         socket.on('menu_updated', () => {
-            if (url) apiClient.get(url).then((res: any) => {
-                const data = res.data?.data;
-                if (data && data.length > 0) setDrinks(data);
-            }).catch(() => {});
+            if (url) {
+                console.log('🔄 Menu updated via socket, refetching...');
+                apiClient.get(url).then((res: any) => {
+                    const data = res.data?.data;
+                    if (data && data.length > 0) setDrinks(data);
+                }).catch(() => {});
+            }
         });
         socket.on('order_status_update', ({ orderId, status }) => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
