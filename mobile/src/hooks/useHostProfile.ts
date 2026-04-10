@@ -7,6 +7,7 @@ export const useHostProfile = () => {
     return useQuery({
         queryKey: ['hostProfile'],
         enabled: !!token,
+        placeholderData: null,
         queryFn: async () => {
             try {
                 const res = await hostService.getProfile();

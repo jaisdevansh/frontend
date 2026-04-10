@@ -140,6 +140,10 @@ export default function DiscoverScreen() {
                 console.log('🎁 [hostGifts] No activeHostId, skipping fetch');
                 return [];
             }
+            if (!token) {
+                console.log('🎁 [hostGifts] No token, user logged out');
+                return [];
+            }
             console.log('🎁 [hostGifts] Fetching for hostId:', activeHostId);
             try {
                 const res = await apiClient.get(`/user/host/${activeHostId}/gifts`);
@@ -150,7 +154,7 @@ export default function DiscoverScreen() {
                 return [];
             }
         },
-        enabled: !!activeHostId,
+        enabled: !!activeHostId && !!token, // Only fetch if authenticated
         staleTime: 1000 * 60 * 2, // 2 min
         gcTime: 1000 * 60 * 20,
         placeholderData: [], // Show empty array while loading
@@ -161,6 +165,10 @@ export default function DiscoverScreen() {
         queryKey: ['host', 'menu', activeHostId],
         queryFn: async () => {
             if (!activeHostId) return [];
+            if (!token) {
+                console.log('🍽️ [hostMenu] No token, user logged out');
+                return [];
+            }
             try {
                 const res = await apiClient.get(`/user/host/${activeHostId}/menu`);
                 return res.data?.success && res.data.data ? res.data.data : [];
@@ -168,7 +176,7 @@ export default function DiscoverScreen() {
                 return [];
             }
         },
-        enabled: !!activeHostId,
+        enabled: !!activeHostId && !!token, // Only fetch if authenticated
         staleTime: 1000 * 60 * 2, // 2 min
         gcTime: 1000 * 60 * 20,
     });

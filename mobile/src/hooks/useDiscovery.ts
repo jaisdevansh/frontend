@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../services/apiClient';
+import { useAuth } from '../context/AuthContext';
 
 export interface GiftItem {
     _id: string;
@@ -27,6 +28,8 @@ export interface NearbyUser {
 }
 
 export const useDiscovery = (eventId?: string | null) => {
+    const { token } = useAuth();
+    
     const nearby = useQuery({
         queryKey: ['discovery', 'nearby', eventId],
         queryFn: async () => {
@@ -41,7 +44,7 @@ export const useDiscovery = (eventId?: string | null) => {
                 return [];
             }
         },
-        enabled: !!eventId,
+        enabled: !!eventId && !!token, // Only fetch if authenticated
         staleTime: 1000 * 30,
         refetchInterval: 1000 * 60,
         retry: 4,
@@ -62,7 +65,7 @@ export const useDiscovery = (eventId?: string | null) => {
                 return [];
             }
         },
-        enabled: !!eventId,
+        enabled: !!eventId && !!token, // Only fetch if authenticated
         staleTime: 1000 * 60 * 2,
         gcTime: 1000 * 60 * 15,
         retry: 4,
@@ -83,7 +86,7 @@ export const useDiscovery = (eventId?: string | null) => {
                 return [];
             }
         },
-        enabled: !!eventId,
+        enabled: !!eventId && !!token, // Only fetch if authenticated
         staleTime: 1000 * 60 * 10,
         retry: 4,
         retryDelay: (attemptIndex) => Math.min(2000 * 2 ** attemptIndex, 15000),

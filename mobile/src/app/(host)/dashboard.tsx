@@ -13,6 +13,8 @@ import { Image } from 'expo-image';
 import dayjs from 'dayjs';
 import { PendingVerification } from '../../components/host/PendingVerification';
 import { useQueryClient } from '@tanstack/react-query';
+import { StatCardSkeleton, StatCardHalfSkeleton } from '../../components/Skeletons/StatCardSkeleton';
+import { HostEventCardSkeleton } from '../../components/Skeletons/HostEventCardSkeleton';
 
 const { width } = Dimensions.get('window');
 
@@ -49,6 +51,19 @@ const EventCard = React.memo(({ item, onPress }: { item: any; onPress: (id: stri
     );
 });
 
+const ManagementToolCard = React.memo(({ tool, onPress }: { tool: any; onPress: () => void }) => (
+    <TouchableOpacity 
+        style={styles.toolGridCard} 
+        onPress={onPress}
+        activeOpacity={0.7}
+    >
+        <View style={[styles.toolIconWrap, { backgroundColor: `${tool.color}15` }]}>
+            <MaterialCommunityIcons name={tool.icon as any} size={24} color={tool.color} />
+        </View>
+        <Text style={styles.toolLabel}>{tool.label}</Text>
+    </TouchableOpacity>
+));
+
 export default function HostDashboard() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
@@ -81,6 +96,22 @@ export default function HostDashboard() {
     const renderEvent = useCallback(({ item }: { item: any }) => (
         <EventCard item={item} onPress={handleEventPress} />
     ), [handleEventPress]);
+
+    const handleToolPress = useCallback((route: string) => {
+        setTimeout(() => {
+            InteractionManager.runAfterInteractions(() => {
+                router.push(route as any);
+            });
+        }, 50);
+    }, [router]);
+
+    const renderManagementTool = useCallback((tool: any) => (
+        <ManagementToolCard 
+            key={tool.label} 
+            tool={tool} 
+            onPress={() => handleToolPress(tool.route)} 
+        />
+    ), [handleToolPress]);
 
     const managementTools = useMemo(() => [
         { label: 'Venue', icon: 'office-building-outline', route: '/(host)/venue-profile', color: '#F59E0B' },
@@ -141,25 +172,39 @@ export default function HostDashboard() {
             </View>
 
             <View style={styles.statsContainer}>
-                <View style={styles.statsRow}>
-                    <View style={styles.statCard}>
-                        <Text style={styles.statLbl}>TOTAL BOOKINGS</Text>
-                        <Text style={styles.statVal}>{stats?.totalBookings ?? '0'}</Text>
-                        <Text style={styles.statChange}>+0% this week</Text>
-                    </View>
-                    <View style={styles.statCard}>
-                        <Text style={styles.statLbl}>TOTAL EVENTS</Text>
-                        <Text style={styles.statVal}>{stats?.totalEvents ?? '0'}</Text>
-                        <Text style={styles.statChange}>Active Platform</Text>
-                    </View>
-                </View>
-                <View style={styles.statsRow}>
-                    <View style={styles.statCardHalf}>
-                        <Text style={styles.statLbl}>CAPACITY USAGE</Text>
-                        <Text style={styles.statVal}>0%</Text>
-                        <Text style={styles.statChange}>Realtime Data</Text>
-                    </View>
-                </View>
+                {statsLoading ? (
+                    <>
+                        <View style={styles.statsRow}>
+                            <StatCardSkeleton />
+                            <StatCardSkeleton />
+                        </View>
+                        <View style={styles.statsRow}>
+                            <StatCardHalfSkeleton />
+                        </View>
+                    </>
+                ) : (
+                    <>
+                        <View style={styles.statsRow}>
+                            <View style={styles.statCard}>
+                                <Text style={styles.statLbl}>TOTAL BOOKINGS</Text>
+                                <Text style={styles.statVal}>{stats?.totalBookings ?? '0'}</Text>
+                                <Text style={styles.statChange}>+0% this week</Text>
+                            </View>
+                            <View style={styles.statCard}>
+                                <Text style={styles.statLbl}>TOTAL EVENTS</Text>
+                                <Text style={styles.statVal}>{stats?.totalEvents ?? '0'}</Text>
+                                <Text style={styles.statChange}>Active Platform</Text>
+                            </View>
+                        </View>
+                        <View style={styles.statsRow}>
+                            <View style={styles.statCardHalf}>
+                                <Text style={styles.statLbl}>CAPACITY USAGE</Text>
+                                <Text style={styles.statVal}>0%</Text>
+                                <Text style={styles.statChange}>Realtime Data</Text>
+                            </View>
+                        </View>
+                    </>
+                )}
             </View>
 
             <View style={styles.sectionHeader}>
@@ -170,7 +215,11 @@ export default function HostDashboard() {
             </View>
 
             {eventsLoading ? (
-                <ActivityIndicator color="#7B5CFF" style={{ marginVertical: 20 }} />
+                <View style={styles.eventsList}>
+                    <HostEventCardSkeleton />
+                    <HostEventCardSkeleton />
+                    <HostEventCardSkeleton />
+                </View>
             ) : (
                 <FlatList
                     data={events?.slice(0, 3) || []}
@@ -202,24 +251,7 @@ export default function HostDashboard() {
             </Text>
             
             <View style={styles.toolsGrid}>
-                {managementTools.map((tool) => (
-                    <TouchableOpacity 
-                        key={tool.label} 
-                        style={styles.toolGridCard} 
-                        onPress={() => {
-                            setTimeout(() => {
-                                InteractionManager.runAfterInteractions(() => {
-                                    router.push(tool.route as any);
-                                });
-                            }, 50);
-                        }}
-                    >
-                        <View style={[styles.toolIconWrap, { backgroundColor: `${tool.color}15` }]}>
-                            <MaterialCommunityIcons name={tool.icon as any} size={24} color={tool.color} />
-                        </View>
-                        <Text style={styles.toolLabel}>{tool.label}</Text>
-                    </TouchableOpacity>
-                ))}
+                {managementTools.map(renderManagementTool)}
             </View>
 
             <View style={{ height: 40 }} />

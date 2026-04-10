@@ -4,6 +4,7 @@ import { hostService } from '../services/hostService';
 export const useEvents = () => {
     return useQuery({
         queryKey: ['events'],
+        placeholderData: [],
         queryFn: async () => {
             const res = await hostService.getEvents();
             if (!res) return [];

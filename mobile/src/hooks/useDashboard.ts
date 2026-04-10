@@ -7,6 +7,7 @@ export const useDashboardStats = () => {
     return useQuery({
         queryKey: ['dashboardStats'],
         enabled: !!token,
+        placeholderData: { totalBookings: 0, totalEvents: 0 },
         queryFn: async () => {
             try {
                 const res = await hostService.getDashboardStats();
