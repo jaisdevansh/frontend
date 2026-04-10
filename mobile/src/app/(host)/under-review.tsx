@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../context/AuthContext';
 import { useHostProfile } from '../../hooks/useHostProfile';
+import { useToast } from '../../context/ToastContext';
 
 const { width } = Dimensions.get('window');
 const COLORS = {
@@ -23,13 +24,14 @@ export default function UnderReview() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const { updateUser } = useAuth();
+    const { showToast } = useToast();
     
     // Core scanning animations
     const pulse1 = useRef(new Animated.Value(0)).current;
     const pulse2 = useRef(new Animated.Value(0)).current;
 
     // ⚡ Tactical Status Polling (Auto-scales based on reactivity)
-    const { data: host, refetch } = useHostProfile();
+    const { data: host, refetch, isRefetching } = useHostProfile();
 
     useEffect(() => {
         // Poll every 10s for status updates
@@ -67,10 +69,24 @@ export default function UnderReview() {
         }
     }, [host?.hostStatus, updateUser]);
 
-    const handleReturn = useCallback(() => {
+    const handleRecheck = useCallback(async () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        router.replace('/(user)/home' as any);
-    }, [router]);
+        const result = await refetch();
+        
+        // Check the refetched status
+        const newStatus = result.data?.hostStatus;
+        
+        if (newStatus === 'ACTIVE') {
+            // Will be handled by useEffect auto-redirect
+            showToast('🎉 Verification Approved! Welcome to Host Terminal', 'success');
+        } else if (newStatus === 'REJECTED') {
+            // Will be handled by useEffect auto-redirect
+            showToast('Verification rejected. Please check details.', 'error');
+        } else {
+            // Still pending
+            showToast('⏳ Your verification is still under review. Our team is working on it!', 'info');
+        }
+    }, [refetch, showToast]);
 
     const getPulseStyle = (anim: Animated.Value) => ({
         transform: [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 2] }) }],
@@ -100,7 +116,7 @@ export default function UnderReview() {
                         <Animated.View style={[styles.ripple, getPulseStyle(pulse2)]} />
                         
                         <LinearGradient colors={['rgba(124, 77, 255, 0.15)', 'rgba(0, 229, 255, 0.05)']} style={styles.coreOrb}>
-                            <MaterialCommunityIcons name="shield-lock-outline" size={54} color={COLORS.primary} />
+                            <MaterialCommunityIcons name="shield-lock-outline" size={48} color={COLORS.primary} />
                         </LinearGradient>
                     </View>
 
@@ -112,7 +128,7 @@ export default function UnderReview() {
                     <View style={styles.trackerContainer}>
                         {/* Stage 1: Uploads */}
                         <View style={styles.trackerRow}>
-                            <Ionicons name="checkmark-circle" size={22} color={COLORS.success} />
+                            <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
                             <Text style={styles.trackerTextPassed}>Identity Documents Secured</Text>
                         </View>
                         
@@ -123,7 +139,7 @@ export default function UnderReview() {
                             {isPending ? (
                                 <ActivityIndicator size="small" color={COLORS.accent} style={{ marginRight: 6 }} />
                             ) : (
-                                <Ionicons name="checkmark-circle" size={22} color={COLORS.success} />
+                                <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
                             )}
                             <Text style={isPending ? styles.trackerTextActive : styles.trackerTextPassed}>
                                 Security Clearance
@@ -136,10 +152,14 @@ export default function UnderReview() {
                         <View style={styles.trackerRow}>
                             <Ionicons 
                                 name={(host?.hostStatus === 'ACTIVE') ? "checkmark-circle" : "ellipse-outline"} 
-                                size={22} 
+                                size={24} 
                                 color={(host?.hostStatus === 'ACTIVE') ? COLORS.success : COLORS.textMuted} 
                             />
-                            <Text style={(host?.hostStatus === 'ACTIVE') ? styles.trackerTextPassed : styles.trackerTextMuted}>
+                            <Text 
+                                style={(host?.hostStatus === 'ACTIVE') ? styles.trackerTextPassed : styles.trackerTextMuted}
+                                numberOfLines={1}
+                                adjustsFontSizeToFit
+                            >
                                 Host Terminal Live
                             </Text>
                         </View>
@@ -155,10 +175,18 @@ export default function UnderReview() {
                     <TouchableOpacity 
                         style={styles.actionBtn}
                         activeOpacity={0.8}
-                        onPress={handleReturn}
+                        onPress={handleRecheck}
+                        disabled={isRefetching}
                     >
-                        <LinearGradient colors={['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.02)']} style={styles.btnGradient} start={{x:0,y:0}} end={{x:0,y:1}}>
-                            <Text style={styles.btnText}>Return to Consumer Feed</Text>
+                        <LinearGradient colors={[COLORS.primary, '#5a2fc7']} style={styles.btnGradient} start={{x:0,y:0}} end={{x:1,y:0}}>
+                            {isRefetching ? (
+                                <ActivityIndicator size="small" color="#FFF" />
+                            ) : (
+                                <>
+                                    <Ionicons name="refresh" size={18} color="#FFF" style={{ marginRight: 8 }} />
+                                    <Text style={styles.btnText}>Recheck Status</Text>
+                                </>
+                            )}
                         </LinearGradient>
                     </TouchableOpacity>
                 </View>
@@ -175,22 +203,33 @@ const styles = StyleSheet.create({
     statusPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
     pulsingDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.primary, marginRight: 8, shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.8, shadowRadius: 6 },
     statusTxt: { color: COLORS.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
-    centerBox: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-    animationContainer: { width: 200, height: 200, justifyContent: 'center', alignItems: 'center', marginBottom: 40 },
-    ripple: { position: 'absolute', width: 140, height: 140, borderRadius: 70, borderWidth: 2, borderColor: COLORS.primary, backgroundColor: 'transparent' },
-    coreOrb: { width: 120, height: 120, borderRadius: 60, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(124, 77, 255, 0.3)', shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 20 },
-    title: { color: COLORS.textMain, fontSize: 32, fontWeight: '900', letterSpacing: -1, marginBottom: 12 },
-    message: { color: COLORS.textMuted, fontSize: 15, textAlign: 'center', lineHeight: 22, paddingHorizontal: 10, marginBottom: 40 },
-    trackerContainer: { width: '100%', backgroundColor: 'rgba(255,255,255,0.02)', padding: 24, borderRadius: 24, borderWidth: 1, borderColor: COLORS.border },
-    trackerRow: { flexDirection: 'row', alignItems: 'center' },
-    trackerTextPassed: { color: COLORS.textMain, fontSize: 15, fontWeight: '700', marginLeft: 12 },
-    trackerTextActive: { color: COLORS.accent, fontSize: 15, fontWeight: '800', marginLeft: 8 },
-    trackerTextMuted: { color: COLORS.textMuted, fontSize: 15, fontWeight: '600', marginLeft: 12 },
-    trackerLine: { height: 24, width: 2, backgroundColor: COLORS.primary, marginLeft: 10, opacity: 0.4 },
-    footer: { paddingHorizontal: 24 },
-    etaBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 20, gap: 6 },
-    etaText: { color: COLORS.textMuted, fontSize: 13 },
+    centerBox: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24, paddingBottom: 30 },
+    animationContainer: { width: 160, height: 160, justifyContent: 'center', alignItems: 'center', marginBottom: 30 },
+    ripple: { position: 'absolute', width: 120, height: 120, borderRadius: 60, borderWidth: 2, borderColor: COLORS.primary, backgroundColor: 'transparent' },
+    coreOrb: { width: 100, height: 100, borderRadius: 50, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(124, 77, 255, 0.3)', shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 20 },
+    title: { color: COLORS.textMain, fontSize: 28, fontWeight: '900', letterSpacing: -1, marginBottom: 10 },
+    message: { color: COLORS.textMuted, fontSize: 14, textAlign: 'center', lineHeight: 20, paddingHorizontal: 10, marginBottom: 30 },
+    trackerContainer: { 
+        width: '100%', 
+        backgroundColor: 'rgba(20, 20, 30, 0.8)', 
+        padding: 20, 
+        borderRadius: 20, 
+        borderWidth: 1.5, 
+        borderColor: 'rgba(124, 77, 255, 0.3)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+    },
+    trackerRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
+    trackerTextPassed: { color: COLORS.textMain, fontSize: 15, fontWeight: '700', marginLeft: 12, flex: 1 },
+    trackerTextActive: { color: COLORS.accent, fontSize: 15, fontWeight: '800', marginLeft: 10, flex: 1 },
+    trackerTextMuted: { color: COLORS.textMuted, fontSize: 15, fontWeight: '600', marginLeft: 12, flex: 1 },
+    trackerLine: { height: 28, width: 3, backgroundColor: COLORS.success, marginLeft: 10, marginVertical: 2, opacity: 0.8, borderRadius: 2 },
+    footer: { paddingHorizontal: 24, paddingTop: 16 },
+    etaBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 14, gap: 6 },
+    etaText: { color: COLORS.textMuted, fontSize: 12 },
     actionBtn: { borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-    btnGradient: { paddingVertical: 18, alignItems: 'center', justifyContent: 'center' },
+    btnGradient: { paddingVertical: 18, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
     btnText: { color: COLORS.textMain, fontSize: 15, fontWeight: '700', letterSpacing: 0.5 }
 });
