@@ -96,6 +96,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
             });
             
             set((state) => {
+                console.log('🔍 [ChatStore] Echo check:', {
+                    msgSenderId: msg.senderId,
+                    currentUserId: state.currentUserId,
+                    isMatch: msg.senderId === state.currentUserId
+                });
+                
                 // CRITICAL: Ignore messages sent by current user (echo prevention)
                 if (msg.senderId === state.currentUserId) {
                     console.log('⏭️ [ChatStore] Ignoring own message echo');
