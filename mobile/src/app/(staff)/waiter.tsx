@@ -221,12 +221,27 @@ const OrderCard = memo(({ order, activeTab, onAccept, onReject, onUpdateStatus }
             
             <OrderInfoRow order={order} isGift={isGift} />
             
-            {isGift && order.senderId && (
+            {isGift && (order.senderId || order.receiverId) && (
                 <View style={styles.giftContext}>
-                    <Ionicons name="gift-outline" size={12} color="#EC4899" />
-                    <Text style={styles.giftContextText}>
-                        Gift from <Text style={{fontWeight:'700'}}>@{order.senderId?.name}</Text>
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                        <Ionicons name="gift" size={16} color="#EC4899" style={{ marginRight: 8 }} />
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.giftContextText}>
+                                <Text style={{ color: '#EC4899', fontWeight: '800' }}>
+                                    {order.senderId?.name || 'Someone'}
+                                </Text>
+                                <Text style={{ color: 'rgba(255,255,255,0.5)' }}> sent gift to </Text>
+                                <Text style={{ color: '#10B981', fontWeight: '800' }}>
+                                    {order.receiverId?.name || 'Guest'}
+                                </Text>
+                            </Text>
+                            {order.tableId && (
+                                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 2 }}>
+                                    📍 Deliver to: {order.tableId}
+                                </Text>
+                            )}
+                        </View>
+                    </View>
                 </View>
             )}
 
