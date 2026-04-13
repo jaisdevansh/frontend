@@ -194,7 +194,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 return {
                     messagesByPeer: {
                         ...state.messagesByPeer,
-                        [peerId]: [newMsg, ...existingMsgs]
+                        [peerId]: [...existingMsgs, newMsg] // Append to end (latest at bottom)
                     },
                     unreadCounts: {
                         ...state.unreadCounts,
@@ -244,11 +244,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
         try {
             const res = await apiClient.get(`/api/v1/chat/history/${peerId}`);
             if (res.data.success) {
+                const messages = res.data.data.messages || [];
+                // Backend returns newest first, reverse to get oldest first (for bottom display)
+                const sortedMessages = [...messages].reverse();
+                
                 set((state) => ({
                     messagesByPeer: {
                         ...state.messagesByPeer,
-                        // Assumes backend returns sorted newest first
-                        [peerId]: res.data.data.messages
+                        [peerId]: sortedMessages
                     }
                 }));
                 get().markRead(peerId);
@@ -284,13 +287,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
             status: 'sending'
         };
 
-        // Optimistic UI Update - prepend to the top of the array
+        // Optimistic UI Update - append to the end of the array (latest at bottom)
         set((state) => {
             const existingMsgs = state.messagesByPeer[receiverId] || [];
             return {
                 messagesByPeer: {
                     ...state.messagesByPeer,
-                    [receiverId]: [optimisticMsg, ...existingMsgs]
+                    [receiverId]: [...existingMsgs, optimisticMsg]
                 }
             };
         });
@@ -377,7 +380,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             
             console.log('📝 [ChatStore] Current acceptedChats before:', Array.from(state.acceptedChats));
             
-            // Move request message to messagesByPeer
+            // Move request message to messagesByPeer (append to end)
             const firstMessage: Message = {
                 _id: `req_${Date.now()}`,
                 sender: senderId,
@@ -397,13 +400,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
             
             console.log('📝 [ChatStore] New acceptedChats after:', Array.from(newAcceptedChats));
             
+            // Get existing messages (if any) and append first message
+            const existingMessages = state.messagesByPeer[senderId] || [];
+            
             return {
                 ...state,
                 chatRequests: newRequests,
                 acceptedChats: newAcceptedChats,
                 messagesByPeer: {
                     ...state.messagesByPeer,
-                    [senderId]: [firstMessage]
+                    [senderId]: [...existingMessages, firstMessage]
                 }
             };
         });

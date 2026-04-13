@@ -261,6 +261,7 @@ export default function DiscoverScreen() {
     const [chatModal, setChatModal] = useState<{ visible: boolean, chatId: string | null, user: any, msgs: any[] }>({ visible: false, chatId: null, user: null, msgs: [] });
     const [chatRequestModal, setChatRequestModal] = useState<{ visible: boolean, request: any | null }>({ visible: false, request: null });
     const [drinkModal, setDrinkModal] = useState<{ visible: boolean, user: any, selectedItem: any | null }>({ visible: false, user: null, selectedItem: null });
+    const chatListRef = useRef<any>(null);
     const [userDetailModal, setUserDetailModal] = useState<{ visible: boolean, user: any | null }>({ visible: false, user: null });
     const [msgInput, setMsgInput] = useState('');
     const [customAlert, setCustomAlert] = useState<{ visible: boolean; title: string; message: string }>({ visible: false, title: '', message: '' });
@@ -982,6 +983,7 @@ await new Promise(resolve => setTimeout(resolve, delay));
                         ) : (
                             // Existing Chat - Show messages
                             <FlashList 
+                                ref={chatListRef}
                                 data={messagesByPeer[chatModal.chatId || ''] || []}
                                 keyExtractor={(item: any) => item._id || item.tempId}
                                 renderItem={({ item }: any) => {
@@ -998,9 +1000,20 @@ await new Promise(resolve => setTimeout(resolve, delay));
                                         </View>
                                     );
                                 }}
-                                inverted 
                                 estimatedItemSize={60} 
-                                contentContainerStyle={{ padding: 20 }}
+                                contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
+                                onContentSizeChange={() => {
+                                    // Auto-scroll to bottom when new message arrives
+                                    setTimeout(() => {
+                                        chatListRef.current?.scrollToEnd({ animated: true });
+                                    }, 100);
+                                }}
+                                onLayout={() => {
+                                    // Scroll to bottom on initial load
+                                    setTimeout(() => {
+                                        chatListRef.current?.scrollToEnd({ animated: false });
+                                    }, 100);
+                                }}
                             />
                         )}
                         
