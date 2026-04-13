@@ -350,15 +350,41 @@ await new Promise(resolve => setTimeout(resolve, delay));
                         
                         // After seeding, immediately update current user's presence with location
                         const currentSocket = useChatStore.getState().socket;
+                        console.log('🔌 [initSystem] Socket status:', { 
+                            hasSocket: !!currentSocket, 
+                            isConnected: currentSocket?.connected,
+                            hasLocation: !!capturedLocation 
+                        });
+                        
                         if (currentSocket && capturedLocation) {
-                            console.log('📡 [initSystem] Auto-updating my presence with location:', capturedLocation);
-                            currentSocket.emit('updatePresence', {
-                                eventId: eid,
-                                lat: capturedLocation.lat,
-                                lng: capturedLocation.lng,
-                                visibility: true // Auto-enable visibility for testing
+                            if (currentSocket.connected) {
+                                console.log('📡 [initSystem] Auto-updating my presence with location:', capturedLocation);
+                                currentSocket.emit('updatePresence', {
+                                    eventId: eid,
+                                    lat: capturedLocation.lat,
+                                    lng: capturedLocation.lng,
+                                    visibility: true // Auto-enable visibility for testing
+                                });
+                                setVisibility(true);
+                            } else {
+                                console.warn('⚠️ [initSystem] Socket not connected yet, will update presence when connected');
+                                // Wait for socket to connect, then update
+                                currentSocket.once('connect', () => {
+                                    console.log('📡 [initSystem] Socket connected, now updating presence');
+                                    currentSocket.emit('updatePresence', {
+                                        eventId: eid,
+                                        lat: capturedLocation.lat,
+                                        lng: capturedLocation.lng,
+                                        visibility: true
+                                    });
+                                    setVisibility(true);
+                                });
+                            }
+                        } else {
+                            console.warn('⚠️ [initSystem] Cannot update presence:', {
+                                hasSocket: !!currentSocket,
+                                hasLocation: !!capturedLocation
                             });
-                            setVisibility(true);
                         }
                     } catch (seedErr: any) {
                         console.warn('⚠️ [initSystem] Seed failed (might already exist):', seedErr.message);
