@@ -360,6 +360,8 @@ export default function AnalyticsScreen() {
         queryKey: ['admin-summary'],
         queryFn: adminService.getSummary,
         staleTime: 2 * 60 * 1000,
+        refetchOnMount: true,
+        refetchOnWindowFocus: true,
     });
     const { data: trend, isLoading: trendLoading } = useQuery({
         queryKey: ['admin-revenue-trend'],

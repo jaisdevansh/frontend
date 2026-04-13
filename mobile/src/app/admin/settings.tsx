@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, StatusBar, Switch, Modal, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, StatusBar, Switch, Modal, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -173,48 +173,63 @@ export default function AdminSettings() {
             </ScrollView>
 
             <Modal visible={isEditModal} animationType="slide" transparent={true}>
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalCard}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Modify Admin Profile</Text>
-                            <TouchableOpacity onPress={() => setIsEditModal(false)}><Ionicons name="close" size={24} color="#FFF" /></TouchableOpacity>
-                        </View>
-                        
-                        <View style={styles.modalBody}>
-                            <View style={styles.avatarEditRow}>
-                                <TouchableOpacity style={styles.modalAvatarBox} onPress={handlePickImage} activeOpacity={0.8}>
-                                    {editPic ? (
-                                        <Image source={{ uri: editPic }} style={styles.modalAvatar} />
-                                    ) : (
-                                        <MaterialIcons name="add-a-photo" size={24} color={COLORS.textDim} />
-                                    )}
-                                    <View style={styles.modalEditBadge}><MaterialIcons name="edit" size={12} color="#FFF" /></View>
-                                </TouchableOpacity>
-                                <View style={styles.avatarEditInfo}>
-                                    <Text style={styles.editInfoTitle}>Identity Image</Text>
-                                    <Text style={styles.editInfoSub}>Tap to access local device gallery</Text>
-                                </View>
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+                    style={{ flex: 1 }}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalCard}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>Modify Admin Profile</Text>
+                                <TouchableOpacity onPress={() => setIsEditModal(false)}><Ionicons name="close" size={24} color="#FFF" /></TouchableOpacity>
                             </View>
-
-                            <View style={[styles.inputLabelRow, { marginTop: 24 }]}><Text style={styles.inputLabel}>FULL IDENTITY NAME</Text></View>
-                            <TextInput 
-                                style={styles.modalInput} 
-                                value={editName}
-                                onChangeText={setEditName}
-                                placeholder="Admin Name"
-                                placeholderTextColor={COLORS.textDim}
-                            />
-
-                            <TouchableOpacity 
-                                style={[styles.saveBtn, isUpdating && { opacity: 0.7 }]} 
-                                onPress={handleUpdateProfile}
-                                disabled={isUpdating}
+                            
+                            <ScrollView
+                                keyboardShouldPersistTaps="handled"
+                                showsVerticalScrollIndicator={false}
+                                contentContainerStyle={{ paddingBottom: 20 }}
                             >
-                                {isUpdating ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveBtnText}>COMMIT CHANGES</Text>}
-                            </TouchableOpacity>
+                                <View style={styles.modalBody}>
+                                    <View style={styles.avatarEditRow}>
+                                        <TouchableOpacity style={styles.modalAvatarBox} onPress={handlePickImage} activeOpacity={0.8}>
+                                            {editPic ? (
+                                                <Image source={{ uri: editPic }} style={styles.modalAvatar} />
+                                            ) : (
+                                                <MaterialIcons name="add-a-photo" size={24} color={COLORS.textDim} />
+                                            )}
+                                            <View style={styles.modalEditBadge}><MaterialIcons name="edit" size={12} color="#FFF" /></View>
+                                        </TouchableOpacity>
+                                        <View style={styles.avatarEditInfo}>
+                                            <Text style={styles.editInfoTitle}>Identity Image</Text>
+                                            <Text style={styles.editInfoSub}>Tap to access local device gallery</Text>
+                                        </View>
+                                    </View>
+
+                                    <View style={[styles.inputLabelRow, { marginTop: 24 }]}><Text style={styles.inputLabel}>FULL IDENTITY NAME</Text></View>
+                                    <TextInput 
+                                        style={[styles.modalInput, { color: '#FFFFFF' }]} 
+                                        value={editName}
+                                        onChangeText={setEditName}
+                                        placeholder="Admin Name"
+                                        placeholderTextColor={COLORS.textDim}
+                                        selectionColor={COLORS.primary}
+                                        autoCorrect={false}
+                                        returnKeyType="done"
+                                    />
+
+                                    <TouchableOpacity 
+                                        style={[styles.saveBtn, isUpdating && { opacity: 0.7 }]} 
+                                        onPress={handleUpdateProfile}
+                                        disabled={isUpdating}
+                                    >
+                                        {isUpdating ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveBtnText}>COMMIT CHANGES</Text>}
+                                    </TouchableOpacity>
+                                </View>
+                            </ScrollView>
                         </View>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
 
             <PremiumToast ref={toastRef} />

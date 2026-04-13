@@ -100,10 +100,10 @@ export default function SaaSAdminDashboard() {
     const { data: stats, isLoading: isStatsLoading, isRefetching } = useQuery({
         queryKey: ['admin-stats'],
         queryFn: adminService.getStats,
-        staleTime: 5 * 60 * 1000, // 5 min — serve from cache, refresh silently
-        gcTime: 15 * 60 * 1000,   // Keep in memory 15 min
-        refetchOnMount: false,     // Don't re-fetch every tab switch
-        refetchOnWindowFocus: false,
+        staleTime: 2 * 60 * 1000,
+        gcTime: 10 * 60 * 1000,
+        refetchOnMount: true,          // Always get fresh data from Render
+        refetchOnWindowFocus: true,    // Refresh when returning to app
     });
 
     // 2. Silent pre-fetch all admin tabs so they open instantly
