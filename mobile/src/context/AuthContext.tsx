@@ -63,13 +63,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     try {
                         const decoded: any = jwtDecode(data.token);
                         if (decoded && decoded.role) {
-                            data.role = decoded.role; // 🧠 STRICT OVERRIDE: Trust the JWT, not the async storage strings
+                            // ✅ CRITICAL: JWT stores role as 'ADMIN'/'HOST' but app uses lowercase 'admin'/'host'
+                            data.role = (decoded.role as string).toLowerCase();
                         }
                         if (decoded && decoded.hostId) {
                             data.hostId = decoded.hostId;
                         }
-                        if (decoded && (decoded.id || decoded.sub)) {
-                            data.userId = decoded.id || decoded.sub;
+                        if (decoded && (decoded.userId || decoded.id || decoded.sub)) {
+                            data.userId = decoded.userId || decoded.id || decoded.sub;
                         }
                     } catch (decodeErr) {
                         console.warn('[Auth] JWT decode soft fail:', decodeErr);
@@ -87,6 +88,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
+    // 🔥 Silent server re-validation on boot (runs 3s after app loads)
+    // This ensures that if admin approved/rejected the host while app was closed,
+    // the routing guard will pick up the correct status instantly on next open.
+    // AND fetches Admin profile image/data on boot.
+    useEffect(() => {
+        if (!authState.token || !authState.role) return;
+
+        // Fire-and-forget background validation — never blocks UI
+        const validateHostStatus = async () => {
+            try {
+                const res = await apiClient.get('/host/profile');
+                const serverStatus = res.data?.data?.hostStatus;
+                const storedStatus = authState.user?.hostStatus;
+
+                if (serverStatus && serverStatus !== storedStatus) {
+                    console.log(`[Auth] ⚡ Host status synced: ${storedStatus} → ${serverStatus}`);
+                    // Update both in-memory state and AsyncStorage silently
+                    await persistAuth({
+                        user: { ...authState.user, hostStatus: serverStatus },
+                    });
+                }
+            } catch (e) {
+                // Silently ignore — user experience unaffected
+            }
+        };
+
+        // ⚡ ADMIN: Silent validation for Admin profile data on boot
+        const fetchAdminProfile = async () => {
+            try {
+                const res = await apiClient.get('/admin/profile');
+                if (res.data?.data) {
+                    const profile = res.data.data;
+                    await persistAuth({ user: profile });
+                }
+            } catch (e) {
+                // Ignore silently
+            }
+        };
+
+        if (authState.role === 'host') {
+            const timer = setTimeout(validateHostStatus, 3000);
+            return () => clearTimeout(timer);
+        } else if (authState.role === 'admin') {
+            const timer = setTimeout(fetchAdminProfile, 500); // Admin profile is critical for UI instantly
+            return () => clearTimeout(timer);
+        }
+    }, [authState.token, authState.role]); // Only runs when token/role first loads
+
     // 🔥 Silent prefetch after state is set
     useEffect(() => {
         // 🔒 SAFETY: Don't prefetch any data if onboarding is not finished
@@ -99,7 +148,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else if (role === 'host') {
             prefetchHostData(queryClient);
         } else {
-            prefetchUserData(queryClient, authState.userId);
+            prefetchUserData(queryClient, authState.userId || undefined);
         }
     }, [authState.token, authState.onboardingCompleted]);
 
@@ -190,7 +239,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             } else if (normalizedRole === 'host') {
                 prefetchHostData(queryClient);
             } else {
-                prefetchUserData(queryClient, payload.userId);
+                prefetchUserData(queryClient, payload.userId || undefined);
             }
         }, 300);
     };
