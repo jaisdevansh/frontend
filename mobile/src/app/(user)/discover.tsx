@@ -209,7 +209,11 @@ export default function DiscoverScreen() {
         chatRequests,
         acceptedChats
     } = useChatStore();
-    useEffect(() => { if (token) initSocket(token); }, [token]);
+    useEffect(() => { 
+        if (token && currentUser?.id) {
+            initSocket(token, currentUser.id);
+        }
+    }, [token, currentUser?.id, initSocket]);
 
     // Setup notification callback for incoming messages
     useEffect(() => {

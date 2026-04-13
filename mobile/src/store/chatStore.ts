@@ -29,11 +29,12 @@ interface ChatState {
     unreadCounts: Record<string, number>;
     chatRequests: Record<string, ChatRequest>; // Pending chat requests by senderId
     acceptedChats: Set<string>; // Set of accepted peer IDs
+    currentUserId: string | null; // Current logged-in user ID
     onMessageReceived?: (senderId: string, senderName: string, content: string) => void;
     onChatRequest?: (senderId: string, senderName: string, content: string, senderImage?: string) => void;
     
     // Actions
-    initSocket: (token: string) => void;
+    initSocket: (token: string, userId: string) => void;
     disconnect: () => void;
     fetchHistory: (peerId: string) => Promise<void>;
     sendMessage: (receiverId: string, content: string, currentUserId: string) => void;
@@ -52,11 +53,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
     unreadCounts: {},
     chatRequests: {},
     acceptedChats: new Set(),
+    currentUserId: null,
     onMessageReceived: undefined,
     onChatRequest: undefined,
 
-    initSocket: (token: string) => {
+    initSocket: (token: string, userId: string) => {
         if (get().socket) return;
+
+        // Store current user ID
+        set({ currentUserId: userId });
 
         // Ensure we point to the correct backend host
         const socketUrl = apiClient.defaults.baseURL?.replace('/api/v1', '') || 'http://localhost:3000';
@@ -91,6 +96,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
             });
             
             set((state) => {
+                // CRITICAL: Ignore messages sent by current user (echo prevention)
+                if (msg.senderId === state.currentUserId) {
+                    console.log('⏭️ [ChatStore] Ignoring own message echo');
+                    return state;
+                }
+                
                 const peerId = msg.senderId;
                 const existingMsgs = state.messagesByPeer[peerId] || [];
                 
