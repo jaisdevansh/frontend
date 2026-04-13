@@ -17,6 +17,7 @@
       "supportsTablet": true
     },
     "android": {
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/images/adaptive-icon.png",
         "backgroundColor": "#0A0B10"
@@ -52,6 +53,14 @@
           "photosPermission": "Allow $(PRODUCT_NAME) to access your photos to upload profile and event images.",
           "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to take profile pictures."
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
       ]
     ],
     "experiments": {
@@ -65,6 +74,7 @@
     },
     "assetBundlePatterns": [
       "**/*"
-    ]
+    ],
+    "owner": "devanshjais"
   }
 }

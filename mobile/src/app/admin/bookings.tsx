@@ -29,10 +29,11 @@ const COLORS = {
 };
 
 const STATUS_FILTERS = [
-    { label: 'All Unit', value: '' },
+    { label: 'All', value: '' },
     { label: 'Pending', value: 'pending' },
-    { label: 'Verified', value: 'paid' },
-    { label: 'Finalized', value: 'checked_in' },
+    { label: 'Approved', value: 'approved' },
+    { label: 'Active', value: 'active' },
+    { label: 'Checked In', value: 'checked_in' },
 ];
 
 const BookingRow = React.memo(({ item }: { item: AdminBooking }) => {
@@ -40,8 +41,11 @@ const BookingRow = React.memo(({ item }: { item: AdminBooking }) => {
     const statusObj = useMemo(() => {
         switch (item.status) {
             case 'checked_in': return { color: COLORS.success, bg: 'rgba(16, 185, 129, 0.15)', text: 'CHECKED IN' };
-            case 'paid': return { color: COLORS.info, bg: 'rgba(59, 130, 246, 0.15)', text: 'CONFIRMED' };
+            case 'approved': return { color: COLORS.info, bg: 'rgba(59, 130, 246, 0.15)', text: 'APPROVED' };
+            case 'active': return { color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.15)', text: 'ACTIVE' };
             case 'pending': return { color: COLORS.warning, bg: 'rgba(245, 158, 11, 0.15)', text: 'PENDING' };
+            case 'cancelled': return { color: COLORS.danger, bg: 'rgba(244, 63, 94, 0.15)', text: 'CANCELLED' };
+            case 'rejected': return { color: COLORS.danger, bg: 'rgba(244, 63, 94, 0.12)', text: 'REJECTED' };
             default: return { color: COLORS.textDim, bg: 'rgba(255, 255, 255, 0.08)', text: item.status?.toUpperCase() || 'UNKNOWN' };
         }
     }, [item.status]);
@@ -131,9 +135,9 @@ export default function BookingsScreen() {
         queryFn: ({ pageParam = 1 }) => adminService.getBookings(pageParam, 30, statusFilter || undefined),
         getNextPageParam: (lastPage) => (lastPage.pages > lastPage.page ? lastPage.page + 1 : undefined),
         initialPageParam: 1,
-        staleTime: 5 * 60 * 1000,
-        refetchOnMount: false,
-        refetchOnWindowFocus: false,
+        staleTime: 2 * 60 * 1000,
+        refetchOnMount: true,
+        refetchOnWindowFocus: true,
     });
 
     const bookings = useMemo(() => data?.pages.flatMap(page => page.data) || [], [data]);
