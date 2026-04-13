@@ -70,6 +70,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
         socket.on('connect', () => {
             console.log('🔌 [ChatStore] Socket connected:', socket.id);
+            console.log('🔌 [ChatStore] Socket URL:', socketUrl);
+            console.log('🔌 [ChatStore] Socket transport:', socket.io.engine.transport.name);
+        });
+
+        socket.on('connect_error', (error) => {
+            console.error('❌ [ChatStore] Socket connection error:', error.message);
+        });
+
+        socket.on('disconnect', (reason) => {
+            console.warn('⚠️ [ChatStore] Socket disconnected:', reason);
         });
 
         socket.on('receive_message', (msg) => {
@@ -245,7 +255,26 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
         // Fire to socket
         console.log('🚀 [ChatStore] Emitting send_message event');
+        
+        // Set timeout for acknowledgment
+        const ackTimeout = setTimeout(() => {
+            console.error('⏰ [ChatStore] Acknowledgment timeout - backend not responding');
+            set((state) => {
+                const msgs = state.messagesByPeer[receiverId] || [];
+                const updated: Message[] = msgs.map(m => {
+                    if (m.tempId === tempId || m._id === tempId) {
+                        return { ...m, status: 'failed' as const };
+                    }
+                    return m;
+                });
+                return {
+                    messagesByPeer: { ...state.messagesByPeer, [receiverId]: updated }
+                };
+            });
+        }, 10000); // 10 second timeout
+        
         socket.emit('send_message', { receiverId, content, tempId }, (ack: any) => {
+            clearTimeout(ackTimeout); // Clear timeout on successful ack
             console.log('✅ [ChatStore] Received acknowledgment:', ack);
             if (ack && ack.success) {
                 set((state) => {

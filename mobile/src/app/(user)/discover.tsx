@@ -139,7 +139,7 @@ export default function DiscoverScreen() {
             console.log('🔄 [Discover] Syncing nearby users to store:', nearby.data.length);
             setNearbyUsers(nearby.data);
         }
-    }, [nearby.data, setNearbyUsers]);
+    }, [nearby.data]); // Removed setNearbyUsers to prevent infinite loop
 
     // 🎁 HOST-SPECIFIC GIFTS — background refresh
     const hostGifts = useQuery({
