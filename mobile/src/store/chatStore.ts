@@ -108,6 +108,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
                     return state;
                 }
                 
+                // For received messages, peerId is the sender
                 const peerId = msg.senderId;
                 const existingMsgs = state.messagesByPeer[peerId] || [];
                 
@@ -162,7 +163,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 
                 // Chat is already accepted, add message normally
                 const newMsg: Message = {
-                    _id: msg.tempId || Math.random().toString(),
+                    _id: msg.tempId || `msg_${Date.now()}_${Math.random()}`,
                     sender: peerId,
                     receiver: msg.receiverId,
                     content: msg.content,
@@ -171,9 +172,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
                     status: 'sent'
                 };
 
-                // Prevent duplicates
-                if (existingMsgs.find(m => m._id === newMsg._id || m.tempId === newMsg.tempId)) {
-                    console.log('⚠️ [ChatStore] Duplicate message detected, skipping');
+                // Prevent duplicates - check by content and timestamp (not tempId)
+                const isDuplicate = existingMsgs.find(m => 
+                    m.content === newMsg.content && 
+                    Math.abs(new Date(m.createdAt).getTime() - new Date(newMsg.createdAt).getTime()) < 2000
+                );
+                
+                if (isDuplicate) {
+                    console.log('⚠️ [ChatStore] Duplicate message detected (same content + time), skipping');
                     return state; 
                 }
 
