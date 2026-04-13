@@ -1,0 +1,40 @@
+# Files to ignore during EAS build (reduces upload time)
+
+# Development files
+*.log
+*.md
+.vscode/
+.idea/
+
+# Test files
+__tests__/
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Git
+.git/
+.gitignore
+
+# Build artifacts
+build/
+dist/
+*.apk
+*.aab
+*.ipa
+
+# Cache
+.metro-cache/
+.expo/
+
+# Misc
+.DS_Store
+*.pem
+ts-errors.txt
+tsc_errors.txt

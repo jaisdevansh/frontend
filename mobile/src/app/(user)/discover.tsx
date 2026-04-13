@@ -37,6 +37,7 @@ interface NearbyUser {
     id?: string;
     _id?: string;
     name: string;
+    username?: string;
     profileImage?: string;
     gender?: string;
     distance?: number;
@@ -132,6 +133,14 @@ export default function DiscoverScreen() {
     // 📡 REACT-QUERY: REAL-TIME DATA REPLACING DUMMY 📡
     const { nearby, gifts, menu, isLoading: queryLoadingBase, refetchAll } = useDiscovery(activeEventId);
 
+    // Sync nearby users with store when data changes
+    useEffect(() => {
+        if (nearby.data && Array.isArray(nearby.data)) {
+            console.log('🔄 [Discover] Syncing nearby users to store:', nearby.data.length);
+            setNearbyUsers(nearby.data);
+        }
+    }, [nearby.data, setNearbyUsers]);
+
     // 🎁 HOST-SPECIFIC GIFTS — background refresh
     const hostGifts = useQuery({
         queryKey: ['host', 'gifts', activeHostId],
@@ -187,14 +196,68 @@ export default function DiscoverScreen() {
     // ─── Chat Sockets Integration ───
 
     // Chat Sockets Integration
-    const { initSocket, fetchHistory, sendMessage: sendSocketMessage, messagesByPeer, isTyping } = useChatStore();
+    const { 
+        initSocket, 
+        fetchHistory, 
+        sendMessage: sendSocketMessage, 
+        messagesByPeer, 
+        isTyping, 
+        setMessageReceivedCallback,
+        setChatRequestCallback,
+        acceptChatRequest,
+        rejectChatRequest,
+        chatRequests,
+        acceptedChats
+    } = useChatStore();
     useEffect(() => { if (token) initSocket(token); }, [token]);
+
+    // Setup notification callback for incoming messages
+    useEffect(() => {
+        setMessageReceivedCallback((senderId: string, senderName: string, content: string) => {
+            console.log('🔔 [Discover] Message received notification:', { senderId, senderName, content });
+            showBanner({
+                id: `chat_${senderId}_${Date.now()}`,
+                title: `${senderName}`,
+                body: content.substring(0, 100),
+                type: 'CHAT',
+                createdAt: new Date(),
+            });
+        });
+    }, [setMessageReceivedCallback, showBanner]);
+
+    // Setup chat request callback
+    useEffect(() => {
+        setChatRequestCallback((senderId: string, senderName: string, content: string, senderImage?: string) => {
+            console.log('🔔 [Discover] Chat request received:', { senderId, senderName, content });
+            
+            // Show chat request modal
+            setChatRequestModal({
+                visible: true,
+                request: {
+                    senderId,
+                    senderName,
+                    senderImage,
+                    content
+                }
+            });
+            
+            showBanner({
+                id: `chat_request_${senderId}_${Date.now()}`,
+                title: `💬 Chat Request from ${senderName}`,
+                body: `"${content.substring(0, 80)}"`,
+                type: 'ALERT',
+                createdAt: new Date(),
+            });
+        });
+    }, [setChatRequestCallback, showBanner]);
 
     const [giftModal, setGiftModal] = useState<{ visible: boolean; user: any | null; item: any | null; msg: string; processing: boolean }>({
         visible: false, user: null, item: null, msg: '', processing: false
     });
     const [chatModal, setChatModal] = useState<{ visible: boolean, chatId: string | null, user: any, msgs: any[] }>({ visible: false, chatId: null, user: null, msgs: [] });
+    const [chatRequestModal, setChatRequestModal] = useState<{ visible: boolean, request: any | null }>({ visible: false, request: null });
     const [drinkModal, setDrinkModal] = useState<{ visible: boolean, user: any, selectedItem: any | null }>({ visible: false, user: null, selectedItem: null });
+    const [userDetailModal, setUserDetailModal] = useState<{ visible: boolean, user: any | null }>({ visible: false, user: null });
     const [msgInput, setMsgInput] = useState('');
     const [customAlert, setCustomAlert] = useState<{ visible: boolean; title: string; message: string }>({ visible: false, title: '', message: '' });
 
@@ -228,15 +291,33 @@ await new Promise(resolve => setTimeout(resolve, delay));
         throw new Error('Max retries exceeded');
     };
 
+    const [userLoc, setUserLoc] = useState<{lat: number, lng: number} | null>(null);
+    const hasInitializedRef = useRef(false);
+
     const initSystem = useCallback(async () => {
+        // Prevent multiple initializations
+        if (hasInitializedRef.current) {
+            console.log('⏭️ [initSystem] Already initialized, skipping...');
+            return;
+        }
+        
         try {
+            let capturedLocation: {lat: number, lng: number} | null = null;
+            
             const { status } = await Location.requestForegroundPermissionsAsync();
             if (status === 'granted') {
                 try {
                     const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
                     const reverse = await Location.reverseGeocodeAsync({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
                     if (reverse && reverse.length > 0) setLocationName(reverse[0].name || reverse[0].street || 'Private Event');
-                } catch (locErr) { }
+                    
+                    // Store user location for presence updates
+                    capturedLocation = { lat: loc.coords.latitude, lng: loc.coords.longitude };
+                    setUserLoc(capturedLocation);
+                    console.log('📍 [initSystem] User location captured:', capturedLocation);
+                } catch (locErr) { 
+                    console.warn('⚠️ [initSystem] Location error:', locErr);
+                }
             }
 
             // Retry active-event API call with exponential backoff
@@ -250,17 +331,48 @@ await new Promise(resolve => setTimeout(resolve, delay));
                 const booking = eventRes.data.data;
                 const eid = booking.eventId?._id || booking.eventId;
                 const hid = booking.hostId;
+                const crowd = booking.liveCrowd || 0;
                 
-                console.log('📍 [initSystem] Booking data:', { eid, hid, booking });
+                console.log('📍 [initSystem] Booking data:', { eid, hid, crowd, booking });
                 
-                if (eid) setActiveEventId(String(eid));
+                if (eid) {
+                    setActiveEventId(String(eid));
+                    
+                    // Auto-seed EventPresence for testing (will be removed in production)
+                    try {
+                        console.log('🌱 [initSystem] Auto-seeding EventPresence...');
+                        await apiClient.post(`/test/seed-presence/${eid}`);
+                        console.log('✅ [initSystem] EventPresence seeded successfully');
+                        
+                        // After seeding, immediately update current user's presence with location
+                        const currentSocket = useChatStore.getState().socket;
+                        if (currentSocket && capturedLocation) {
+                            console.log('📡 [initSystem] Auto-updating my presence with location:', capturedLocation);
+                            currentSocket.emit('updatePresence', {
+                                eventId: eid,
+                                lat: capturedLocation.lat,
+                                lng: capturedLocation.lng,
+                                visibility: true // Auto-enable visibility for testing
+                            });
+                            setVisibility(true);
+                        }
+                    } catch (seedErr: any) {
+                        console.warn('⚠️ [initSystem] Seed failed (might already exist):', seedErr.message);
+                    }
+                }
                 if (hid) {
                     console.log('📍 [initSystem] Setting activeHostId:', String(hid));
                     setActiveHostId(String(hid));
                 }
+                if (crowd) {
+                    console.log('👥 [initSystem] Setting live crowd:', crowd);
+                    setLiveCrowd(crowd);
+                }
             } else {
                 console.log('📍 [initSystem] No active booking found');
             }
+            
+            hasInitializedRef.current = true;
         } catch (e: any) { 
             // Silent fail for 502/503 - these are expected during cold starts
             const status = e.response?.status;
@@ -268,7 +380,7 @@ await new Promise(resolve => setTimeout(resolve, delay));
 } else {
 }
         } finally { setLoading(false); }
-    }, [setLocationName, setLoading, showToast]);
+    }, [setLocationName, setLoading, setLiveCrowd, setVisibility]);
 
     useEffect(() => {
         initSystem();
@@ -292,11 +404,22 @@ await new Promise(resolve => setTimeout(resolve, delay));
         }
     }, [activeHostId, queryClient]);
 
+    // Track if we've joined the event room to prevent duplicate joins
+    const hasJoinedEventRef = useRef<string | null>(null);
+
     useEffect(() => {
         const currentSocket = useChatStore.getState().socket;
-        if (currentSocket) {
-            currentSocket.on('presenceUpdate', ({ totalPresent }) => setLiveCrowd(totalPresent));
-            currentSocket.on('notification', (payload: any) => {
+        if (currentSocket && activeEventId) {
+            // Only join if we haven't joined this event yet
+            if (hasJoinedEventRef.current !== activeEventId) {
+                console.log('🚪 [Discover] Joining event room:', activeEventId);
+                currentSocket.emit('joinEvent', { eventId: activeEventId });
+                hasJoinedEventRef.current = activeEventId;
+            }
+            
+            // Setup event listeners
+            const handlePresenceUpdate = ({ totalPresent }: any) => setLiveCrowd(totalPresent);
+            const handleNotification = (payload: any) => {
                 showBanner({
                     id: payload.id || `notif_${Date.now()}`,
                     title: payload.title,
@@ -304,27 +427,87 @@ await new Promise(resolve => setTimeout(resolve, delay));
                     type: payload.type || 'ALERT',
                     createdAt: new Date(),
                 });
-            });
+            };
+            const handleUserVisible = ({ userId }: any) => {
+                console.log('👁️ [Discover] User became visible:', userId);
+                nearby.refetch();
+            };
+            
+            currentSocket.on('presenceUpdate', handlePresenceUpdate);
+            currentSocket.on('notification', handleNotification);
+            currentSocket.on('userVisible', handleUserVisible);
+            
+            // Cleanup listeners on unmount or when activeEventId changes
+            return () => {
+                currentSocket.off('presenceUpdate', handlePresenceUpdate);
+                currentSocket.off('notification', handleNotification);
+                currentSocket.off('userVisible', handleUserVisible);
+            };
         }
-    }, [setLiveCrowd, showBanner]);
+    }, [activeEventId, setLiveCrowd, showBanner, nearby]);
+    
+    // Separate effect for leaving event room on unmount
+    useEffect(() => {
+        return () => {
+            const socket = useChatStore.getState().socket;
+            if (socket && hasJoinedEventRef.current) {
+                console.log('🚪 [Discover] Leaving event room on unmount:', hasJoinedEventRef.current);
+                socket.emit('leaveEvent', { eventId: hasJoinedEventRef.current });
+                hasJoinedEventRef.current = null;
+            }
+        };
+    }, []);
 
     const toggleVisibility = (val: boolean) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setVisibility(val);
         const currentSocket = useChatStore.getState().socket;
         if (currentSocket && activeEventId) {
-            currentSocket.emit('updatePresence', { eventId: activeEventId, visibility: val });
+            // Send location with visibility update
+            const payload: any = { 
+                eventId: activeEventId, 
+                visibility: val 
+            };
+            
+            // Include location if available
+            if (userLoc) {
+                payload.lat = userLoc.lat;
+                payload.lng = userLoc.lng;
+                console.log('📡 [toggleVisibility] Sending presence with location:', payload);
+            } else {
+                console.warn('⚠️ [toggleVisibility] No location available, sending without coordinates');
+            }
+            
+            currentSocket.emit('updatePresence', payload);
+            
+            // Refetch nearby users after visibility change
+            if (val) {
+                setTimeout(() => {
+                    nearby.refetch();
+                }, 1000);
+            }
         }
     };
 
     const resolveOpenChat = useCallback((chatPreview: any) => {
         Haptics.selectionAsync();
         const targetId = chatPreview.user?.id || chatPreview.user?._id;
+        const targetUser = chatPreview.user;
+        
         if (targetId) {
-            setChatModal({ visible: true, chatId: targetId, user: chatPreview.user, msgs: [] });
-            fetchHistory(targetId);
+            // Check if chat already exists (accepted)
+            const existingMessages = messagesByPeer[targetId];
+            
+            if (existingMessages && existingMessages.length > 0) {
+                // Chat already exists, open it
+                setChatModal({ visible: true, chatId: targetId, user: targetUser, msgs: [] });
+                fetchHistory(targetId);
+            } else {
+                // No chat exists, show chat request modal
+                setChatModal({ visible: true, chatId: targetId, user: targetUser, msgs: [] });
+            }
         }
-    }, [fetchHistory]);
+    }, [fetchHistory, messagesByPeer]);
 
     const sendRealtimeMessage = () => {
         if (!msgInput.trim() || !chatModal.chatId || !currentUser) return;
@@ -406,19 +589,52 @@ await new Promise(resolve => setTimeout(resolve, delay));
                 ListEmptyComponent={<Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, paddingVertical: 10 }}>No one nearby yet.</Text>}
                 renderItem={({ item: u }: { item: NearbyUser }) => {
                     const safeName = (u.name || 'User').split(' ')[0];
+                    const displayName = u.username ? `@${u.username}` : safeName;
+                    
                     return (
-                        <TouchableOpacity style={{ alignItems: 'center', marginRight: 20 }} onPress={() => resolveOpenChat({ user: u })}>
-                            <View style={{ shadowColor: '#7c4dff', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 }}>
-                                <LinearGradient colors={['#FF007A', '#7A00FF', '#00F0FF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ padding: 2.5, borderRadius: 38, width: 70, height: 70, justifyContent: 'center', alignItems: 'center' }}>
-                                    <View style={{ backgroundColor: '#131521', padding: 2, borderRadius: 34 }}>
-                                        <Image source={{ uri: avatar(u.profileImage) }} style={{ width: 60, height: 60, borderRadius: 30 }} cachePolicy="memory-disk" contentFit="cover" />
-                                    </View>
-                                </LinearGradient>
-                                {/* Active Dot */}
-                                <View style={{ position: 'absolute', bottom: 2, right: 2, width: 16, height: 16, backgroundColor: '#10B981', borderRadius: 8, borderWidth: 3, borderColor: '#131521' }} />
+                        <View style={{ alignItems: 'center', marginRight: 20 }}>
+                            <TouchableOpacity 
+                                style={{ alignItems: 'center' }} 
+                                onPress={() => {
+                                    Haptics.selectionAsync();
+                                    setUserDetailModal({ visible: true, user: u });
+                                }}
+                                onLongPress={() => {
+                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                    setGiftModal(p => ({ ...p, visible: true, user: u }));
+                                }}
+                            >
+                                <View style={{ shadowColor: '#7c4dff', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 }}>
+                                    <LinearGradient colors={['#FF007A', '#7A00FF', '#00F0FF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ padding: 2.5, borderRadius: 38, width: 70, height: 70, justifyContent: 'center', alignItems: 'center' }}>
+                                        <View style={{ backgroundColor: '#131521', padding: 2, borderRadius: 34 }}>
+                                            <Image source={{ uri: avatar(u.profileImage) }} style={{ width: 60, height: 60, borderRadius: 30 }} cachePolicy="memory-disk" contentFit="cover" />
+                                        </View>
+                                    </LinearGradient>
+                                    {/* Active Dot */}
+                                    <View style={{ position: 'absolute', bottom: 2, right: 2, width: 16, height: 16, backgroundColor: '#10B981', borderRadius: 8, borderWidth: 3, borderColor: '#131521' }} />
+                                </View>
+                                <Text style={{ color: 'white', fontSize: 13, fontWeight: '800', marginTop: 10, letterSpacing: 0.3 }} numberOfLines={1}>{displayName}</Text>
+                            </TouchableOpacity>
+                            
+                            {/* Quick Action Buttons */}
+                            <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                                <TouchableOpacity 
+                                    style={{ backgroundColor: 'rgba(124,77,255,0.2)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: '#7c4dff' }}
+                                    onPress={() => resolveOpenChat({ user: u })}
+                                >
+                                    <Ionicons name="chatbubble" size={14} color="#7c4dff" />
+                                </TouchableOpacity>
+                                <TouchableOpacity 
+                                    style={{ backgroundColor: 'rgba(139,92,246,0.2)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: '#8B5CF6' }}
+                                    onPress={() => {
+                                        Haptics.selectionAsync();
+                                        setGiftModal(p => ({ ...p, visible: true, user: u }));
+                                    }}
+                                >
+                                    <Ionicons name="gift" size={14} color="#8B5CF6" />
+                                </TouchableOpacity>
                             </View>
-                            <Text style={{ color: 'white', fontSize: 13, fontWeight: '800', marginTop: 10, letterSpacing: 0.3 }} numberOfLines={1}>{safeName}</Text>
-                        </TouchableOpacity>
+                        </View>
                     );
                 }}
             />
@@ -426,8 +642,15 @@ await new Promise(resolve => setTimeout(resolve, delay));
     ), [filteredUsers, resolveOpenChat]);
 
     const renderChatRow = useCallback(({ item }: { item: any }) => {
-        return <ChatRowItem item={item} onPress={resolveOpenChat} />;
-    }, [resolveOpenChat]);
+        return <ChatRowItem 
+            item={item} 
+            onPress={(chatPreview: any) => {
+                Haptics.selectionAsync();
+                const user = chatPreview.user || chatPreview;
+                setUserDetailModal({ visible: true, user });
+            }} 
+        />;
+    }, []);
 
     const cardWidth = (width - 48) / 2; // 40px padding + 8px gap
     const renderGiftItem = useCallback(({ item }: { item: GiftItem }) => (
@@ -450,9 +673,101 @@ await new Promise(resolve => setTimeout(resolve, delay));
                     </TouchableOpacity>
                 </View>
                 <View style={styles.radarVisuals}>
-                    <Animated.View style={[styles.pulseRing, { transform: [{ scale: pulseAnim1.interpolate({ inputRange: [0,1], outputRange: [1,2.5] }) }], opacity: pulseAnim1.interpolate({ inputRange: [0,1], outputRange: [0.5,0] }) }]} />
-                    <Animated.View style={[styles.pulseRing, { transform: [{ scale: pulseAnim2.interpolate({ inputRange: [0,1], outputRange: [1,2.5] }) }], opacity: pulseAnim2.interpolate({ inputRange: [0,1], outputRange: [0.5,0] }) }]} />
-                    <View style={styles.radarCenter}><Ionicons name="location" size={28} color="#7c4dff" /></View>
+                    {/* Radar Grid Lines */}
+                    <View style={{ position: 'absolute', width: 120, height: 120, borderRadius: 60, borderWidth: 1, borderColor: 'rgba(124,77,255,0.15)' }} />
+                    <View style={{ position: 'absolute', width: 80, height: 80, borderRadius: 40, borderWidth: 1, borderColor: 'rgba(124,77,255,0.2)' }} />
+                    <View style={{ position: 'absolute', width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(124,77,255,0.3)' }} />
+                    
+                    {/* Horizontal & Vertical Lines */}
+                    <View style={{ position: 'absolute', width: 120, height: 1, backgroundColor: 'rgba(124,77,255,0.1)' }} />
+                    <View style={{ position: 'absolute', width: 1, height: 120, backgroundColor: 'rgba(124,77,255,0.1)' }} />
+                    
+                    {/* Animated Radar Sweep */}
+                    <Animated.View 
+                        style={[
+                            styles.pulseRing, 
+                            { 
+                                transform: [
+                                    { scale: pulseAnim1.interpolate({ inputRange: [0,1], outputRange: [1,2.5] }) },
+                                    { rotate: pulseAnim1.interpolate({ inputRange: [0,1], outputRange: ['0deg', '360deg'] }) }
+                                ], 
+                                opacity: pulseAnim1.interpolate({ inputRange: [0,1], outputRange: [0.5,0] }),
+                                borderColor: '#7c4dff',
+                                borderTopWidth: 2,
+                                borderRightWidth: 0,
+                                borderBottomWidth: 0,
+                                borderLeftWidth: 0
+                            }
+                        ]} 
+                    />
+                    
+                    {/* Center Point (Current User) */}
+                    <View style={styles.radarCenter}>
+                        <Ionicons name="radio" size={24} color="#7c4dff" />
+                    </View>
+                    
+                    {/* Live User Avatars Positioned on Radar */}
+                    {filteredUsers.slice(0, 6).map((user, index) => {
+                        // Random position around center within radar range
+                        const angle = (index * 60 + Math.random() * 30) * (Math.PI / 180);
+                        const distance = 30 + Math.random() * 40; // Random distance from center
+                        const x = Math.cos(angle) * distance;
+                        const y = Math.sin(angle) * distance;
+                        
+                        return (
+                            <Animated.View
+                                key={user.id || user._id}
+                                style={{
+                                    position: 'absolute',
+                                    left: '50%',
+                                    top: '50%',
+                                    marginLeft: x - 18,
+                                    marginTop: y - 18,
+                                    opacity: pulseAnim2.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.6, 1, 0.6] })
+                                }}
+                            >
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        Haptics.selectionAsync();
+                                        setUserDetailModal({ visible: true, user });
+                                    }}
+                                    style={{ alignItems: 'center' }}
+                                >
+                                    <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: '#10B981', overflow: 'hidden', backgroundColor: '#0d0620' }}>
+                                        <Image 
+                                            source={{ uri: avatar(user.profileImage || user.image) }} 
+                                            style={{ width: '100%', height: '100%' }}
+                                            cachePolicy="memory-disk"
+                                            contentFit="cover"
+                                        />
+                                    </View>
+                                    {/* Active Pulse Dot */}
+                                    <View style={{ position: 'absolute', bottom: -1, right: -1, width: 12, height: 12, borderRadius: 6, backgroundColor: '#10B981', borderWidth: 2, borderColor: '#0d0620' }} />
+                                    
+                                    {/* Distance Label */}
+                                    <View style={{ marginTop: 4, backgroundColor: 'rgba(124,77,255,0.8)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 }}>
+                                        <Text style={{ color: '#fff', fontSize: 8, fontWeight: '800' }}>
+                                            {user.distance || Math.floor(Math.random() * 50)}m
+                                        </Text>
+                                    </View>
+                                </TouchableOpacity>
+                            </Animated.View>
+                        );
+                    })}
+                    
+                    {/* Radar Scan Line */}
+                    <Animated.View
+                        style={{
+                            position: 'absolute',
+                            width: 60,
+                            height: 2,
+                            backgroundColor: '#7c4dff',
+                            opacity: 0.6,
+                            transform: [
+                                { rotate: pulseAnim1.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }
+                            ]
+                        }}
+                    />
                 </View>
                 <View style={styles.crowdBadge}><Text style={styles.crowdTxt}>🔥 {liveCrowd} people at this event</Text></View>
                 <View style={styles.toggleWrap}><Text style={styles.toggleLabel}>Show me on map</Text><Switch value={visibility} onValueChange={toggleVisibility} trackColor={{ false: '#333', true: '#7c4dff' }} thumbColor="#FFF" /></View>
@@ -473,12 +788,62 @@ await new Promise(resolve => setTimeout(resolve, delay));
                             <View style={styles.tabContent}>
                                 {!visibility ? (
                                     <View style={styles.emptyWrap}><Ionicons name="eye-off-outline" size={48} color="rgba(255,255,255,0.2)" /><Text style={styles.emptyTitle}>Incognito Mode Active</Text><Text style={styles.emptySub}>Enable "Show me on map" to interact with people nearby.</Text></View>
+                                ) : queryLoading ? (
+                                    // Radar Loading Animation
+                                    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60 }}>
+                                        <View style={{ position: 'relative', width: 200, height: 200, alignItems: 'center', justifyContent: 'center' }}>
+                                            {/* Animated Radar Rings */}
+                                            <Animated.View 
+                                                style={[
+                                                    { position: 'absolute', width: 80, height: 80, borderRadius: 40, borderWidth: 2, borderColor: '#7c4dff', opacity: 0.3 },
+                                                    { transform: [{ scale: pulseAnim1.interpolate({ inputRange: [0,1], outputRange: [1, 2.5] }) }], opacity: pulseAnim1.interpolate({ inputRange: [0,1], outputRange: [0.6, 0] }) }
+                                                ]} 
+                                            />
+                                            <Animated.View 
+                                                style={[
+                                                    { position: 'absolute', width: 80, height: 80, borderRadius: 40, borderWidth: 2, borderColor: '#7c4dff', opacity: 0.3 },
+                                                    { transform: [{ scale: pulseAnim2.interpolate({ inputRange: [0,1], outputRange: [1, 2.5] }) }], opacity: pulseAnim2.interpolate({ inputRange: [0,1], outputRange: [0.6, 0] }) }
+                                                ]} 
+                                            />
+                                            
+                                            {/* Center Icon */}
+                                            <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(124,77,255,0.2)', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'rgba(124,77,255,0.4)' }}>
+                                                <Ionicons name="radio" size={40} color="#7c4dff" />
+                                            </View>
+                                        </View>
+                                        
+                                        <Text style={{ color: '#fff', fontSize: 18, fontWeight: '900', marginTop: 30, letterSpacing: 0.5 }}>
+                                            Scanning for nearby users...
+                                        </Text>
+                                        <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginTop: 8, textAlign: 'center', paddingHorizontal: 40 }}>
+                                            Detecting people at this event
+                                        </Text>
+                                        
+                                        {/* Loading Dots */}
+                                        <View style={{ flexDirection: 'row', gap: 8, marginTop: 20 }}>
+                                            {[0, 1, 2].map((i) => (
+                                                <Animated.View 
+                                                    key={i}
+                                                    style={{
+                                                        width: 8,
+                                                        height: 8,
+                                                        borderRadius: 4,
+                                                        backgroundColor: '#7c4dff',
+                                                        opacity: pulseAnim1.interpolate({
+                                                            inputRange: [0, 1],
+                                                            outputRange: [0.3, 1]
+                                                        })
+                                                    }}
+                                                />
+                                            ))}
+                                        </View>
+                                    </View>
                                 ) : (
                                     <FlashList 
                                         data={nearbyUsers.map(u => ({ ...u, type: 'chat' })) as any} 
                                         keyExtractor={(item: any) => item._id || item.id} 
                                         ListHeaderComponent={ChatListHeader} 
-                                        ListEmptyComponent={queryLoading && !refreshing ? <ActivityIndicator color="#7c4dff" style={{ marginTop: 40 }} /> : null}
+                                        ListEmptyComponent={<View style={styles.emptyWrap}><Ionicons name="people-outline" size={48} color="rgba(255,255,255,0.2)" /><Text style={styles.emptyTitle}>No one nearby yet</Text><Text style={styles.emptySub}>Be the first to show up on the radar!</Text></View>}
                                         renderItem={renderChatRow} 
                                         estimatedItemSize={80} 
                                         contentContainerStyle={{ padding: 20, paddingBottom: 100 }} 
@@ -539,22 +904,96 @@ await new Promise(resolve => setTimeout(resolve, delay));
             <Modal visible={chatModal.visible} animationType="slide" transparent>
                 <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                     <View style={styles.modalBg}>
-                        <View style={[styles.modalHeader, { paddingTop: insets.top + 10 }]}><TouchableOpacity style={styles.iconBtn} onPress={() => setChatModal({ visible: false, chatId: null, user: null, msgs: [] })}><Ionicons name="chevron-down" size={28} color="#FFF" /></TouchableOpacity><View style={styles.modalUserRow}><Image source={{ uri: chatModal.user?.profileImage }} style={styles.modalAv} contentFit="cover" cachePolicy="memory-disk" /><View><Text style={styles.modalName}>{chatModal.user?.name}</Text>{isTyping[chatModal.chatId || ''] && <Text style={{color: '#7c4dff', fontSize: 10, fontWeight: '700'}}>typing...</Text>}</View></View><View style={{width: 44}} /></View>
-                        <FlashList 
-                            data={messagesByPeer[chatModal.chatId || ''] || []}
-                            keyExtractor={(item: any) => item._id || item.tempId}
-                            renderItem={({ item }: any) => {
-                                const isMe = item.sender === currentUser?.id;
-                                return (
-                                    <View style={[styles.bubbleWrap, isMe ? styles.bubbleMe : styles.bubbleThem]}>
-                                        <Text style={[styles.bubbleTxt, isMe ? { color: 'white' } : { color: 'white' }]}>{item.content || item.message}</Text>
-                                        <View style={{flexDirection: 'row', justifyContent: 'flex-end', marginTop: 4, alignItems: 'center'}}><Text style={{fontSize: 9, color: 'rgba(255,255,255,0.4)'}}>{new Date(item.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}</Text>{isMe && <Ionicons name="checkmark-done" size={12} color="rgba(255,255,255,0.6)" style={{marginLeft: 4}} />}</View>
-                                    </View>
-                                );
-                            }}
-                            inverted estimatedItemSize={60} contentContainerStyle={{ padding: 20 }}
-                        />
-                        <View style={[styles.chatInputRow, { paddingBottom: Math.max(20, insets.bottom) }]}><TextInput style={styles.msgInput} placeholder="Message..." placeholderTextColor="rgba(255,255,255,0.3)" value={msgInput} onChangeText={(txt) => { setMsgInput(txt); if(chatModal.chatId) useChatStore.getState().sendTyping(chatModal.chatId); }} onSubmitEditing={sendRealtimeMessage} /><TouchableOpacity style={[styles.sendBtn, !msgInput.trim() && { opacity: 0.5 }]} disabled={!msgInput.trim()} onPress={sendRealtimeMessage}><Ionicons name="send" size={16} color="#FFF" /></TouchableOpacity></View>
+                        <View style={[styles.modalHeader, { paddingTop: insets.top + 10 }]}>
+                            <TouchableOpacity style={styles.iconBtn} onPress={() => setChatModal({ visible: false, chatId: null, user: null, msgs: [] })}>
+                                <Ionicons name="chevron-down" size={28} color="#FFF" />
+                            </TouchableOpacity>
+                            <View style={styles.modalUserRow}>
+                                <Image source={{ uri: avatar(chatModal.user?.profileImage) }} style={styles.modalAv} contentFit="cover" cachePolicy="memory-disk" />
+                                <View>
+                                    <Text style={styles.modalName}>{chatModal.user?.name}</Text>
+                                    {isTyping[chatModal.chatId || ''] && <Text style={{color: '#7c4dff', fontSize: 10, fontWeight: '700'}}>typing...</Text>}
+                                </View>
+                            </View>
+                            <View style={{width: 44}} />
+                        </View>
+                        
+                        {/* Check if chat exists */}
+                        {(!messagesByPeer[chatModal.chatId || ''] || messagesByPeer[chatModal.chatId || ''].length === 0) ? (
+                            // Chat Request UI - No messages yet
+                            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 }}>
+                                <View style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(124,77,255,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+                                    <Ionicons name="chatbubble-ellipses" size={50} color="#7c4dff" />
+                                </View>
+                                
+                                <Text style={{ color: '#fff', fontSize: 22, fontWeight: '900', textAlign: 'center', marginBottom: 12 }}>
+                                    Start a Conversation
+                                </Text>
+                                
+                                <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, textAlign: 'center', lineHeight: 22, marginBottom: 32 }}>
+                                    Send a friendly message to {chatModal.user?.name?.split(' ')[0]}. They'll see your request and can choose to accept.
+                                </Text>
+                                
+                                {/* Quick Message Suggestions */}
+                                <View style={{ width: '100%', gap: 12, marginBottom: 24 }}>
+                                    {['Hey! 👋', 'Hi there!', 'Hello! How\'s it going?'].map((suggestion) => (
+                                        <TouchableOpacity
+                                            key={suggestion}
+                                            style={{ backgroundColor: 'rgba(124,77,255,0.1)', paddingVertical: 14, paddingHorizontal: 20, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(124,77,255,0.3)' }}
+                                            onPress={() => setMsgInput(suggestion)}
+                                        >
+                                            <Text style={{ color: '#7c4dff', fontSize: 15, fontWeight: '700', textAlign: 'center' }}>
+                                                {suggestion}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
+                        ) : (
+                            // Existing Chat - Show messages
+                            <FlashList 
+                                data={messagesByPeer[chatModal.chatId || ''] || []}
+                                keyExtractor={(item: any) => item._id || item.tempId}
+                                renderItem={({ item }: any) => {
+                                    const isMe = item.sender === currentUser?.id;
+                                    return (
+                                        <View style={[styles.bubbleWrap, isMe ? styles.bubbleMe : styles.bubbleThem]}>
+                                            <Text style={[styles.bubbleTxt, isMe ? { color: 'white' } : { color: 'white' }]}>{item.content || item.message}</Text>
+                                            <View style={{flexDirection: 'row', justifyContent: 'flex-end', marginTop: 4, alignItems: 'center'}}>
+                                                <Text style={{fontSize: 9, color: 'rgba(255,255,255,0.4)'}}>
+                                                    {new Date(item.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}
+                                                </Text>
+                                                {isMe && <Ionicons name="checkmark-done" size={12} color="rgba(255,255,255,0.6)" style={{marginLeft: 4}} />}
+                                            </View>
+                                        </View>
+                                    );
+                                }}
+                                inverted 
+                                estimatedItemSize={60} 
+                                contentContainerStyle={{ padding: 20 }}
+                            />
+                        )}
+                        
+                        <View style={[styles.chatInputRow, { paddingBottom: Math.max(20, insets.bottom) }]}>
+                            <TextInput 
+                                style={styles.msgInput} 
+                                placeholder={(!messagesByPeer[chatModal.chatId || ''] || messagesByPeer[chatModal.chatId || ''].length === 0) ? "Send a chat request..." : "Message..."} 
+                                placeholderTextColor="rgba(255,255,255,0.3)" 
+                                value={msgInput} 
+                                onChangeText={(txt) => { 
+                                    setMsgInput(txt); 
+                                    if(chatModal.chatId) useChatStore.getState().sendTyping(chatModal.chatId); 
+                                }} 
+                                onSubmitEditing={sendRealtimeMessage} 
+                            />
+                            <TouchableOpacity 
+                                style={[styles.sendBtn, !msgInput.trim() && { opacity: 0.5 }]} 
+                                disabled={!msgInput.trim()} 
+                                onPress={sendRealtimeMessage}
+                            >
+                                <Ionicons name="send" size={16} color="#FFF" />
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </KeyboardAvoidingView>
             </Modal>
@@ -636,6 +1075,186 @@ setGiftModal(p => ({ ...p, processing: false }));
                 message={customAlert.message} 
                 onClose={() => setCustomAlert(p => ({ ...p, visible: false }))} 
             />
+
+            {/* User Detail Modal */}
+            <Modal visible={userDetailModal.visible} animationType="slide" transparent>
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'flex-end' }}>
+                    <View style={{ backgroundColor: '#0E0E1C', borderTopLeftRadius: 32, borderTopRightRadius: 32, paddingBottom: insets.bottom + 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
+                        {/* Header */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingBottom: 10 }}>
+                            <Text style={{ color: '#fff', fontSize: 18, fontWeight: '900' }}>User Profile</Text>
+                            <TouchableOpacity onPress={() => setUserDetailModal({ visible: false, user: null })}>
+                                <Ionicons name="close" size={28} color="#fff" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* User Info */}
+                        <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                            <LinearGradient 
+                                colors={['#FF007A', '#7A00FF', '#00F0FF']} 
+                                start={{ x: 0, y: 0 }} 
+                                end={{ x: 1, y: 1 }} 
+                                style={{ padding: 3, borderRadius: 60, marginBottom: 16 }}
+                            >
+                                <View style={{ backgroundColor: '#0E0E1C', padding: 3, borderRadius: 57 }}>
+                                    <Image 
+                                        source={{ uri: avatar(userDetailModal.user?.profileImage || userDetailModal.user?.image) }} 
+                                        style={{ width: 100, height: 100, borderRadius: 50 }} 
+                                        cachePolicy="memory-disk" 
+                                        contentFit="cover" 
+                                    />
+                                </View>
+                            </LinearGradient>
+                            
+                            <Text style={{ color: '#fff', fontSize: 24, fontWeight: '900', marginBottom: 4 }}>
+                                {userDetailModal.user?.name || 'User'}
+                            </Text>
+                            
+                            {userDetailModal.user?.username && (
+                                <Text style={{ color: '#7c4dff', fontSize: 16, fontWeight: '700', marginBottom: 8 }}>
+                                    @{userDetailModal.user.username}
+                                </Text>
+                            )}
+                            
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(16,185,129,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>
+                                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#10B981', marginRight: 6 }} />
+                                    <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '800' }}>ONLINE</Text>
+                                </View>
+                                
+                                {userDetailModal.user?.distance && (
+                                    <View style={{ backgroundColor: 'rgba(124,77,255,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>
+                                        <Text style={{ color: '#7c4dff', fontSize: 12, fontWeight: '800' }}>
+                                            {userDetailModal.user.distance}m away
+                                        </Text>
+                                    </View>
+                                )}
+                            </View>
+                        </View>
+
+                        {/* Action Buttons */}
+                        <View style={{ paddingHorizontal: 20, gap: 12, marginTop: 10 }}>
+                            <TouchableOpacity 
+                                style={{ backgroundColor: '#7c4dff', paddingVertical: 16, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}
+                                onPress={() => {
+                                    setUserDetailModal({ visible: false, user: null });
+                                    resolveOpenChat({ user: userDetailModal.user });
+                                }}
+                            >
+                                <Ionicons name="chatbubble" size={20} color="#fff" />
+                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '900' }}>Start Chat</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity 
+                                style={{ backgroundColor: 'rgba(139,92,246,0.2)', paddingVertical: 16, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderWidth: 1.5, borderColor: '#8B5CF6' }}
+                                onPress={() => {
+                                    setUserDetailModal({ visible: false, user: null });
+                                    setGiftModal(p => ({ ...p, visible: true, user: userDetailModal.user }));
+                                }}
+                            >
+                                <Ionicons name="gift" size={20} color="#8B5CF6" />
+                                <Text style={{ color: '#8B5CF6', fontSize: 16, fontWeight: '900' }}>Send Gift</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* 💬 Chat Request Modal */}
+            <Modal visible={chatRequestModal.visible} animationType="slide" transparent>
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.9)', padding: 20 }}>
+                    <View style={{ backgroundColor: '#131521', borderRadius: 32, padding: 32, width: '100%', maxWidth: 400, borderWidth: 1, borderColor: 'rgba(124,77,255,0.3)' }}>
+                        {/* Profile Image */}
+                        <View style={{ alignItems: 'center', marginBottom: 24 }}>
+                            <View style={{ position: 'relative' }}>
+                                <Image 
+                                    source={{ uri: avatar(chatRequestModal.request?.senderImage) }} 
+                                    style={{ width: 100, height: 100, borderRadius: 50, borderWidth: 3, borderColor: '#7c4dff' }}
+                                    contentFit="cover"
+                                    cachePolicy="memory-disk"
+                                />
+                                <View style={{ position: 'absolute', bottom: 0, right: 0, width: 32, height: 32, borderRadius: 16, backgroundColor: '#7c4dff', alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#131521' }}>
+                                    <Ionicons name="chatbubble" size={16} color="#fff" />
+                                </View>
+                            </View>
+                        </View>
+
+                        {/* Title */}
+                        <Text style={{ color: '#fff', fontSize: 24, fontWeight: '900', textAlign: 'center', marginBottom: 8 }}>
+                            Chat Request
+                        </Text>
+                        
+                        {/* Sender Name */}
+                        <Text style={{ color: '#7c4dff', fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 20 }}>
+                            from {chatRequestModal.request?.senderName}
+                        </Text>
+
+                        {/* Message Preview */}
+                        <View style={{ backgroundColor: 'rgba(124,77,255,0.1)', borderRadius: 16, padding: 16, marginBottom: 32, borderWidth: 1, borderColor: 'rgba(124,77,255,0.2)' }}>
+                            <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>
+                                FIRST MESSAGE
+                            </Text>
+                            <Text style={{ color: '#fff', fontSize: 15, lineHeight: 22 }}>
+                                "{chatRequestModal.request?.content}"
+                            </Text>
+                        </View>
+
+                        {/* Action Buttons */}
+                        <View style={{ gap: 12 }}>
+                            {/* Accept Button */}
+                            <TouchableOpacity
+                                style={{ backgroundColor: '#7c4dff', borderRadius: 18, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
+                                onPress={() => {
+                                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                    if (chatRequestModal.request?.senderId) {
+                                        acceptChatRequest(chatRequestModal.request.senderId);
+                                        showToast('Chat request accepted! 💬', 'success');
+                                        
+                                        // Open chat with this user
+                                        const user = nearbyUsers.find(u => (u.id || u._id) === chatRequestModal.request.senderId);
+                                        if (user) {
+                                            setChatModal({ 
+                                                visible: true, 
+                                                chatId: chatRequestModal.request.senderId, 
+                                                user, 
+                                                msgs: [] 
+                                            });
+                                        }
+                                    }
+                                    setChatRequestModal({ visible: false, request: null });
+                                }}
+                            >
+                                <Ionicons name="checkmark-circle" size={24} color="#fff" />
+                                <Text style={{ color: '#fff', fontSize: 17, fontWeight: '900' }}>Accept & Chat</Text>
+                            </TouchableOpacity>
+
+                            {/* Reject Button */}
+                            <TouchableOpacity
+                                style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 18, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}
+                                onPress={() => {
+                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                    if (chatRequestModal.request?.senderId) {
+                                        rejectChatRequest(chatRequestModal.request.senderId);
+                                        showToast('Chat request declined', 'info');
+                                    }
+                                    setChatRequestModal({ visible: false, request: null });
+                                }}
+                            >
+                                <Ionicons name="close-circle" size={24} color="rgba(255,255,255,0.5)" />
+                                <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 17, fontWeight: '900' }}>Decline</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Close Button */}
+                        <TouchableOpacity
+                            style={{ position: 'absolute', top: 16, right: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' }}
+                            onPress={() => setChatRequestModal({ visible: false, request: null })}
+                        >
+                            <Ionicons name="close" size={20} color="rgba(255,255,255,0.5)" />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
 
             {/* 🎯 Premium Gender Filter Modal */}
             <Modal visible={showFilterModal} animationType="slide" transparent>

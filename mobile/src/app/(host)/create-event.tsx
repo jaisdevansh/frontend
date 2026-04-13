@@ -45,7 +45,7 @@ export default function HostCreateEvent() {
     
     // Location Details
     const [locationData, setLocationData] = useState<{ lat: number, lng: number, address: string } | null>(null);
-    const [useVenueLocation, setUseVenueLocation] = useState(true);
+    const [useVenueLocation, setUseVenueLocation] = useState(false);
     const [venueLocation, setVenueLocation] = useState<{ lat: number, lng: number, address: string } | null>(null);
 
     // Premium Picker State
@@ -105,25 +105,44 @@ export default function HostCreateEvent() {
     const [locationVisibility, setLocationVisibility] = useState<'public' | 'delayed' | 'hidden'>('public');
     const [revealTime, setRevealTime] = useState('');
 
-    useQuery({
+    const { data: venueProfileData, isLoading: venueLoading } = useQuery({
         queryKey: ['venueProfile'],
         queryFn: async () => {
             const res = await hostService.getVenueProfile();
-            if (res.success && res.data) {
-                const vCoords = res.data.coordinates;
-                const hasVenueCoords = vCoords?.lat && (vCoords?.long || vCoords?.lng);
+            return res.success ? res.data : null;
+        },
+        refetchOnMount: 'always',
+        refetchOnWindowFocus: true,
+    });
 
-                if (hasVenueCoords) {
-                    // ✅ Venue has saved coordinates — use them
-                    const loc = {
-                        lat: parseFloat(vCoords.lat),
-                        lng: parseFloat(vCoords.long || vCoords.lng),
-                        address: res.data.address || ''
-                    };
-                    setVenueLocation(loc);
-                    if (!id) setLocationData(loc);
-                } else {
-                    // 📍 No venue coordinates — fall back to current GPS location
+    // Update venueLocation whenever venueProfileData changes
+    useEffect(() => {
+        if (venueProfileData) {
+            const vCoords = venueProfileData.coordinates;
+            const vAddress = venueProfileData.address;
+            const hasVenueCoords = vCoords?.lat && (vCoords?.long || vCoords?.lng);
+
+            if (hasVenueCoords) {
+                // ✅ Venue has saved coordinates — use them
+                const loc = {
+                    lat: parseFloat(vCoords.lat),
+                    lng: parseFloat(vCoords.long || vCoords.lng),
+                    address: vAddress || ''
+                };
+                setVenueLocation(loc);
+                // Don't auto-set locationData, let user toggle it on
+            } else if (vAddress) {
+                // ✅ Venue has address but no coordinates — use address with dummy coords
+                const loc = {
+                    lat: 0,
+                    lng: 0,
+                    address: vAddress
+                };
+                setVenueLocation(loc);
+                // Don't auto-set locationData, let user toggle it on
+            } else {
+                // 📍 No venue data at all — try GPS as fallback
+                (async () => {
                     try {
                         const { status } = await Location.requestForegroundPermissionsAsync();
                         if (status === 'granted') {
@@ -138,16 +157,15 @@ export default function HostCreateEvent() {
                                 address: formatted
                             };
                             setVenueLocation(loc);
-                            if (!id) setLocationData(loc);
+                            // Don't auto-set locationData, let user toggle it on
                         }
                     } catch (_) {
                         // GPS failed — leave locationData null, host can set manually
                     }
-                }
+                })();
             }
-            return res.data;
         }
-    });
+    }, [venueProfileData]);
 
     const { data: eventData, isLoading: fetching } = useQuery({
         queryKey: ['eventDetails', id],
@@ -470,9 +488,17 @@ export default function HostCreateEvent() {
                                 value={useVenueLocation} 
                                 onValueChange={(val) => {
                                     setUseVenueLocation(val);
-                                    // ONLY overwrite locationData if we actually have valid venue coordinates
-                                    if (val && venueLocation && venueLocation.lat && venueLocation.lng) {
-                                        setLocationData(venueLocation);
+                                    if (val) {
+                                        // When turning ON: Use venue location if available
+                                        if (venueLocation) {
+                                            setLocationData(venueLocation);
+                                            showToast('Using venue location', 'success');
+                                        } else {
+                                            showToast('No venue location saved', 'error');
+                                        }
+                                    } else {
+                                        // When turning OFF: Clear locationData so user can set custom
+                                        setLocationData(null);
                                     }
                                 }} 
                                 trackColor={{ false: '#333', true: COLORS.primary }} 
@@ -481,26 +507,55 @@ export default function HostCreateEvent() {
                         </View>
 
                         {!useVenueLocation && (
-                            <View style={{ marginTop: 12 }}>
+                            <View style={{ marginTop: 12, gap: 12 }}>
+                                {/* Manual Address Input */}
+                                <Input
+                                    label="Custom Event Address"
+                                    placeholder="Type event address manually..."
+                                    value={locationData?.address || ''}
+                                    onChangeText={(text) => {
+                                        setLocationData(prev => ({
+                                            lat: prev?.lat || 0,
+                                            lng: prev?.lng || 0,
+                                            address: text
+                                        }));
+                                    }}
+                                    multiline
+                                    numberOfLines={2}
+                                />
+                                
+                                {/* GPS Pin Drop Button */}
                                 <TouchableOpacity 
                                     style={styles.locationPickerBtn}
                                     onPress={async () => {
-                                        const { status } = await Location.requestForegroundPermissionsAsync();
-                                        if (status !== 'granted') return showToast('Location permission required', 'error');
-                                        const loc = await Location.getCurrentPositionAsync({});
-                                        const addr = await Location.reverseGeocodeAsync(loc.coords);
-                                        const formatted = addr[0] ? `${addr[0].name || ''}, ${addr[0].street || ''}, ${addr[0].city || ''}` : 'Current GPS Location';
-                                        setLocationData({
-                                            lat: loc.coords.latitude,
-                                            lng: loc.coords.longitude,
-                                            address: formatted
-                                        });
-                                        showToast('Pin dropped at current location', 'success');
+                                        try {
+                                            const { status } = await Location.requestForegroundPermissionsAsync();
+                                            if (status !== 'granted') {
+                                                showToast('Location permission required', 'error');
+                                                return;
+                                            }
+                                            
+                                            showToast('Getting current location...', 'info');
+                                            const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+                                            const addr = await Location.reverseGeocodeAsync(loc.coords);
+                                            const formatted = addr[0] 
+                                                ? [addr[0].name, addr[0].street, addr[0].city, addr[0].region].filter(Boolean).join(', ')
+                                                : 'Current GPS Location';
+                                            
+                                            setLocationData({
+                                                lat: loc.coords.latitude,
+                                                lng: loc.coords.longitude,
+                                                address: formatted
+                                            });
+                                            showToast('Location captured!', 'success');
+                                        } catch (error) {
+                                            showToast('Failed to get location', 'error');
+                                        }
                                     }}
                                 >
-                                    <Ionicons name="location" size={20} color={COLORS.primary} />
+                                    <Ionicons name="navigate" size={20} color={COLORS.primary} />
                                     <Text style={styles.locationPickerText}>
-                                        {locationData?.address || 'Tap to Drop Pin at Current Location'}
+                                        Or Drop Pin at Current GPS Location
                                     </Text>
                                 </TouchableOpacity>
                             </View>
@@ -725,6 +780,7 @@ export default function HostCreateEvent() {
                 mode={pickerMode}
                 initialDate={pickerInitialDate}
                 title={pickerTitle}
+                minDate={new Date()}
             />
         </SafeAreaView>
         </KeyboardAvoidingView>

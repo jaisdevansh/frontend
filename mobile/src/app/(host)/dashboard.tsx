@@ -20,6 +20,8 @@ const { width } = Dimensions.get('window');
 
 const EventCard = React.memo(({ item, onPress }: { item: any; onPress: (id: string) => void }) => {
     const imgUrl = item.coverImage || item.image || item.imageUrl;
+    const isTicketLive = item.bookingOpenDate ? dayjs().isAfter(dayjs(item.bookingOpenDate)) : true;
+    
     return (
         <TouchableOpacity style={styles.eventCard} onPress={() => onPress(item._id || item.id)} activeOpacity={0.85}>
             <View style={styles.eventImageContainer}>
@@ -35,13 +37,31 @@ const EventCard = React.memo(({ item, onPress }: { item: any; onPress: (id: stri
                         <Text style={styles.placeholderText}>EC</Text>
                     </View>
                 )}
+                {/* Ticket Status Badge */}
+                <View style={[styles.ticketStatusBadge, isTicketLive ? styles.ticketLiveBadge : styles.ticketUpcomingBadge]}>
+                    <View style={[styles.ticketStatusDot, isTicketLive ? styles.liveDot : styles.upcomingDot]} />
+                    <Text style={styles.ticketStatusText}>
+                        {isTicketLive ? 'LIVE' : 'UPCOMING'}
+                    </Text>
+                </View>
             </View>
             <View style={styles.eventInfo}>
-                <View>
+                <View style={{ flex: 1 }}>
                     <Text style={styles.eventTitle} numberOfLines={1}>{item.title || 'event'}</Text>
                     <Text style={styles.eventDate}>
-                        {item.date ? dayjs(item.date).format('MMM DD • hh:mm a') : 'Mar 25 • 11:00 pm'}
+                        {item.date 
+                            ? `${dayjs(item.date).format('MMM DD')}${item.startTime ? ` • ${item.startTime}` : ''}` 
+                            : 'Date TBD'}
                     </Text>
+                    {/* Ticket Live Time */}
+                    {item.bookingOpenDate && (
+                        <Text style={styles.ticketLiveTime}>
+                            {isTicketLive 
+                                ? `Tickets live since ${dayjs(item.bookingOpenDate).format('MMM DD, hh:mm A')}`
+                                : `Tickets go live: ${dayjs(item.bookingOpenDate).format('MMM DD, hh:mm A')}`
+                            }
+                        </Text>
+                    )}
                 </View>
                 <View style={styles.badge}>
                     <Text style={styles.badgeText}>MANAGE</Text>
@@ -314,13 +334,54 @@ const styles = StyleSheet.create({
     
     eventsList: { paddingHorizontal: 20, gap: 16, paddingBottom: 8 },
     eventCard: { width: width - 40, backgroundColor: '#0A0A0A', borderRadius: 20, padding: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.03)' },
-    eventImageContainer: { width: '100%', height: 160, borderRadius: 12, overflow: 'hidden', marginBottom: 12 },
+    eventImageContainer: { width: '100%', height: 160, borderRadius: 12, overflow: 'hidden', marginBottom: 12, position: 'relative' },
     eventImage: { width: '100%', height: '100%' },
     placeholderImage: { backgroundColor: '#1E2336', alignItems: 'center', justifyContent: 'center' },
     placeholderText: { color: 'rgba(255,255,255,0.8)', fontSize: 40, fontWeight: '300', letterSpacing: 2 },
-    eventInfo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 4, paddingBottom: 4 },
+    ticketStatusBadge: { 
+        position: 'absolute', 
+        top: 12, 
+        right: 12, 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        paddingHorizontal: 10, 
+        paddingVertical: 6, 
+        borderRadius: 8,
+        gap: 6,
+    },
+    ticketLiveBadge: { 
+        backgroundColor: 'rgba(16, 185, 129, 0.9)',
+    },
+    ticketUpcomingBadge: { 
+        backgroundColor: 'rgba(251, 146, 60, 0.9)',
+    },
+    ticketStatusDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+    },
+    liveDot: {
+        backgroundColor: '#FFFFFF',
+    },
+    upcomingDot: {
+        backgroundColor: '#FFFFFF',
+    },
+    ticketStatusText: { 
+        color: '#FFFFFF', 
+        fontSize: 11, 
+        fontWeight: '800',
+        letterSpacing: 0.5,
+    },
+    eventInfo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 4, paddingBottom: 4, gap: 12 },
     eventTitle: { color: 'white', fontSize: 18, fontWeight: '700', marginBottom: 4 },
     eventDate: { color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: '500' },
+    ticketLiveTime: { 
+        color: 'rgba(255,255,255,0.4)', 
+        fontSize: 11, 
+        fontWeight: '500',
+        marginTop: 4,
+        fontStyle: 'italic',
+    },
     badge: { backgroundColor: 'rgba(16, 185, 129, 0.1)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
     badgeText: { color: '#10B981', fontSize: 11, fontWeight: '700' },
     

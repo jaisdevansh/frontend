@@ -15,11 +15,13 @@ export const useDashboardStats = () => {
                 if (res.data) return res.data;
                 return res || { totalBookings: 0, totalEvents: 0 };
             } catch (error: any) {
-                // Return default stats — Global QueryCache handler (in _layout.tsx) handles the silencing
                 return { totalBookings: 0, totalEvents: 0 };
             }
         },
-        staleTime: 1000 * 60 * 5,
+        staleTime: 60 * 1000,       // 1 min - dashboard is live data
+        gcTime: 5 * 60 * 1000,      // Keep in memory for 5 min
+        refetchOnMount: true,        // Always re-check on screen mount
+        refetchOnWindowFocus: true,  // Re-fetch when app returns to foreground
         retry: false,
     });
 };

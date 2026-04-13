@@ -103,15 +103,27 @@ export default function SecureCheckout() {
         const activeCoupon = userCoupons?.find((uc: any) => uc.couponId?.code === coupon.toUpperCase());
         
         if (activeCoupon) {
+            console.log('[Frontend] Applying coupon:', { 
+                userCouponId: activeCoupon._id, 
+                orderType: 'event', 
+                subtotal, 
+                hostId 
+            });
+            
             applyCouponMut.mutate(
-                { userCouponId: activeCoupon._id, orderType: 'event', subtotal },
+                { userCouponId: activeCoupon._id, orderType: 'event', subtotal, hostId },
                 {
                     onSuccess: (data: any) => {
+                        console.log('[Frontend] Coupon applied successfully:', data);
                         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                         setIsApplied(true);
                         setAppliedDiscount(data.discount);
                         setSelectedUserCoupon(activeCoupon);
                         showToast(`Coupon Applied! Saved ₹${data.discount}`, 'success');
+                    },
+                    onError: (error: any) => {
+                        console.log('[Frontend] Coupon apply error:', error.response?.data || error.message);
+                        showToast(error.response?.data?.message || 'Failed to apply coupon', 'error');
                     }
                 }
             );
@@ -122,19 +134,33 @@ export default function SecureCheckout() {
     };
 
     const applyFromPicker = (uc: any) => {
+        console.log('[Frontend] 🔥 applyFromPicker CALLED with:', uc);
         setShowCouponPicker(false);
         const code = uc.couponId?.code || '';
         setCoupon(code);
 
+        console.log('[Frontend] Applying coupon from picker:', { 
+            userCouponId: uc._id, 
+            orderType: 'event', 
+            subtotal, 
+            hostId,
+            couponCode: code
+        });
+
         applyCouponMut.mutate(
-            { userCouponId: uc._id, orderType: 'event', subtotal },
+            { userCouponId: uc._id, orderType: 'event', subtotal, hostId },
             {
                 onSuccess: (data: any) => {
+                    console.log('[Frontend] ✅ Coupon applied successfully:', data);
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                     setIsApplied(true);
                     setAppliedDiscount(data.discount);
                     setSelectedUserCoupon(uc);
                     showToast(`Coupon Applied! Saved ₹${data.discount}`, 'success');
+                },
+                onError: (error: any) => {
+                    console.log('[Frontend] ❌ Coupon apply error:', error.response?.data || error.message);
+                    showToast(error.response?.data?.message || 'Failed to apply coupon', 'error');
                 }
             }
         );
@@ -147,7 +173,8 @@ export default function SecureCheckout() {
         try {
             const { data } = await apiClient.post('/api/v1/coupons/verify-code', {
                 code: promo,
-                subtotal
+                subtotal,
+                hostId
             });
 
             if (data.success) {
@@ -309,7 +336,22 @@ export default function SecureCheckout() {
                                     </Text>
                                 )}
                             </View>
-                            {!isApplied && <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.2)" />}
+                            {isApplied ? (
+                                <TouchableOpacity 
+                                    onPress={() => {
+                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                        setIsApplied(false);
+                                        setAppliedDiscount(0);
+                                        setSelectedUserCoupon(null);
+                                        setCoupon('');
+                                    }}
+                                    style={{ padding: 8 }}
+                                >
+                                    <Ionicons name="close-circle" size={20} color="#ef4444" />
+                                </TouchableOpacity>
+                            ) : (
+                                <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.2)" />
+                            )}
                         </TouchableOpacity>
                     </>
                 )}
@@ -325,15 +367,28 @@ export default function SecureCheckout() {
                         value={promo}
                         onChangeText={setPromo}
                         autoCapitalize="characters"
+                        editable={!isPromoApplied}
                     />
-                    <TouchableOpacity 
-                        style={[styles.applyBtn, isPromoApplied && { backgroundColor: 'rgba(34, 197, 94, 0.15)' }]} 
-                        onPress={applyPromo}
-                    >
-                        <Text style={[styles.applyBtnTxt, isPromoApplied && { color: '#22c55e' }]}>
-                            {isPromoApplied ? 'APPLIED' : 'APPLY'}
-                        </Text>
-                    </TouchableOpacity>
+                    {isPromoApplied ? (
+                        <TouchableOpacity 
+                            style={[styles.applyBtn, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]} 
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                setIsPromoApplied(false);
+                                setPromoDiscount(0);
+                                setPromo('');
+                            }}
+                        >
+                            <Text style={[styles.applyBtnTxt, { color: '#ef4444' }]}>REMOVE</Text>
+                        </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity 
+                            style={styles.applyBtn} 
+                            onPress={applyPromo}
+                        >
+                            <Text style={styles.applyBtnTxt}>APPLY</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
 
                 {/* ── PAYMENT SUMMARY ── */}

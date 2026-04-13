@@ -67,28 +67,33 @@ export default function AvailableOrdersScreen() {
         let socketInstance: any = null;
 
         const setupSocket = async () => {
-            socketInstance = await getSocket();
-            if (socketInstance) {
-                // Join room for waiters as seen in backend/socket.js
-                socketInstance.emit('join_room', 'waiter_room');
+            try {
+                socketInstance = await getSocket();
+                if (socketInstance) {
+                    // Join room for waiters as seen in backend/socket.js
+                    socketInstance.emit('join_room', 'waiter_room');
 
-                socketInstance.on('new_order', () => {
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-                    fetchAvailable(); // Refresh the pool
-                });
+                    socketInstance.on('new_order', () => {
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                        fetchAvailable(); // Refresh the pool
+                    });
 
-                socketInstance.on('order_updated', ({ orderId, status }: any) => {
-                    if (['accepted', 'preparing', 'completed'].includes(status)) {
+                    socketInstance.on('order_updated', ({ orderId, status }: any) => {
+                        if (['accepted', 'preparing', 'completed'].includes(status)) {
+                            setOrders(prev => prev.filter(o => o._id !== orderId));
+                        } else if (status === 'confirmed') {
+                            fetchAvailable(); // In case of cancellation revert/re-pool
+                        }
+                    });
+
+                    // Compatibility with staff controller event names
+                    socketInstance.on('order_accepted', ({ orderId }: any) => {
                         setOrders(prev => prev.filter(o => o._id !== orderId));
-                    } else if (status === 'confirmed') {
-                        fetchAvailable(); // In case of cancellation revert/re-pool
-                    }
-                });
-
-                // Compatibility with staff controller event names
-                socketInstance.on('order_accepted', ({ orderId }: any) => {
-                    setOrders(prev => prev.filter(o => o._id !== orderId));
-                });
+                    });
+                }
+            } catch (error) {
+                // Socket not available for staff - this is expected
+                // Staff will use pull-to-refresh instead of real-time updates
             }
         };
 

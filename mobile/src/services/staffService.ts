@@ -2,6 +2,22 @@ import apiClient from './apiClient';
 
 export const staffService = {
     /**
+     * Get staff profile
+     */
+    getProfile: async () => {
+        const response = await apiClient.get('/api/v1/staff/profile');
+        return response.data;
+    },
+
+    /**
+     * Update staff profile
+     */
+    updateProfile: async (data: any) => {
+        const response = await apiClient.put('/api/v1/staff/profile', data);
+        return response.data;
+    },
+
+    /**
      * Get pool of confirmed, unassigned orders
      */
     getAvailableOrders: async () => {

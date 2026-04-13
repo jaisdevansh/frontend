@@ -9,7 +9,8 @@ export const hostService = {
 
     // Profile
     getProfile: async () => {
-        const response = await apiClient.get('/host/profile');
+        // Add cache-busting timestamp to force fresh data
+        const response = await apiClient.get(`/host/profile?_t=${Date.now()}`);
         return response.data;
     },
     updateProfile: async (data: any) => {

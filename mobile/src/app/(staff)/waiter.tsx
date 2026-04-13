@@ -10,7 +10,7 @@ import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-ico
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../../constants/design-system';
 import { useToast } from '../../context/ToastContext';
-import { userService } from '../../services/userService';
+import { staffService } from '../../services/staffService';
 import { useAuth } from '../../context/AuthContext';
 import * as Haptics from 'expo-haptics';
 import {
@@ -279,7 +279,7 @@ export default function WaiterPanel() {
 
     const fetchProfile = useCallback(async () => {
         try {
-            const res = await userService.getProfile();
+            const res = await staffService.getProfile();
             if (res.success) setProfile(res.data);
         } catch {}
     }, []);
@@ -332,17 +332,17 @@ export default function WaiterPanel() {
                         </TouchableOpacity>
                         <View>
                             <Text style={styles.rankLabel}>COMMANDER</Text>
-                            <Text style={styles.userNameHeader}>{profile?.name?.split(' ')[0] || 'Staff'}</Text>
+                            <Text style={styles.userNameHeader}>{profile?.username || profile?.name?.split(' ')[0] || 'Staff'}</Text>
                         </View>
                     </View>
                     <TouchableOpacity style={styles.logoutBtn} onPress={logout}><Ionicons name="power" size={20} color="#FF3B30" /></TouchableOpacity>
                 </View>
 
                 {/* Assignment Banner */}
-                {profile?.venue && (
+                {profile?.hostId && (
                     <View style={styles.venueBanner}>
                         <Ionicons name="business" size={12} color={COLORS.primary} />
-                        <Text style={styles.venueLabel}>ASSIGNED: {profile.venue.name.toUpperCase()}</Text>
+                        <Text style={styles.venueLabel}>ASSIGNED: {profile.hostId.name?.toUpperCase() || profile.hostId.businessName?.toUpperCase() || 'VENUE'}</Text>
                         <View style={styles.pulseDot} />
                     </View>
                 )}

@@ -7,21 +7,22 @@ import { DeviceEventEmitter } from 'react-native';
 /**
  * API CONFIGURATION
  * -----------------
- * Production URLs for Render deployment
+ * Local Development URLs
  */
 const getBaseUrl = () => {
-    // Production Render URL
+    // 🌍 PRODUCTION: User API on Render (Live)
     return 'https://entry-user-backend.onrender.com';
     
-    // Local Testing URL for debugging (uncomment for local development)
+    // 🔧 LOCAL DEV: Point to local machine (TWILIO_BYPASS=true active)
     // return 'http://10.225.202.18:3001';
 };
 
 export const API_BASE_URL = getBaseUrl();
-// Production Admin API
+
+// 🌍 PRODUCTION: Admin backend on Render (Live)
 export const ADMIN_API_BASE_URL = 'https://entry-admin-backend.onrender.com';
 
-// Local admin backend for debugging (uncomment for local development)
+// 🔧 LOCAL DEV: Admin backend on local machine
 // export const ADMIN_API_BASE_URL = 'http://10.225.202.18:3002';
 
 // 🚀 ULTRA-AGGRESSIVE WAKE-UP: Ping server with exponential backoff
@@ -76,7 +77,7 @@ const apiClient = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
-    timeout: 15000, // 15 seconds - faster timeout
+    timeout: 120000, // 2 minutes - allowing large image uploads on 3G/4G
 });
 
 // ── Auth Token Injection ──────────────────────────────────────────────────────

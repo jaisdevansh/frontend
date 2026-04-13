@@ -14,6 +14,7 @@ import { useStrictBack } from '../../hooks/useStrictBack';
 import { useEventBasicQuery, useEventDetailsQuery, useInvalidateEvent } from '../../hooks/useEventQuery';
 import { hero, avatar } from '../../services/cloudinaryService';
 import { log } from '../../utils/logger';
+import dayjs from 'dayjs';
 
 const { width } = Dimensions.get('window');
 
@@ -344,14 +345,110 @@ const EventDetails = () => {
                         )}
 
                         <View style={{ position: 'absolute', bottom: 22, left: 20, flexDirection: 'row', gap: 8 }}>
-                            <View style={styles.heroBadge}><Ionicons name="lock-closed" size={10} color="#fff" /><Text style={styles.heroBadgeText}>PRIVATE PARTY</Text></View>
-                            <View style={[styles.heroBadge, { borderColor: 'rgba(34,197,94,0.3)' }]}><Ionicons name="checkmark-circle" size={10} color="#22c55e" /><Text style={[styles.heroBadgeText, { color: '#22c55e' }]}>VERIFIED HOST</Text></View>
+                            {/* Dynamic Location Badge */}
+                            {event.locationVisibility === 'public' ? (
+                                <View style={[styles.heroBadge, { borderColor: 'rgba(124,77,255,0.3)' }]}>
+                                    <Ionicons name="location-sharp" size={10} color="#7c4dff" />
+                                    <Text style={[styles.heroBadgeText, { color: '#7c4dff' }]}>PUBLIC LOCATION</Text>
+                                </View>
+                            ) : event.locationVisibility === 'delayed' ? (
+                                <View style={[styles.heroBadge, { borderColor: 'rgba(251,146,60,0.3)' }]}>
+                                    <Ionicons name="time-outline" size={10} color="#fb923c" />
+                                    <Text style={[styles.heroBadgeText, { color: '#fb923c' }]}>AUTO-REVEAL</Text>
+                                </View>
+                            ) : (
+                                <View style={styles.heroBadge}>
+                                    <Ionicons name="lock-closed" size={10} color="#fff" />
+                                    <Text style={styles.heroBadgeText}>PRIVATE LOCATION</Text>
+                                </View>
+                            )}
+                            <View style={[styles.heroBadge, { borderColor: 'rgba(34,197,94,0.3)' }]}>
+                                <Ionicons name="checkmark-circle" size={10} color="#22c55e" />
+                                <Text style={[styles.heroBadgeText, { color: '#22c55e' }]}>VERIFIED HOST</Text>
+                            </View>
                         </View>
                     </View>
 
                     {/* CONTENT */}
                     <View style={styles.content}>
                         <Text style={styles.eventTitle}>{event?.title || ''}</Text>
+                        
+                        {/* EVENT TIMING INFO */}
+                        <View style={styles.timingSection}>
+                            {/* Event Date & Time */}
+                            <View style={styles.timingCard}>
+                                <View style={styles.timingIconWrapper}>
+                                    <Ionicons name="calendar" size={18} color="#7c4dff" />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.timingLabel}>Event Date</Text>
+                                    <Text style={styles.timingValue}>
+                                        {event?.date ? dayjs(event.date).format('MMM DD, YYYY') : 'TBD'}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            {/* Start & End Time */}
+                            <View style={styles.timingRow}>
+                                <View style={[styles.timingCard, { flex: 1 }]}>
+                                    <View style={styles.timingIconWrapper}>
+                                        <Ionicons name="play-circle" size={18} color="#22c55e" />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.timingLabel}>Starts</Text>
+                                        <Text style={styles.timingValue}>
+                                            {event?.startTime || '--:--'}
+                                        </Text>
+                                    </View>
+                                </View>
+                                
+                                <View style={[styles.timingCard, { flex: 1 }]}>
+                                    <View style={styles.timingIconWrapper}>
+                                        <Ionicons name="stop-circle" size={18} color="#ef4444" />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.timingLabel}>Ends</Text>
+                                        <Text style={styles.timingValue}>
+                                            {event?.endTime || '--:--'}
+                                        </Text>
+                                    </View>
+                                </View>
+                            </View>
+
+                            {/* Ticket Live Status */}
+                            {event?.bookingOpenDate && (
+                                <View style={[styles.timingCard, { 
+                                    backgroundColor: new Date() > new Date(event.bookingOpenDate) 
+                                        ? 'rgba(34, 197, 94, 0.08)' 
+                                        : 'rgba(251, 146, 60, 0.08)',
+                                    borderColor: new Date() > new Date(event.bookingOpenDate)
+                                        ? 'rgba(34, 197, 94, 0.2)'
+                                        : 'rgba(251, 146, 60, 0.2)'
+                                }]}>
+                                    <View style={styles.timingIconWrapper}>
+                                        <Ionicons 
+                                            name="ticket" 
+                                            size={18} 
+                                            color={new Date() > new Date(event.bookingOpenDate) ? '#22c55e' : '#fb923c'} 
+                                        />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.timingLabel}>
+                                            {new Date() > new Date(event.bookingOpenDate) ? 'Tickets Live Since' : 'Tickets Go Live'}
+                                        </Text>
+                                        <Text style={styles.timingValue}>
+                                            {dayjs(event.bookingOpenDate).format('MMM DD, hh:mm A')}
+                                        </Text>
+                                    </View>
+                                    {new Date() > new Date(event.bookingOpenDate) && (
+                                        <View style={styles.livePulse}>
+                                            <View style={styles.liveDot} />
+                                        </View>
+                                    )}
+                                </View>
+                            )}
+                        </View>
+
                         <Text style={styles.description}>{event?.description || ''}</Text>
 
                         {/* BOOK NOW */}
@@ -378,7 +475,12 @@ const EventDetails = () => {
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.hostLabel}>HOSTED BY</Text>
                                 <Text style={styles.hostName}>
-                                    {event.hostId?.name || (event.hostId?.firstName ? `${event.hostId.firstName} ${event.hostId.lastName || ''}`.trim() : 'Collective Underground')}
+                                    {event.hostId?.name || 
+                                     event.host?.name || 
+                                     event.hostId?.businessName || 
+                                     event.host?.businessName || 
+                                     event.venueName ||
+                                     (event.hostId?.firstName ? `${event.hostId.firstName} ${event.hostId.lastName || ''}`.trim() : 'Host')}
                                 </Text>
                             </View>
                             <View style={styles.hostStats}>
@@ -524,7 +626,63 @@ const styles = StyleSheet.create({
     heroBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(0,0,0,0.55)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
     heroBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
     content: { paddingHorizontal: 20, paddingTop: 4 },
-    eventTitle: { color: '#fff', fontSize: 26, fontWeight: '900', marginBottom: 10, lineHeight: 32 },
+    eventTitle: { color: '#fff', fontSize: 26, fontWeight: '900', marginBottom: 16, lineHeight: 32 },
+    
+    // Timing Section Styles
+    timingSection: {
+        marginBottom: 20,
+        gap: 12,
+    },
+    timingCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.03)',
+        borderRadius: 16,
+        padding: 14,
+        gap: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.06)',
+    },
+    timingRow: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    timingIconWrapper: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    timingLabel: {
+        color: 'rgba(255, 255, 255, 0.5)',
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 0.5,
+        textTransform: 'uppercase',
+        marginBottom: 4,
+    },
+    timingValue: {
+        color: '#FFFFFF',
+        fontSize: 15,
+        fontWeight: '800',
+    },
+    livePulse: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    liveDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#22c55e',
+    },
+    
     description: { color: 'rgba(255,255,255,0.6)', fontSize: 14, lineHeight: 22, marginBottom: 24 },
     sectionLabel: { color: 'rgba(255,255,255,0.35)', fontSize: 11, fontWeight: '700', letterSpacing: 1.5, marginBottom: 14 },
     bookBtn: { borderRadius: 16, overflow: 'hidden', marginBottom: 20 },

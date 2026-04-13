@@ -74,6 +74,8 @@ export const useResolveIssue = () => {
  * Real-time socket hook.
  * Joins 'security_room', listens for new_issue / issue_updated / issue_escalated.
  * Triggers React Query cache invalidation instead of manually patching state.
+ * 
+ * NOTE: Socket is disabled for staff role (uses admin backend, socket is on user backend)
  */
 export const useSecuritySocket = () => {
     const queryClient = useQueryClient();
@@ -105,7 +107,8 @@ export const useSecuritySocket = () => {
                     queryClient.invalidateQueries({ queryKey: securityKeys.open });
                 });
             } catch (err) {
-                console.warn('[useSecuritySocket] Failed to connect:', err);
+                // Socket not available for staff - this is expected, not an error
+                // Staff will use pull-to-refresh instead of real-time updates
             }
         })();
 

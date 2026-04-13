@@ -5,8 +5,6 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 
-const { width } = Dimensions.get('window');
-const IS_DESKTOP = width > 768;
 
 const COLORS = {
     primary: '#3b82f6',
@@ -39,48 +37,7 @@ export default function AdminRootLayout() {
         router.replace('/(auth)/login');
     };
 
-    if (IS_DESKTOP) {
-        return (
-            <View style={styles.desktopContainer}>
-                {/* 🖥️ DESKTOP SIDEBAR */}
-                <View style={[styles.sidebar, { paddingTop: insets.top + 30 }]}>
-                    <View style={styles.logoGroup}>
-                        <View style={styles.logoIcon}>
-                            <MaterialIcons name="security" size={20} color="#fff" />
-                        </View>
-                        <Text style={styles.logoText}>STITCH ADMIN</Text>
-                    </View>
-
-                    <View style={styles.navGroup}>
-                        {navigationItems.map((item) => {
-                            const isActive = currentTab === item.key;
-                            return (
-                                <TouchableOpacity 
-                                    key={item.key}
-                                    style={[styles.sideNavItem, isActive && styles.sideNavItemActive]} 
-                                    onPress={() => router.push(item.route as any)}
-                                >
-                                    <MaterialIcons name={item.icon as any} size={22} color={isActive ? COLORS.primary : COLORS.textDim} />
-                                    <Text style={[styles.sideNavText, isActive && styles.sideNavTextActive]}>{item.name}</Text>
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </View>
-
-                    <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-                        <MaterialIcons name="logout" size={20} color={COLORS.textDim} />
-                        <Text style={styles.logoutText}>Logout Session</Text>
-                    </TouchableOpacity>
-                </View>
-
-                <View style={styles.mainContent}>
-                    <Slot />
-                </View>
-            </View>
-        );
-    }
-
-    // 📱 MOBILE LAYOUT (Bottom Tabs)
+    // Always render MOBILE LAYOUT (Bottom Tabs) on device
     return (
         <View style={styles.mobileContainer}>
             <View style={styles.mainContent}>

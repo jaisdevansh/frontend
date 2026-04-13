@@ -10,6 +10,7 @@ import adminService, { AdminSummary, RevenueTrend, TopItem, TopUser } from '../.
 import { Image } from 'expo-image';
 import Svg, { Path, Rect, G, Text as SvgText, Line, Defs, LinearGradient, Stop, Circle } from 'react-native-svg';
 import { useAuth } from '../../context/AuthContext';
+import { DashboardSkeleton } from '../../components/admin/AdminSkeleton';
 
 const { width } = Dimensions.get('window');
 
@@ -449,10 +450,15 @@ export default function AnalyticsScreen() {
 
     if (sumLoading && !summary) {
         return (
-            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+            <View style={[styles.container, { paddingTop: insets.top }]}>
                 <StatusBar barStyle="light-content" />
-                <ActivityIndicator size="large" color={C.primary} />
-                <Text style={{ color: C.dim, marginTop: 16, fontSize: 14, fontWeight: '600' }}>Crunching numbers...</Text>
+                <View style={styles.header}>
+                    <View>
+                        <Text style={styles.headerTitle}>Analytics</Text>
+                        <Text style={styles.headerSub}>Real-time business intelligence</Text>
+                    </View>
+                </View>
+                <DashboardSkeleton />
             </View>
         );
     }
@@ -573,10 +579,67 @@ export default function AnalyticsScreen() {
                         ))}
                     </View>
                 </View>
+
+                {/* ── Top Spenders ── */}
+                <View style={styles.card}>
+                    <SectionTitle title="Top Spenders" badge="ALL TIME" />
+                    <View style={{ marginTop: 16, gap: 14 }}>
+                        {usersLoading ? (
+                            <ActivityIndicator color={C.primary} />
+                        ) : !topUsers || topUsers.length === 0 ? (
+                            <View style={styles.emptyBox}>
+                                <MaterialIcons name="people-outline" size={40} color={C.muted} />
+                                <Text style={styles.emptyText}>No user data yet</Text>
+                            </View>
+                        ) : topUsers.map((u: TopUser, i: number) => (
+                            <View key={u.id} style={styles.listRow}>
+                                <Text style={[styles.rankBadge, { color: i === 0 ? C.amber : C.dim }]}>#{i + 1}</Text>
+                                <Image
+                                    source={{ uri: u.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name || 'U')}&background=111&color=fff&bold=true` }}
+                                    style={styles.avatar}
+                                    cachePolicy="memory-disk"
+                                />
+                                <Text style={styles.listName} numberOfLines={1}>{u.name || 'Anonymous'}</Text>
+                                <Text style={styles.listAmt}>{fmt(u.totalSpent)}</Text>
+                            </View>
+                        ))}
+                    </View>
+                </View>
+
+                {/* ── Top Menu Items (host only) ── */}
+                {!isAdmin && (
+                    <View style={styles.card}>
+                        <SectionTitle title="Top Menu Items" />
+                        <View style={{ marginTop: 16, gap: 14 }}>
+                            {itemsLoading ? (
+                                <ActivityIndicator color={C.primary} />
+                            ) : !topItems || topItems.length === 0 ? (
+                                <View style={styles.emptyBox}>
+                                    <MaterialIcons name="restaurant-menu" size={40} color={C.muted} />
+                                    <Text style={styles.emptyText}>No menu data yet</Text>
+                                </View>
+                            ) : topItems.map((item: TopItem, i: number) => (
+                                <View key={i} style={styles.listRow}>
+                                    <Text style={[styles.rankBadge, { color: i === 0 ? C.amber : C.dim }]}>#{i + 1}</Text>
+                                    <View style={[styles.trendIcon, { backgroundColor: C.primary + '18' }]}>
+                                        <MaterialIcons name="fastfood" size={16} color={C.primary} />
+                                    </View>
+                                    <Text style={styles.listName} numberOfLines={1}>{item.name}</Text>
+                                    <View style={{ alignItems: 'flex-end' }}>
+                                        <Text style={styles.listAmt}>{fmt(item.revenue)}</Text>
+                                        <Text style={{ color: C.dim, fontSize: 10, fontWeight: '700' }}>{item.totalSold} sold</Text>
+                                    </View>
+                                </View>
+                            ))}
+                        </View>
+                    </View>
+                )}
+
             </ScrollView>
         </View>
     );
 }
+
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: C.bg },

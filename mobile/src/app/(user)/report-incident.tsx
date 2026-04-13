@@ -76,12 +76,38 @@ export default function ReportIncidentScreen() {
         Keyboard.dismiss();
         setSubmitting(true);
         try {
+            // Fetch active booking to get tableId, zone, eventId, hostId
+            let tableId = 'N/A';
+            let zone = 'General';
+            let eventId, hostId;
+            
+            try {
+                const bookingRes = await apiClient.get('/user/bookings');
+                const activeBooking = bookingRes.data.data?.find((b: any) => 
+                    ['approved', 'active', 'checked_in'].includes(b.status)
+                );
+                
+                if (activeBooking) {
+                    tableId = activeBooking.tableId || activeBooking.seatIds?.[0] || 'N/A';
+                    zone = activeBooking.zone || 'General';
+                    eventId = activeBooking.eventId?._id || activeBooking.eventId;
+                    hostId = activeBooking.hostId?._id || activeBooking.hostId;
+                }
+            } catch (err) {
+                console.log('[ReportIncident] Could not fetch booking info:', err);
+            }
+            
             const res = await apiClient.post('/user/report-incident', {
-                type: selectedType,        // ⚡ FIX: Backend expects 'type' not 'category'
-                message: description.trim(), // ⚡ FIX: Backend expects 'message' not 'description'
+                type: selectedType,
+                message: description.trim(),
                 title: title.trim(),
                 images,
+                tableId,
+                zone,
+                eventId,
+                hostId,
             });
+            
             if (res.data.success) {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 setSubmitted(true);

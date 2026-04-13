@@ -35,6 +35,57 @@ const EventCardItem = React.memo(({ item, isLoading, onBodyPress, onDetailsPress
     const dateObj = item.date ? new Date(item.date) : new Date();
     const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
     
+    // Check if tickets are live
+    const isTicketLive = item.bookingOpenDate ? new Date() > new Date(item.bookingOpenDate) : true;
+    
+    // Get host name
+    const getHostName = () => {
+        // Try all possible fields
+        const possibleNames = [
+            item.hostId?.name,
+            item.host?.name,
+            item.createdBy?.name,
+            item.hostId?.businessName,
+            item.host?.businessName,
+            item.venueName
+        ];
+        
+        const foundName = possibleNames.find(name => name && name !== '');
+        return foundName || 'Host';
+    };
+    
+    const hostName = getHostName();
+    
+    // Location display logic
+    const getLocationDisplay = () => {
+        if (item.locationVisibility === 'public' && item.locationData?.address) {
+            // Show full address for public locations
+            const addressParts = item.locationData.address.split(',');
+            const displayAddress = addressParts.length > 2 
+                ? `${addressParts[0]}, ${addressParts[1]}`.trim()
+                : item.locationData.address;
+            return {
+                text: displayAddress,
+                icon: 'location-sharp',
+                color: '#7c4dff'
+            };
+        } else if (item.locationVisibility === 'delayed') {
+            return {
+                text: 'Reveals at Event Time',
+                icon: 'time-outline',
+                color: '#fb923c'
+            };
+        } else {
+            return {
+                text: 'Revealed Post-Booking',
+                icon: 'lock-closed',
+                color: '#ef4444'
+            };
+        }
+    };
+    
+    const locationInfo = getLocationDisplay();
+    
     return (
         <TouchableOpacity 
             style={[styles.eventCard, isLoading && { opacity: 0.8 }]}
@@ -54,24 +105,39 @@ const EventCardItem = React.memo(({ item, isLoading, onBodyPress, onDetailsPress
                 <LinearGradient colors={['transparent', 'rgba(10,10,10,0.85)', '#0a0a0a']} style={styles.cardContentBottom}>
                     <Text style={styles.cardEventTitle}>{item.title}</Text>
                     
+                    {/* Location Info */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                        <Ionicons name="location-sharp" size={12} color="#7c4dff" />
+                        <Ionicons name={locationInfo.icon as any} size={12} color={locationInfo.color} />
                         <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '500' }}>
-                            {item.locationVisibility === 'public' && item.locationData?.address 
-                                ? item.locationData.address.split(',')[0] 
-                                : 'Location Revealed Post-Booking'}
+                            {locationInfo.text}
                         </Text>
                     </View>
 
+                    {/* Ticket Live Status */}
+                    {item.bookingOpenDate && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                            <View style={[styles.ticketStatusDot, { backgroundColor: isTicketLive ? '#22c55e' : '#fb923c' }]} />
+                            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: '500', fontStyle: 'italic' }}>
+                                {isTicketLive 
+                                    ? `Tickets live since ${new Date(item.bookingOpenDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
+                                    : `Tickets go live: ${new Date(item.bookingOpenDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
+                                }
+                            </Text>
+                        </View>
+                    )}
+
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, marginBottom: 18, backgroundColor: 'rgba(255,255,255,0.06)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, alignSelf: 'flex-start' }}>
                         <Image 
-                            source={{ uri: avatar(item.hostId?.profileImage, item.hostId?.name || 'Host') }} 
+                            source={{ uri: avatar(
+                                item.hostId?.profileImage || item.host?.profileImage || item.hostId?.logo || item.host?.logo, 
+                                hostName
+                            ) }} 
                             style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: '#3B82F6' }} 
                             cachePolicy="memory-disk"
                             contentFit="cover"
                         />
                         <Text style={styles.cardEventHost}>
-                            {item.hostId?.name || 'Collective Underground'}
+                            {hostName}
                         </Text>
                     </View>
 
@@ -110,7 +176,16 @@ export default function HomeScreen() {
     // ── SUPER-FAST PARALLEL DATA FETCHING ──
     const eventsQuery = useQuery({
         queryKey: ['home_events'],
-        queryFn: () => userService.getEvents().then(res => res.data || []),
+        queryFn: async () => {
+            console.log('🚀 [Home] Fetching events from API...');
+            const res = await userService.getEvents();
+            console.log('📦 [Home] API Response:', {
+                success: res.success,
+                dataLength: res.data?.length || 0,
+                data: res.data
+            });
+            return res.data || [];
+        },
         staleTime: 600000, // 10 min
     });
 
@@ -141,7 +216,7 @@ export default function HomeScreen() {
     const loading = isEventsLoading;
 
     // UI & Filter State
-    const [cityName, setCityName] = useState('Mumbai, BKC');
+    const [cityName, setCityName] = useState('Fetching location...');
     const [filterVisible, setFilterVisible] = useState(false);
     const [searchVisible, setSearchVisible] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -173,11 +248,19 @@ export default function HomeScreen() {
                     const reverse = await Location.reverseGeocodeAsync({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
                     setUserLoc({ lat: loc.coords.latitude, lng: loc.coords.longitude });
                     if (reverse && reverse.length > 0) {
-                        setCityName(`${reverse[0].city || 'Mumbai'}, ${reverse[0].isoCountryCode || 'IN'}`);
+                        const city = reverse[0].city || reverse[0].district || reverse[0].subregion || 'Your City';
+                        const country = reverse[0].isoCountryCode || 'IN';
+                        setCityName(`${city}, ${country}`);
+                    } else {
+                        setCityName('Your Location');
                     }
+                } else {
+                    // Permission denied
+                    setCityName('Location Access Needed');
                 }
             } catch (error: any) {
-                console.warn('[Home] Location fetch skipped:', error.message || 'Location delay');
+                console.warn('[Home] Location fetch failed:', error.message || 'Location error');
+                setCityName('Location Unavailable');
             }
         };
         loadLocation();
@@ -187,9 +270,23 @@ export default function HomeScreen() {
         if (!searchQuery.trim()) return [];
         const safeEvents = Array.isArray(events) ? events : [];
         const safeVenues = Array.isArray(venues) ? venues : [];
-        return [...safeEvents, ...safeVenues].filter((item: any) => 
-            (item.name || item.title || '').toLowerCase().includes(searchQuery.toLowerCase())
-        ).slice(0, 10);
+        const query = searchQuery.toLowerCase();
+        
+        return [...safeEvents, ...safeVenues].filter((item: any) => {
+            // Search by title/name
+            const titleMatch = (item.name || item.title || '').toLowerCase().includes(query);
+            
+            // Search by city
+            const cityMatch = (item.locationData?.city || item.location?.city || '').toLowerCase().includes(query);
+            
+            // Search by state
+            const stateMatch = (item.locationData?.state || item.location?.state || '').toLowerCase().includes(query);
+            
+            // Search by address
+            const addressMatch = (item.locationData?.address || item.location?.address || '').toLowerCase().includes(query);
+            
+            return titleMatch || cityMatch || stateMatch || addressMatch;
+        }).slice(0, 10);
     }, [searchQuery, events, venues]);
 
     // Calculate Distance (Haversine formula approximation)
@@ -296,7 +393,7 @@ export default function HomeScreen() {
             <View style={styles.searchContainer}>
                 <TouchableOpacity style={styles.searchBar} activeOpacity={0.9} onPress={() => setSearchVisible(true)}>
                     <Ionicons name="search" size={18} color="rgba(255,255,255,0.4)" />
-                    <Text style={styles.searchPlaceholder}>Search events...</Text>
+                    <Text style={styles.searchPlaceholder}>Search by city, state or event...</Text>
                     <TouchableOpacity style={styles.filterInlineBtn} onPress={() => setFilterVisible(true)}>
                         <Ionicons name="options-outline" size={20} color="rgba(255,255,255,0.6)" />
                     </TouchableOpacity>
@@ -428,7 +525,7 @@ export default function HomeScreen() {
                     />
                     <View style={styles.stickySearch}>
                         <TouchableOpacity onPress={() => setSearchVisible(false)}><Ionicons name="arrow-back" size={24} color="#fff" /></TouchableOpacity>
-                        <TextInput autoFocus placeholder="Search events..." placeholderTextColor="rgba(255,255,255,0.3)" style={styles.sInput} value={searchQuery} onChangeText={setSearchQuery} />
+                        <TextInput autoFocus placeholder="Search by city, state or event..." placeholderTextColor="rgba(255,255,255,0.3)" style={styles.sInput} value={searchQuery} onChangeText={setSearchQuery} />
                     </View>
                     <FlashList 
                         data={searchResults} 
@@ -438,15 +535,30 @@ export default function HomeScreen() {
                                 const d = getDistance(userLoc.lat, userLoc.lng, item.location.coordinates[1], item.location.coordinates[0]);
                                 distText = ` · ${d.toFixed(1)}km away`;
                             }
+                            
+                            // Get location display
+                            const locationText = item.locationData?.city || item.location?.city || item.locationData?.state || item.location?.state || '';
+                            
                             return (
                                 <TouchableOpacity style={styles.searchResultItem} onPress={() => { setSearchVisible(false); router.push({ pathname: '/(user)/event-details', params: { eventId: item._id } }); }}>
-                                    <Image source={{ uri: item.coverImage }} style={styles.srThumb} />
+                                    <Image source={{ uri: item.coverImage }} style={styles.srThumb} cachePolicy="memory-disk" />
                                     <View style={{ flex: 1 }}>
                                         <Text style={styles.srTitle}>{item.title}</Text>
-                                        <Text style={styles.srSub}>
-                                            {item.venueType || item.genre || 'Club Night'}
-                                            <Text style={{ color: '#8B5CF6' }}>{distText}</Text>
-                                        </Text>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                                            {locationText && (
+                                                <>
+                                                    <Ionicons name="location" size={11} color="#7c4dff" />
+                                                    <Text style={[styles.srSub, { color: '#7c4dff' }]}>
+                                                        {locationText}
+                                                    </Text>
+                                                </>
+                                            )}
+                                            <Text style={styles.srSub}>
+                                                {locationText && ' · '}
+                                                {item.venueType || item.genre || 'Club Night'}
+                                                <Text style={{ color: '#8B5CF6' }}>{distText}</Text>
+                                            </Text>
+                                        </View>
                                     </View>
                                     <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
                                         <Text style={{ color: '#A78BFA', fontWeight: '800', fontSize: 13 }}>₹{item.tickets?.[0]?.price?.toLocaleString() || '2,500'}</Text>
@@ -487,6 +599,11 @@ const styles = StyleSheet.create({
     cardContentBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, paddingTop: 60 },
     cardEventTitle: { color: '#fff', fontSize: 24, fontWeight: '800', marginBottom: 4 },
     cardEventHost: { color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '600' },
+    ticketStatusDot: { 
+        width: 6, 
+        height: 6, 
+        borderRadius: 3,
+    },
     cardFooterStats: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     statsRowLeft: { flexDirection: 'row', gap: 12 },
     statChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#151515', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, gap: 8 },

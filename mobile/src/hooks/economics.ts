@@ -85,7 +85,7 @@ export const useApplyCoupon = () => {
     const { showToast } = useToast();
     
     return useMutation({
-        mutationFn: async (payload: { userCouponId: string, orderType: string, subtotal: number }) => {
+        mutationFn: async (payload: { userCouponId: string, orderType: string, subtotal: number, hostId?: string }) => {
             const { data } = await apiClient.post('/api/v1/coupons/apply', payload);
             return data.data; // { discount, finalAmount }
         },

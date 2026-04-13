@@ -79,6 +79,8 @@ export const useUpdateOrderStatus = () => {
  * Real-time waiter socket:
  * Listens for new_order and order_updated from server.
  * On receive → invalidates React Query cache so UI auto-refreshes.
+ * 
+ * NOTE: Socket is disabled for staff role (uses admin backend, socket is on user backend)
  */
 export const useWaiterSocket = () => {
     const qc = useQueryClient();
@@ -103,7 +105,8 @@ export const useWaiterSocket = () => {
                     qc.invalidateQueries({ queryKey: waiterKeys.completed });
                 });
             } catch (err) {
-                console.warn('[useWaiterSocket] Failed to connect:', err);
+                // Socket not available for staff - this is expected, not an error
+                // Staff will use pull-to-refresh instead of real-time updates
             }
         })();
 

@@ -7,15 +7,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { COLORS, SPACING } from '../../constants/design-system';
 import { useToast } from '../../context/ToastContext';
+import { useQueryClient } from '@tanstack/react-query';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { hostService } from '../../services/hostService';
 import { userService } from '../../services/userService';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import dayjs from 'dayjs';
 import { Platform } from 'react-native';
+import { PremiumDateTimePicker } from '../../components/PremiumDateTimePicker';
 
 export default function HostVenueProfile() {
     const insets = useSafeAreaInsets();
@@ -23,6 +24,7 @@ export default function HostVenueProfile() {
     const goBack = useStrictBack('/(host)/dashboard');
     const { showToast } = useToast();
     const { user: authUser } = useAuth();
+    const queryClient = useQueryClient();
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -44,36 +46,36 @@ export default function HostVenueProfile() {
         profileImage: authUser?.profileImage || ''
     });
 
-    const [showOpeningPicker, setShowOpeningPicker] = useState(false);
-    const [showClosingPicker, setShowClosingPicker] = useState(false);
-
-    // Initial dates for pickers (dummy dates used for time only)
-    const [pickerOpening, setPickerOpening] = useState(new Date());
-    const [pickerClosing, setPickerClosing] = useState(new Date());
+    // Premium Picker State
+    const [pickerVisible, setPickerVisible] = useState(false);
+    const [pickerType, setPickerType] = useState<'opening' | 'closing'>('opening');
+    const [pickerInitialDate, setPickerInitialDate] = useState(new Date());
 
     const openPicker = (type: 'opening' | 'closing') => {
-        const currentDate = type === 'opening' ? pickerOpening : pickerClosing;
+        setPickerType(type);
         
-        if (Platform.OS === 'android') {
-            DateTimePickerAndroid.open({
-                value: currentDate,
-                mode: 'time',
-                is24Hour: false,
-                onChange: (_, selected) => {
-                    if (selected) {
-                        if (type === 'opening') {
-                            setPickerOpening(selected);
-                            setForm(prev => ({ ...prev, openingTime: dayjs(selected).format('hh:mm A') }));
-                        } else {
-                            setPickerClosing(selected);
-                            setForm(prev => ({ ...prev, closingTime: dayjs(selected).format('hh:mm A') }));
-                        }
-                    }
-                }
-            });
+        // Parse existing time or use current time
+        const existingTime = type === 'opening' ? form.openingTime : form.closingTime;
+        if (existingTime) {
+            const parsed = dayjs(existingTime, 'hh:mm A');
+            if (parsed.isValid()) {
+                setPickerInitialDate(parsed.toDate());
+            } else {
+                setPickerInitialDate(new Date());
+            }
         } else {
-            if (type === 'opening') setShowOpeningPicker(true);
-            if (type === 'closing') setShowClosingPicker(true);
+            setPickerInitialDate(new Date());
+        }
+        
+        setPickerVisible(true);
+    };
+
+    const handlePremiumPickerSelect = (selectedDate: Date) => {
+        const formattedTime = dayjs(selectedDate).format('hh:mm A');
+        if (pickerType === 'opening') {
+            setForm(prev => ({ ...prev, openingTime: formattedTime }));
+        } else {
+            setForm(prev => ({ ...prev, closingTime: formattedTime }));
         }
     };
 
@@ -177,6 +179,9 @@ export default function HostVenueProfile() {
             });
 
             if (venueUpdate.success) {
+                // Invalidate venue profile cache so create-event gets fresh data
+                queryClient.invalidateQueries({ queryKey: ['venueProfile'] });
+                
                 showToast('Venue Profile Updated!', 'success');
                 goBack();
             } else {
@@ -289,57 +294,58 @@ export default function HostVenueProfile() {
                         </TouchableOpacity>
                     </View>
 
-                    <View style={styles.row}>
-                        {/* OPENING TIME PICKER */}
-                        <View style={styles.flex1}>
-                            <Text style={styles.pickerLabel}>OPENING TIME</Text>
-                            <TouchableOpacity style={styles.pickerBox} onPress={() => openPicker('opening')}>
-                                <Ionicons name="time-outline" size={16} color={COLORS.primary} />
-                                <Text style={[styles.pickerText, !form.openingTime && styles.pickerPlaceholder]}>
-                                    {form.openingTime || 'Pick time'}
-                                </Text>
-                            </TouchableOpacity>
-                            {Platform.OS === 'ios' && showOpeningPicker && (
-                                <DateTimePicker
-                                    value={pickerOpening}
-                                    mode="time"
-                                    is24Hour={false}
-                                    display="spinner"
-                                    onChange={(_, selected) => {
-                                        setShowOpeningPicker(false);
-                                        if (selected) {
-                                            setPickerOpening(selected);
-                                            setForm({ ...form, openingTime: dayjs(selected).format('hh:mm A') });
-                                        }
-                                    }}
-                                />
-                            )}
-                        </View>
+                    {/* PREMIUM TIME PICKER SECTION */}
+                    <View style={styles.timePickerSection}>
+                        <Text style={styles.sectionLabel}>OPERATING HOURS</Text>
+                        <View style={styles.timePickerContainer}>
+                            {/* OPENING TIME PICKER */}
+                            <View style={styles.timePickerCard}>
+                                <View style={styles.timeIconWrapper}>
+                                    <View style={styles.timeIconGlow} />
+                                    <Ionicons name="sunny-outline" size={20} color={COLORS.primary} />
+                                </View>
+                                <Text style={styles.timeLabel}>Opening</Text>
+                                <TouchableOpacity 
+                                    style={styles.premiumTimeBox} 
+                                    onPress={() => openPicker('opening')}
+                                    activeOpacity={0.7}
+                                >
+                                    <Text style={[styles.premiumTimeText, !form.openingTime && styles.premiumTimePlaceholder]}>
+                                        {form.openingTime || '--:-- --'}
+                                    </Text>
+                                    <View style={styles.timeEditIcon}>
+                                        <Ionicons name="create-outline" size={14} color="rgba(255,255,255,0.5)" />
+                                    </View>
+                                </TouchableOpacity>
+                            </View>
 
-                        {/* CLOSING TIME PICKER */}
-                        <View style={styles.flex1}>
-                            <Text style={styles.pickerLabel}>CLOSING TIME</Text>
-                            <TouchableOpacity style={styles.pickerBox} onPress={() => openPicker('closing')}>
-                                <Ionicons name="time-outline" size={16} color={COLORS.primary} />
-                                <Text style={[styles.pickerText, !form.closingTime && styles.pickerPlaceholder]}>
-                                    {form.closingTime || 'Pick time'}
-                                </Text>
-                            </TouchableOpacity>
-                            {Platform.OS === 'ios' && showClosingPicker && (
-                                <DateTimePicker
-                                    value={pickerClosing}
-                                    mode="time"
-                                    is24Hour={false}
-                                    display="spinner"
-                                    onChange={(_, selected) => {
-                                        setShowClosingPicker(false);
-                                        if (selected) {
-                                            setPickerClosing(selected);
-                                            setForm({ ...form, closingTime: dayjs(selected).format('hh:mm A') });
-                                        }
-                                    }}
-                                />
-                            )}
+                            {/* DIVIDER */}
+                            <View style={styles.timeDivider}>
+                                <View style={styles.dividerLine} />
+                                <View style={styles.dividerDot} />
+                                <View style={styles.dividerLine} />
+                            </View>
+
+                            {/* CLOSING TIME PICKER */}
+                            <View style={styles.timePickerCard}>
+                                <View style={styles.timeIconWrapper}>
+                                    <View style={styles.timeIconGlow} />
+                                    <Ionicons name="moon-outline" size={20} color="#A78BFA" />
+                                </View>
+                                <Text style={styles.timeLabel}>Closing</Text>
+                                <TouchableOpacity 
+                                    style={styles.premiumTimeBox} 
+                                    onPress={() => openPicker('closing')}
+                                    activeOpacity={0.7}
+                                >
+                                    <Text style={[styles.premiumTimeText, !form.closingTime && styles.premiumTimePlaceholder]}>
+                                        {form.closingTime || '--:-- --'}
+                                    </Text>
+                                    <View style={styles.timeEditIcon}>
+                                        <Ionicons name="create-outline" size={14} color="rgba(255,255,255,0.5)" />
+                                    </View>
+                                </TouchableOpacity>
+                            </View>
                         </View>
                     </View>
 
@@ -387,6 +393,15 @@ export default function HostVenueProfile() {
                     loading={saving}
                 />
             </View>
+
+            <PremiumDateTimePicker
+                visible={pickerVisible}
+                onClose={() => setPickerVisible(false)}
+                onSelect={handlePremiumPickerSelect}
+                mode="time"
+                initialDate={pickerInitialDate}
+                title={pickerType === 'opening' ? 'Opening Time' : 'Closing Time'}
+            />
         </KeyboardAvoidingView>
     );
 }
@@ -567,34 +582,113 @@ const styles = StyleSheet.create({
         borderTopWidth: 1,
         borderTopColor: 'rgba(255,255,255,0.05)',
     },
-    pickerLabel: {
-        color: 'rgba(255,255,255,0.4)',
-        fontSize: 10,
-        fontWeight: '800',
-        letterSpacing: 2,
-        marginBottom: 8,
-        paddingLeft: 4,
+    // PREMIUM TIME PICKER STYLES
+    timePickerSection: {
+        marginBottom: 24,
     },
-    pickerBox: {
+    timePickerContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        backgroundColor: 'rgba(255,255,255,0.04)',
-        borderRadius: 14,
+        gap: 16,
+        backgroundColor: 'rgba(15, 23, 42, 0.4)',
+        padding: 24,
+        borderRadius: 28,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
-        paddingHorizontal: 14,
-        paddingVertical: 14,
-        marginBottom: 16,
+        borderColor: 'rgba(99, 102, 241, 0.1)',
     },
-    pickerText: {
+    timePickerCard: {
+        flex: 1,
+        alignItems: 'center',
+        gap: 16,
+    },
+    timeIconWrapper: {
+        position: 'relative',
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: 'rgba(99, 102, 241, 0.08)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(99, 102, 241, 0.15)',
+        shadowColor: '#6366F1',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 6,
+        elevation: 3,
+    },
+    timeIconGlow: {
+        position: 'absolute',
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: '#6366F1',
+        opacity: 0.08,
+    },
+    timeLabel: {
+        color: 'rgba(255, 255, 255, 0.6)',
+        fontSize: 10,
+        fontWeight: '800',
+        letterSpacing: 1.5,
+        textTransform: 'uppercase',
+    },
+    premiumTimeBox: {
+        position: 'relative',
+        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+        paddingHorizontal: 24,
+        paddingVertical: 18,
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: 'rgba(99, 102, 241, 0.2)',
+        minWidth: 150,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    premiumTimeText: {
         color: '#FFFFFF',
-        fontSize: 14,
-        fontWeight: '600',
+        fontSize: 20,
+        fontWeight: '900',
+        letterSpacing: 1,
     },
-    pickerPlaceholder: {
-        color: 'rgba(255,255,255,0.3)',
-        fontWeight: '400',
+    premiumTimePlaceholder: {
+        color: 'rgba(255, 255, 255, 0.3)',
+        fontWeight: '700',
+    },
+    timeEditIcon: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        backgroundColor: 'rgba(99, 102, 241, 0.15)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(99, 102, 241, 0.2)',
+    },
+    timeDivider: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        paddingHorizontal: 8,
+    },
+    dividerLine: {
+        width: 2,
+        height: 20,
+        backgroundColor: 'rgba(99, 102, 241, 0.15)',
+        borderRadius: 1,
+    },
+    dividerDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#6366F1',
+        opacity: 0.5,
     },
     addressWrapper: {
         flexDirection: 'row',

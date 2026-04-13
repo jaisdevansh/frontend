@@ -6,7 +6,12 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "build:preview": "eas build --profile preview --platform android",
+    "build:production": "eas build --profile production --platform android",
+    "build:aab": "eas build --profile production-aab --platform android",
+    "prebuild": "expo prebuild --clean",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -28,6 +33,7 @@
     "expo-auth-session": "~7.0.10",
     "expo-av": "^16.0.8",
     "expo-blur": "~15.0.8",
+    "expo-build-properties": "~1.0.10",
     "expo-camera": "~17.0.10",
     "expo-constants": "~18.0.13",
     "expo-contacts": "~15.0.11",

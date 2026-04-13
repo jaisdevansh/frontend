@@ -18,6 +18,7 @@ export interface AdminBooking {
         _id: string;
         name: string;
         email?: string;
+        phone?: string;
         profileImage?: string;
     };
     hostId: {
@@ -31,6 +32,8 @@ export interface AdminBooking {
     };
     pricePaid: number;
     guests: number;
+    ticketType?: string;
+    paymentStatus?: string;
     status: string;
     createdAt: string;
 }
@@ -236,6 +239,11 @@ const adminService = {
 
 
     // Profile Management
+    getAdminProfile: async (): Promise<AdminUser> => {
+        const response = await apiClient.get('/admin/profile');
+        return response.data.data;
+    },
+
     updateProfile: async (data: { name?: string, profileImage?: string }) => {
         const response = await apiClient.put('/admin/profile/update', data);
         return response.data;

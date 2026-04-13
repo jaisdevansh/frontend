@@ -85,6 +85,17 @@ export default function RewardsScreen() {
                                                     <Text style={styles.statusText}>READY</Text>
                                                 </View>
                                             </View>
+                                            
+                                            {/* Host Name - Show if coupon is host-specific */}
+                                            {coupon.hostId && (
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, backgroundColor: 'rgba(245, 222, 179, 0.15)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(245, 222, 179, 0.4)' }}>
+                                                    <Ionicons name="business" size={14} color="#F5DEB3" />
+                                                    <Text style={styles.ticketHostName}>
+                                                        Events hosted by {coupon.hostId?.name || coupon.hostId?.businessName || 'Specific Venue'}
+                                                    </Text>
+                                                </View>
+                                            )}
+                                            
                                             <Text style={styles.ticketDesc}>
                                                 {coupon.discountType === 'percentage' 
                                                     ? `${coupon.discountValue}% OFF` 
@@ -145,6 +156,17 @@ export default function RewardsScreen() {
                                                 </View>
                                             )}
                                         </View>
+                                        
+                                        {/* Host Name - Show if coupon is host-specific */}
+                                        {c.hostId && (
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6, backgroundColor: 'rgba(245, 222, 179, 0.15)', paddingHorizontal: 8, paddingVertical: 5, borderRadius: 6, borderWidth: 1, borderColor: 'rgba(245, 222, 179, 0.4)', alignSelf: 'flex-start' }}>
+                                                <Ionicons name="business" size={13} color="#F5DEB3" />
+                                                <Text style={styles.hostName}>
+                                                    Events hosted by {c.hostId?.name || c.hostId?.businessName || 'Specific Venue'}
+                                                </Text>
+                                            </View>
+                                        )}
+                                        
                                         <Text style={styles.storeValue}>
                                             {c.discountType === 'percentage' ? `${c.discountValue}% OFF` : `₹${c.discountValue} OFF`}
                                         </Text>
@@ -202,7 +224,13 @@ const styles = StyleSheet.create({
     carousel: { marginHorizontal: -20, paddingHorizontal: 20 },
     ticketCard: { width: 240, backgroundColor: '#1A1A2E', borderRadius: 20, padding: 20, marginRight: 16, borderWidth: 1, borderColor: 'rgba(34, 197, 94, 0.2)' },
     ticketTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-    ticketTitle: { color: '#FFF', fontSize: 16, fontWeight: '800' },
+    ticketTitle: { color: '#FFF', fontSize: 16, fontWeight: '800', flex: 1 },
+    ticketHostName: {
+        color: '#F5DEB3',
+        fontSize: 12,
+        fontWeight: '800',
+        letterSpacing: 0.3,
+    },
     statusBadge: { backgroundColor: 'rgba(34, 197, 94, 0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
     statusText: { color: '#22C55E', fontSize: 9, fontWeight: '900' },
     ticketDesc: { color: 'rgba(255,255,255,0.6)', fontSize: 12, marginBottom: 4 },
@@ -215,6 +243,12 @@ const styles = StyleSheet.create({
     storeCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 20, padding: 20, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
     storeLeft: { flex: 1 },
     storeTitle: { color: '#FFF', fontSize: 15, fontWeight: '800', marginBottom: 2 },
+    hostName: { 
+        color: '#F5DEB3', 
+        fontSize: 11.5, 
+        fontWeight: '800',
+        letterSpacing: 0.2,
+    },
     storeValue: { color: '#FFD700', fontSize: 14, fontWeight: '900', marginBottom: 4 },
     storeDesc: { color: 'rgba(255,255,255,0.4)', fontSize: 11 },
     buyBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFF', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },

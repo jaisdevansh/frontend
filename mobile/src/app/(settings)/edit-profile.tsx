@@ -25,6 +25,7 @@ import { COLORS, SPACING, BORDER_RADIUS } from '../../constants/design-system';
 import { useToast } from '../../context/ToastContext';
 import { useAlert } from '../../context/AlertProvider';
 import { userService } from '../../services/userService';
+import { staffService } from '../../services/staffService';
 import { uploadImage } from '../../services/cloudinaryService';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../context/AuthContext';
@@ -128,7 +129,11 @@ export default function EditProfile() {
 
     const loadProfile = async () => {
         try {
-            const res = await userService.getProfile();
+            // Use staffService for staff roles, userService for others
+            const res = isStaff 
+                ? await staffService.getProfile() 
+                : await userService.getProfile();
+                
             if (res.success && res.data) {
                 const d = res.data;
                 // Only update fields not already seeded from authUser
@@ -303,7 +308,10 @@ export default function EditProfile() {
             }
 
             // ─── STAGE 3: Backend persist (now lightning-fast — no Cloudinary) ───
-            const res = await userService.updateProfile(payload);
+            const res = isStaff 
+                ? await staffService.updateProfile(payload)
+                : await userService.updateProfile(payload);
+                
             if (res.success) {
                 userService.clearCache();
                 queryClient.invalidateQueries({ queryKey: ['user_profile'] });

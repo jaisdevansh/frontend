@@ -14,13 +14,15 @@ export const useHostProfile = () => {
                 if (!res) return null;
                 return res.data || res.host || res;
             } catch (error: any) {
-                // Return null gracefully — Global QueryCache handler (in _layout.tsx) handles the silencing
                 return null;
             }
         },
-        staleTime: 5 * 60 * 1000,
-        gcTime: 15 * 60 * 1000,
-        retry: false,
-        refetchOnWindowFocus: false
+        staleTime: 0,               // ⚡ Always stale
+        gcTime: 0,                  // ⚡ No cache - always fresh from server
+        retry: false,               // No retry for speed
+        refetchOnMount: true,       // ✅ Re-check on every screen mount
+        refetchOnWindowFocus: true, // ✅ Re-check when app comes back to foreground
+        refetchInterval: false,     // Disable auto-refetch (we control it manually)
     });
 };
+

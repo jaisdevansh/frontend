@@ -48,23 +48,32 @@ const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error: any) => {
       const status = error?.response?.status;
-      // 🤐 SILENCE: 502/503 (Render Cold Start) and 401 (Auth Transitions) 
-      // These are expected during server restarts or logouts and shouldn't trigger UI red boxes.
+      // 🤐 SILENCE: 502/503 (server restarts) and 401 (auth transitions) 
       if (status === 502 || status === 503 || status === 401) return;
       
-      console.warn('[React Query Global Error]', error.message || error);
+      // Only log in development
+      if (__DEV__) {
+        console.warn('[React Query Global Error]', error.message || error);
+      }
     }
   }),
   defaultOptions: {
     queries: {
-      staleTime: 10 * 60 * 1000,       // 10 min (aggressive caching)
-      gcTime: 24 * 60 * 60 * 1000,     // 24 hours
-      refetchOnWindowFocus: false,
-      refetchOnMount: 'always',        // Refresh in background if stale
-      refetchOnReconnect: 'always',
-      retry: 1,                        // 1 retry only to fail fast
-      networkMode: 'offlineFirst',
+      staleTime: 5 * 60 * 1000,        // 5 min - data is fresh for 5 min (increased for production)
+      gcTime: 30 * 60 * 1000,           // 30 min - drop from memory if unused for 30min
+      refetchOnWindowFocus: true,        // ✅ Re-fetch when user returns to the app
+      refetchOnMount: true,              // ✅ Always check for fresh data when screen mounts
+      refetchOnReconnect: true,          // ✅ Re-fetch when internet reconnects
+      retry: 1,                          // 1 retry only to fail fast
+      networkMode: 'online',             // ✅ Only fetch when online, don't silently serve stale
+      // Production optimization: reduce unnecessary refetches
+      refetchInterval: false,
+      refetchIntervalInBackground: false,
     },
+    mutations: {
+      retry: 1,
+      networkMode: 'online',
+    }
   },
 });
 
@@ -195,7 +204,7 @@ function RootLayoutNav() {
     const dashMap: Record<string, string> = {
         'host': '/(host)/dashboard',
         'admin': '/admin/dashboard',
-        'staff': '/(staff)/dashboard',
+        'staff': '/(staff)/tabs',
         'user': '/(user)/home'
     };
 
@@ -219,7 +228,7 @@ function RootLayoutNav() {
     // If user is logged in but on an Auth or Index page, send them to their home
     const isRoot = !segments[0] || (segments[0] as string) === 'index';
     if (inAuthGroup || isRoot) {
-        if (!isOnboardingPage && !isLoginPage) return navigateTo(targetHome);
+        if (!isOnboardingPage) return navigateTo(targetHome);
     }
 
     // 7. RBAC (Role-Based Access Control)
@@ -246,10 +255,16 @@ function RootLayoutNav() {
         animation: 'fade', // Faster, cleaner transition for role switching
         freezeOnBlur: true,
       }}>
-        <Stack.Screen name="(user)" />
-        <Stack.Screen name="(host)" />
-        <Stack.Screen name="admin" />
-        <Stack.Screen name="(staff)" />
+        {!token ? (
+           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        ) : (
+           <>
+             <Stack.Screen name="(user)" options={{ headerShown: false }} />
+             <Stack.Screen name="(host)" options={{ headerShown: false }} />
+             <Stack.Screen name="admin" options={{ headerShown: false }} />
+             <Stack.Screen name="(staff)" options={{ headerShown: false }} />
+           </>
+        )}
       </Stack>
     </ThemeProvider>
   );

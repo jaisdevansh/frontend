@@ -17,7 +17,59 @@ const { width } = Dimensions.get('window');
 
 const TABLES: any[] = [];
 
-const TIME_SLOTS = ['10:00PM', '11:00PM', '12:30AM', '01:30AM'];
+function generateTimeSlots(startTime: string, endTime: string) {
+    if (!startTime || !endTime) return ['10:00 PM', '11:00 PM', '12:30 AM', '01:30 AM'];
+    
+    try {
+        const slots = [];
+        
+        // Convert 12-hour format (08:16 PM) to 24-hour format (20:16)
+        const convert12to24 = (time12h: string) => {
+            const [time, modifier] = time12h.trim().split(' ');
+            let [hours, minutes] = time.split(':');
+            
+            if (hours === '12') {
+                hours = modifier === 'AM' ? '00' : '12';
+            } else {
+                hours = modifier === 'PM' ? String(parseInt(hours, 10) + 12) : hours.padStart(2, '0');
+            }
+            
+            return `${hours}:${minutes || '00'}`;
+        };
+        
+        const start24 = convert12to24(startTime);
+        const end24 = convert12to24(endTime);
+        
+        const start = new Date(`2000-01-01T${start24}:00`);
+        const end = new Date(`2000-01-01T${end24}:00`);
+        
+        // If end time is before start time, it means it goes to next day
+        if (end < start) {
+            end.setDate(end.getDate() + 1);
+        }
+        
+        let current = new Date(start);
+        
+        // Generate slots every 1 hour
+        while (current <= end) {
+            const hours = current.getHours();
+            const minutes = current.getMinutes();
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            const displayHours = hours % 12 || 12;
+            const displayMinutes = minutes.toString().padStart(2, '0');
+            
+            slots.push(`${displayHours}:${displayMinutes} ${ampm}`);
+            
+            // Add 1 hour (60 minutes)
+            current.setMinutes(current.getMinutes() + 60);
+        }
+        
+        return slots.length > 0 ? slots : ['10:00 PM', '11:00 PM', '12:30 AM', '01:30 AM'];
+    } catch (error) {
+        console.log('[TimeSlots] Error generating slots:', error);
+        return ['10:00 PM', '11:00 PM', '12:30 AM', '01:30 AM'];
+    }
+}
 
 function getNext5Days() {
     const days = [];
@@ -51,10 +103,18 @@ const TableSelection = () => {
         const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
         return [{ day: dayNames[d.getDay()], date: d.getDate(), month: monthNames[d.getMonth()], full: d }];
     }, [eventBasic?.date]);
+    
+    const timeSlots = React.useMemo(() => {
+        console.log('[TimeSlots] Event start:', eventBasic?.startTime, 'end:', eventBasic?.endTime);
+        const slots = generateTimeSlots(eventBasic?.startTime || '', eventBasic?.endTime || '');
+        console.log('[TimeSlots] Generated slots:', slots);
+        return slots;
+    }, [eventBasic?.startTime, eventBasic?.endTime]);
+    
     const [guests, setGuests] = useState(2);
     const [selectedDay, setSelectedDay] = useState(0);
     const [selectedTable, setSelectedTable] = useState<string | null>(null);
-    const [selectedTime, setSelectedTime] = useState('10:00PM');
+    const [selectedTime, setSelectedTime] = useState('');
     const [dynamicTables, setDynamicTables] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const goBack = useStrictBack('/(user)/event-details');
@@ -118,6 +178,13 @@ const TableSelection = () => {
         }
         setLoading(false);
     }, [eventData]);
+    
+    // Set default time slot when timeSlots are generated
+    useEffect(() => {
+        if (timeSlots.length > 0 && !selectedTime) {
+            setSelectedTime(timeSlots[0]);
+        }
+    }, [timeSlots]);
 
     const table = dynamicTables.find(t => t.id === selectedTable) || dynamicTables[0];
 
@@ -298,7 +365,7 @@ const TableSelection = () => {
                     {/* TIME SLOTS */}
                     <Text style={styles.sLabel}>Time Slot</Text>
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-                        {TIME_SLOTS.map((t) => (
+                        {timeSlots.map((t) => (
                             <TouchableOpacity key={t} style={[styles.timeChip, selectedTime === t && styles.timeChipActive]}
                                 onPress={() => { Haptics.selectionAsync(); setSelectedTime(t); }}>
                                 <Text style={[styles.timeChipText, selectedTime === t && { color: '#fff', fontWeight: '700' }]}>{t}</Text>

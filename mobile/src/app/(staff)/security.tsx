@@ -11,7 +11,7 @@ import { COLORS } from '../../constants/design-system';
 import { useToast } from '../../context/ToastContext';
 import { useAlert } from '../../context/AlertProvider';
 import { securityService } from '../../services/securityService';
-import { userService } from '../../services/userService';
+import { staffService } from '../../services/staffService';
 import { useAuth } from '../../context/AuthContext';
 import * as Haptics from 'expo-haptics';
 import {
@@ -76,7 +76,7 @@ export default function SecurityPanel() {
 
     const fetchProfile = async () => {
         try {
-            const res = await userService.getProfile();
+            const res = await staffService.getProfile();
             if (res.success) setProfile(res.data);
         } catch (err) {
             console.log('Profile fetch error', err);
@@ -179,8 +179,16 @@ export default function SecurityPanel() {
         const isActive = activeTab === 'active';
         const isInProgress = activeTab === 'in_progress';
         
+        console.log('[Security] Issue data:', { 
+            id: issue._id, 
+            zone: issue.zone, 
+            tableId: issue.tableId,
+            userId: issue.userId?.name,
+            reportedBy: issue.reportedBy?.name 
+        });
+        
         return (
-            <View style={styles.issueCard}>
+            <View style={[styles.issueCard, { borderColor: '#FF9500', borderWidth: 2 }]}>
                 <LinearGradient
                     colors={['rgba(255,255,255,0.06)', 'rgba(255,255,255,0.02)']}
                     style={styles.cardContent}
@@ -209,7 +217,14 @@ export default function SecurityPanel() {
                         <View style={styles.stripDivider} />
                         <View style={styles.stripItem}>
                             <Text style={styles.stripLabel}>TABLE</Text>
-                            <Text style={styles.stripValue}>{issue.tableId || '--'}</Text>
+                            <Text style={styles.stripValue}>
+                                {issue.tableId && issue.tableId !== 'N/A' ? issue.tableId : '--'}
+                            </Text>
+                        </View>
+                        <View style={styles.stripDivider} />
+                        <View style={styles.stripItem}>
+                            <Text style={styles.stripLabel}>USER</Text>
+                            <Text style={styles.stripValue} numberOfLines={1}>{issue.userId?.name || issue.reportedBy?.name || 'Guest'}</Text>
                         </View>
                     </View>
 
@@ -266,8 +281,8 @@ export default function SecurityPanel() {
                             <View style={styles.liveDot} />
                         </TouchableOpacity>
                         <View>
-                            <Text style={styles.badgeId}>GUARD #{profile?.id?.slice(-4).toUpperCase() || '0000'}</Text>
-                            <Text style={styles.officerName}>{profile?.name || 'Security'}</Text>
+                            <Text style={styles.badgeId}>GUARD #{profile?._id?.slice(-4).toUpperCase() || '0000'}</Text>
+                            <Text style={styles.officerName}>{profile?.username || profile?.name || 'Security'}</Text>
                         </View>
                     </View>
                     <View style={{ flexDirection: 'row' }}>
@@ -290,10 +305,10 @@ export default function SecurityPanel() {
                 </View>
 
                 {/* Venue Assignment Bar */}
-                {profile?.venue && (
+                {profile?.hostId && (
                     <View style={styles.venueBar}>
                         <Ionicons name="shield-checkmark" size={14} color="#FF3B30" />
-                        <Text style={styles.venueName}>SECURE PERIMETER: {profile.venue.name.toUpperCase()}</Text>
+                        <Text style={styles.venueName}>SECURE PERIMETER: {profile.hostId.name?.toUpperCase() || profile.hostId.businessName?.toUpperCase() || 'VENUE'}</Text>
                     </View>
                 )}
 
@@ -544,7 +559,7 @@ const styles = StyleSheet.create({
     listArea: { paddingHorizontal: 20, paddingBottom: 40 },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     
-    issueCard: { marginBottom: 16, borderRadius: 28, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
+    issueCard: { marginBottom: 16, borderRadius: 28, overflow: 'hidden', borderWidth: 2, borderColor: '#FF9500' },
     cardContent: { padding: 20 },
     cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 },
     headerL: { flexDirection: 'row', alignItems: 'center', gap: 12 },

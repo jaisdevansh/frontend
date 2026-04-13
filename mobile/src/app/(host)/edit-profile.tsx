@@ -46,8 +46,7 @@ export default function EditProfileScreen() {
     });
 
     const [form, setForm] = useState({
-        firstName: '',
-        lastName: '',
+        name: '',
         username: '',
         profileImage: '',
         location: '',
@@ -58,14 +57,12 @@ export default function EditProfileScreen() {
     // Populate form on fetch
     useEffect(() => {
         if (profileResponse?.data) {
-            const nameParts = (profileResponse.data.name || '').split(' ');
             setForm({
-                firstName: nameParts[0] || '',
-                lastName: nameParts.slice(1).join(' ') || '',
+                name: profileResponse.data.name || '',
                 username: profileResponse.data.username || '',
                 profileImage: profileResponse.data.profileImage || '',
-                location: profileResponse.data.location || '',
-                contactNumber: profileResponse.data.contactNumber || '',
+                location: profileResponse.data.location?.address || profileResponse.data.location || '',
+                contactNumber: profileResponse.data.phone || profileResponse.data.contactNumber || '',
                 email: profileResponse.data.email || ''
             });
         }
@@ -93,8 +90,8 @@ export default function EditProfileScreen() {
 
     const handleSave = useCallback(async () => {
         // Basic validation
-        if (!form.firstName.trim() || !form.username) {
-            showToast('First Name and Username are required', 'error');
+        if (!form.name.trim() || !form.username) {
+            showToast('Name and Username are required', 'error');
             return;
         }
 
@@ -113,10 +110,12 @@ export default function EditProfileScreen() {
             }
 
             const finalPayload = { 
-                ...form, 
-                firstName: form.firstName.trim(),
-                lastName: form.lastName.trim(),
-                profileImage: finalImageUrl 
+                name: form.name.trim(),
+                username: form.username.trim(),
+                profileImage: finalImageUrl,
+                location: form.location.trim(),
+                contactNumber: form.contactNumber.trim(),
+                email: form.email.trim()
             };
             updateMutation.mutate(finalPayload as any);
         } catch (error) {
@@ -193,15 +192,7 @@ export default function EditProfileScreen() {
 
                     {/* Basic Info */}
                     <Text style={styles.sectionTitle}>Basic Info</Text>
-                    <View style={styles.nameRow}>
-                        <View style={{ flex: 1 }}>
-                            <ProfileInput label="First Name *" value={form.firstName} onChangeText={(t: string) => handleChange('firstName', t)} placeholder="e.g. John" />
-                        </View>
-                        <View style={{ width: 12 }} />
-                        <View style={{ flex: 1 }}>
-                            <ProfileInput label="Last Name" value={form.lastName} onChangeText={(t: string) => handleChange('lastName', t)} placeholder="e.g. Doe" />
-                        </View>
-                    </View>
+                    <ProfileInput label="Full Name *" value={form.name} onChangeText={(t: string) => handleChange('name', t)} placeholder="e.g. John Doe" />
                     <ProfileInput label="Username (Unique) *" value={form.username} onChangeText={(t: string) => handleChange('username', t)} placeholder="e.g. johndoe_official" autoCapitalize="none" />
                     <ProfileInput label="Location" value={form.location} onChangeText={(t: string) => handleChange('location', t)} placeholder="e.g. Mumbai, IN" />
 

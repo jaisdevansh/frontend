@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
     View, Text, StyleSheet, TouchableOpacity, 
     TextInput, ScrollView, Animated, Platform,
-    Dimensions, StatusBar, ActivityIndicator 
+    Dimensions, StatusBar, ActivityIndicator, Alert
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -12,8 +12,8 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import * as Location from 'expo-location';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
+import { PremiumDateTimePicker } from '../../components/PremiumDateTimePicker';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { hostService } from '../../services/hostService';
@@ -77,47 +77,86 @@ export default function Onboarding() {
         setTimeout(() => setCurrentStep(step), 200);
     }, [fadeAnim]);
 
-    const handlePickImage = React.useCallback(async () => {
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.3, // Compressed heavily for lightning-fast uploads
-            base64: true,
-        });
-        if (!result.canceled && result.assets && result.assets.length > 0) {
-            setProfileImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
-        }
-    }, []);
-
-    const handlePickDocument = React.useCallback(async (type: 'aadhaar' | 'pan') => {
-        try {
-            console.log(`[LOG] Launching ImagePicker for ${type.toUpperCase()}`);
-            const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ['images'],
-                allowsEditing: true, // Let host crop their ID card properly
-                quality: 0.3, // Compressed to 30% to guarantee instant base64 transfer speed
-                base64: true, // Get base64 native, no FileSystem needed
-            });
-            
-            if (!result.canceled && result.assets && result.assets.length > 0) {
-                const asset = result.assets[0];
-                const mimeType = asset.mimeType || 'image/jpeg';
-                // Expo image picker base64 doesn't include the data: URI prefix automatically
-                const fileData = `data:${mimeType};base64,${asset.base64}`;
-                
-                if (type === 'aadhaar') {
-                    setAadhaarFile({ ...asset, base64: fileData });
-                } else {
-                    setPanFile({ ...asset, base64: fileData });
+    const handlePickImage = React.useCallback(() => {
+        Alert.alert(
+            'Profile Photo',
+            'Take a new photo or choose from your gallery.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Take Photo',
+                    onPress: async () => {
+                        try {
+                            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+                            if (status !== 'granted') return showToast('Camera permission required', 'error');
+                            const result = await ImagePicker.launchCameraAsync({
+                                allowsEditing: true, aspect: [1, 1], quality: 0.3, base64: true,
+                            });
+                            if (!result.canceled && result.assets?.[0]?.base64) {
+                                setProfileImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+                            }
+                        } catch (e) { showToast('Camera failed', 'error'); }
+                    }
+                },
+                {
+                    text: 'Choose Gallery',
+                    onPress: async () => {
+                        const result = await ImagePicker.launchImageLibraryAsync({
+                            mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.3, base64: true,
+                        });
+                        if (!result.canceled && result.assets?.[0]?.base64) {
+                            setProfileImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+                        }
+                    }
                 }
-                
-                showToast(`${type.toUpperCase()} photo selected`, 'success');
-            }
-        } catch (error: any) {
-            console.error('[DocumentPicker Error]', error?.message || error);
-            showToast('Failed to pick document photo. Please try again.', 'error');
-        }
+            ]
+        );
+    }, [showToast]);
+
+    const handlePickDocument = React.useCallback((type: 'aadhaar' | 'pan') => {
+        Alert.alert(
+            `${type.toUpperCase()} Upload`,
+            'Take a photo of your document or upload from gallery.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Take Photo',
+                    onPress: async () => {
+                        try {
+                            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+                            if (status !== 'granted') return showToast('Camera permission required', 'error');
+                            const result = await ImagePicker.launchCameraAsync({
+                                mediaTypes: ['images'], quality: 0.3, base64: true,
+                            });
+                            if (!result.canceled && result.assets?.[0]?.base64) {
+                                const asset = result.assets[0];
+                                const fileData = `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`;
+                                if (type === 'aadhaar') setAadhaarFile({ ...asset, base64: fileData });
+                                else setPanFile({ ...asset, base64: fileData });
+                                showToast(`${type.toUpperCase()} photo captured`, 'success');
+                            }
+                        } catch (e) { showToast('Camera failed', 'error'); }
+                    }
+                },
+                {
+                    text: 'Choose Gallery',
+                    onPress: async () => {
+                        try {
+                            const result = await ImagePicker.launchImageLibraryAsync({
+                                mediaTypes: ['images'], quality: 0.3, base64: true,
+                            });
+                            if (!result.canceled && result.assets?.[0]?.base64) {
+                                const asset = result.assets[0];
+                                const fileData = `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`;
+                                if (type === 'aadhaar') setAadhaarFile({ ...asset, base64: fileData });
+                                else setPanFile({ ...asset, base64: fileData });
+                                showToast(`${type.toUpperCase()} photo selected`, 'success');
+                            }
+                        } catch (e) { showToast('Gallery failed', 'error'); }
+                    }
+                }
+            ]
+        );
     }, [showToast]);
 
 
@@ -145,7 +184,7 @@ export default function Onboarding() {
         }
     }, [showToast]);
 
-    const onDateChange = React.useCallback((event: any, selectedDate?: Date) => {
+    const onDateChange = React.useCallback((selectedDate: Date) => {
         setShowDatePicker(false);
         if (selectedDate) {
             setDate(selectedDate);
@@ -238,15 +277,15 @@ export default function Onboarding() {
                 <Feather name="chevron-down" size={16} color={COLORS.textDim} />
             </TouchableOpacity>
 
-            {showDatePicker && (
-                <DateTimePicker
-                    value={date}
-                    mode="date"
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    onChange={onDateChange}
-                    maximumDate={new Date(new Date().getFullYear() - 18, 0, 1)}
-                />
-            )}
+            <PremiumDateTimePicker
+                visible={showDatePicker}
+                mode="date"
+                initialDate={date}
+                title="Select Date of Birth"
+                onClose={() => setShowDatePicker(false)}
+                onSelect={onDateChange}
+                maxDate={new Date(new Date().getFullYear() - 18, 0, 1)}
+            />
 
             <View style={styles.inputContainer}>
                 <Ionicons name="location-outline" size={20} color={COLORS.primary} style={styles.inputIcon} />

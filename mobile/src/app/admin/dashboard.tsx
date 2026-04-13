@@ -247,7 +247,7 @@ export default function SaaSAdminDashboard() {
                         { title: 'Host Registry', sub: 'Manage Partner Accounts', icon: 'business', path: '/admin/hosts', color: '#8b5cf6' },
                         { title: 'Host Verification', sub: `${stats?.pendingHosts || 0} applications pending`, icon: 'verified-user', path: '/admin/kyc-verification', color: COLORS.success },
                         { title: 'Global Staff', sub: 'Field personnel intel', icon: 'badge', path: '/admin/staff', color: COLORS.warning },
-                        { title: 'Advanced Analytics', sub: 'Trends & Forecasting', icon: 'analytics', path: '#', color: COLORS.textDim },
+                        { title: 'Advanced Analytics', sub: 'Trends & Forecasting', icon: 'analytics', path: '/admin/analytics', color: '#06b6d4' },
                     ].map((tool, idx) => (
                         <TouchableOpacity key={idx} style={styles.toolCard} onPress={() => router.push(tool.path as any)} activeOpacity={0.7}>
                             <View style={[styles.toolIconBox, { backgroundColor: `${tool.color}15` }]}>
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     subGreeting: { fontSize: 13, color: COLORS.textDim, marginTop: 4, fontWeight: '600' },
     refreshBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.cardDark, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: COLORS.glassBorder },
     statGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12, marginBottom: 32 },
-    statCard: { width: (width - 48 - 12) / 2, backgroundColor: COLORS.cardDark, borderRadius: 24, padding: 18, borderWidth: 1, borderColor: COLORS.glassBorder },
+    statCard: { width: '48%', backgroundColor: COLORS.cardDark, borderRadius: 24, padding: 18, borderWidth: 1, borderColor: COLORS.glassBorder },
     statCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
     statIconBox: { width: 42, height: 42, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
     trendBadge: { paddingHorizontal: 6, paddingVertical: 2, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 6 },

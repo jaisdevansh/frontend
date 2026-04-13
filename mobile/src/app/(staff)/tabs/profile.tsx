@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../../constants/design-system';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
-import { userService } from '../../../services/userService';
+import { staffService } from '../../../services/staffService';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -24,7 +24,7 @@ export default function StaffProfileScreen() {
 
     const fetchProfile = async () => {
         try {
-            const res = await userService.getProfile();
+            const res = await staffService.getProfile();
             if (res.success) {
                 setProfile(res.data);
             }
@@ -61,6 +61,9 @@ export default function StaffProfileScreen() {
                         <View style={styles.activeDot} />
                     </TouchableOpacity>
                     <Text style={styles.profileName}>{profile?.name || 'Curator Staff'}</Text>
+                    {profile?.username && (
+                        <Text style={styles.usernameText}>@{profile.username}</Text>
+                    )}
                     <View style={styles.roleBadge}>
                         <Text style={styles.roleText}>{role?.toUpperCase() || 'OFFICER'}</Text>
                     </View>
@@ -79,6 +82,40 @@ export default function StaffProfileScreen() {
                         <Text style={styles.statValue}>{profile?.staffType || 'ACTIVE'}</Text>
                         <Text style={styles.statLabel}>STATUS</Text>
                     </View>
+                </View>
+
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Quick Access</Text>
+                    
+                    {profile?.staffType?.toUpperCase() === 'SECURITY' && (
+                        <TouchableOpacity 
+                            style={styles.menuItem} 
+                            onPress={() => router.push('/(staff)/security')}
+                        >
+                            <View style={styles.menuLeft}>
+                                <View style={[styles.iconBox, { backgroundColor: 'rgba(255, 59, 48, 0.1)' }]}>
+                                    <Ionicons name="shield-checkmark" size={20} color="#FF3B30" />
+                                </View>
+                                <Text style={styles.menuText}>Security Panel</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.2)" />
+                        </TouchableOpacity>
+                    )}
+                    
+                    {profile?.staffType?.toUpperCase() === 'WAITER' && (
+                        <TouchableOpacity 
+                            style={styles.menuItem} 
+                            onPress={() => router.push('/(staff)/waiter')}
+                        >
+                            <View style={styles.menuLeft}>
+                                <View style={[styles.iconBox, { backgroundColor: 'rgba(124, 77, 255, 0.1)' }]}>
+                                    <Ionicons name="restaurant" size={20} color={COLORS.primary} />
+                                </View>
+                                <Text style={styles.menuText}>Waiter Panel</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.2)" />
+                        </TouchableOpacity>
+                    )}
                 </View>
 
                 <View style={styles.section}>
@@ -173,6 +210,13 @@ const styles = StyleSheet.create({
         fontWeight: '800',
         color: 'white',
         letterSpacing: -0.5,
+    },
+    usernameText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: 'rgba(255,255,255,0.5)',
+        marginTop: 4,
+        letterSpacing: 0.5,
     },
     roleBadge: {
         backgroundColor: 'rgba(255,255,255,0.05)',

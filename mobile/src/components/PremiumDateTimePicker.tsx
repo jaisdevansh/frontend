@@ -15,6 +15,8 @@ interface PremiumDateTimePickerProps {
     mode?: 'date' | 'time' | 'datetime';
     initialDate?: Date;
     title?: string;
+    minDate?: Date;
+    maxDate?: Date;
 }
 
 const HOURS = Array.from({ length: 12 }, (_, i) => (i === 0 ? 12 : i).toString().padStart(2, '0'));
@@ -30,7 +32,9 @@ export const PremiumDateTimePicker: React.FC<PremiumDateTimePickerProps> = ({
     onSelect, 
     mode = 'datetime',
     initialDate = new Date(),
-    title = 'Select Date & Time'
+    title = 'Select Date & Time',
+    minDate,
+    maxDate
 }) => {
     const [currentStep, setCurrentStep] = useState(mode === 'time' ? 'time' : 'date');
     const [selectedDate, setSelectedDate] = useState<string>(dayjs(initialDate).format('YYYY-MM-DD'));
@@ -169,7 +173,8 @@ export const PremiumDateTimePicker: React.FC<PremiumDateTimePickerProps> = ({
                                     textDayHeaderFontWeight: 'bold',
                                 }}
                                 current={selectedDate}
-                                minDate={dayjs().format('YYYY-MM-DD')}
+                                minDate={minDate ? dayjs(minDate).format('YYYY-MM-DD') : undefined}
+                                maxDate={maxDate ? dayjs(maxDate).format('YYYY-MM-DD') : undefined}
                                 onDayPress={(day: any) => setSelectedDate(day.dateString)}
                                 markedDates={{
                                     [selectedDate]: { selected: true, disableTouchEvent: true, selectedColor: COLORS.primary }
