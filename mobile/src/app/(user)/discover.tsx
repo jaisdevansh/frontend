@@ -1370,83 +1370,116 @@ await new Promise(resolve => setTimeout(resolve, delay));
 
             {/* 🎁 Gift Request Modal */}
             <Modal visible={giftRequestModal.visible} animationType="slide" transparent>
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.9)', padding: 20 }}>
-                    <View style={{ backgroundColor: '#131521', borderRadius: 32, padding: 32, width: '100%', maxWidth: 400, borderWidth: 1, borderColor: 'rgba(139,92,246,0.3)' }}>
-                        {/* Gift Item Image */}
-                        <View style={{ alignItems: 'center', marginBottom: 24 }}>
-                            <View style={{ position: 'relative' }}>
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.95)', padding: 20 }}>
+                    <View style={{ backgroundColor: '#0E0E1C', borderRadius: 32, padding: 24, width: '100%', maxWidth: 380, borderWidth: 1, borderColor: 'rgba(139,92,246,0.4)' }}>
+                        
+                        {/* Close Button */}
+                        <TouchableOpacity
+                            style={{ position: 'absolute', top: 16, right: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}
+                            onPress={() => setGiftRequestModal({ visible: false, request: null })}
+                        >
+                            <Ionicons name="close" size={20} color="rgba(255,255,255,0.6)" />
+                        </TouchableOpacity>
+
+                        {/* Title */}
+                        <Text style={{ color: '#fff', fontSize: 20, fontWeight: '900', textAlign: 'center', marginBottom: 20, letterSpacing: 0.5 }}>
+                            🎁 Gift Request
+                        </Text>
+                        
+                        {/* Sender Profile Section */}
+                        <View style={{ alignItems: 'center', marginBottom: 20 }}>
+                            <View style={{ position: 'relative', marginBottom: 12 }}>
+                                {giftRequestModal.request?.senderImage ? (
+                                    <LinearGradient
+                                        colors={['#8B5CF6', '#EC4899', '#F59E0B']}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 1 }}
+                                        style={{ padding: 3, borderRadius: 40 }}
+                                    >
+                                        <View style={{ backgroundColor: '#0E0E1C', padding: 2, borderRadius: 37 }}>
+                                            <Image 
+                                                source={{ uri: avatar(giftRequestModal.request.senderImage) }} 
+                                                style={{ width: 64, height: 64, borderRadius: 32 }}
+                                                contentFit="cover"
+                                                cachePolicy="memory-disk"
+                                            />
+                                        </View>
+                                    </LinearGradient>
+                                ) : (
+                                    <View style={{ width: 70, height: 70, borderRadius: 35, backgroundColor: 'rgba(139,92,246,0.2)', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#8B5CF6' }}>
+                                        <Ionicons name="person" size={32} color="#8B5CF6" />
+                                    </View>
+                                )}
+                            </View>
+                            
+                            <Text style={{ color: '#8B5CF6', fontSize: 18, fontWeight: '900', marginBottom: 4, textAlign: 'center' }} numberOfLines={1}>
+                                {giftRequestModal.request?.senderName || 'Someone'}
+                            </Text>
+                            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, textAlign: 'center' }}>
+                                wants to send you a gift
+                            </Text>
+                        </View>
+
+                        {/* Gift Item Card */}
+                        <View style={{ backgroundColor: 'rgba(139,92,246,0.08)', borderRadius: 20, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(139,92,246,0.25)' }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 12 }}>
+                                {/* Gift Image */}
                                 {giftRequestModal.request?.item?.image ? (
                                     <Image 
                                         source={{ uri: giftRequestModal.request.item.image }} 
-                                        style={{ width: 120, height: 120, borderRadius: 20, borderWidth: 3, borderColor: '#8B5CF6' }}
+                                        style={{ width: 70, height: 70, borderRadius: 14, borderWidth: 2, borderColor: 'rgba(139,92,246,0.3)' }}
                                         contentFit="cover"
                                         cachePolicy="memory-disk"
                                     />
                                 ) : (
-                                    <View style={{ width: 120, height: 120, borderRadius: 20, backgroundColor: 'rgba(139,92,246,0.2)', alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#8B5CF6' }}>
-                                        <Ionicons name="gift" size={60} color="#8B5CF6" />
+                                    <View style={{ width: 70, height: 70, borderRadius: 14, backgroundColor: 'rgba(139,92,246,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'rgba(139,92,246,0.3)' }}>
+                                        <Ionicons name="gift" size={32} color="#8B5CF6" />
                                     </View>
                                 )}
-                                <View style={{ position: 'absolute', bottom: -10, right: -10, width: 40, height: 40, borderRadius: 20, backgroundColor: '#8B5CF6', alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#131521' }}>
-                                    <Ionicons name="gift" size={20} color="#fff" />
+                                
+                                {/* Gift Info */}
+                                <View style={{ flex: 1 }}>
+                                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '900', marginBottom: 4 }} numberOfLines={2}>
+                                        {giftRequestModal.request?.item?.name || 'Gift Item'}
+                                    </Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                        <View style={{ backgroundColor: 'rgba(139,92,246,0.25)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
+                                            <Text style={{ color: '#8B5CF6', fontSize: 18, fontWeight: '900' }}>
+                                                ₹{giftRequestModal.request?.item?.price || 0}
+                                            </Text>
+                                        </View>
+                                    </View>
                                 </View>
                             </View>
-                        </View>
-
-                        {/* Title */}
-                        <Text style={{ color: '#fff', fontSize: 24, fontWeight: '900', textAlign: 'center', marginBottom: 8 }}>
-                            Gift Request
-                        </Text>
-                        
-                        {/* Sender Info */}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 20, gap: 8 }}>
-                            {giftRequestModal.request?.senderImage && (
-                                <Image 
-                                    source={{ uri: avatar(giftRequestModal.request.senderImage) }} 
-                                    style={{ width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: '#8B5CF6' }}
-                                    contentFit="cover"
-                                    cachePolicy="memory-disk"
-                                />
-                            )}
-                            <Text style={{ color: '#8B5CF6', fontSize: 18, fontWeight: '800' }}>
-                                {giftRequestModal.request?.senderName}
-                            </Text>
-                            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16 }}>
-                                wants to send you
-                            </Text>
-                        </View>
-
-                        {/* Gift Details */}
-                        <View style={{ backgroundColor: 'rgba(139,92,246,0.1)', borderRadius: 16, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(139,92,246,0.2)' }}>
-                            <Text style={{ color: '#8B5CF6', fontSize: 16, fontWeight: '900', marginBottom: 8, textAlign: 'center' }}>
-                                {giftRequestModal.request?.item?.name}
-                            </Text>
-                            <Text style={{ color: '#fff', fontSize: 24, fontWeight: '900', textAlign: 'center', marginBottom: 12 }}>
-                                ₹{giftRequestModal.request?.item?.price}
-                            </Text>
+                            
+                            {/* Message */}
                             {giftRequestModal.request?.message && (
-                                <>
-                                    <View style={{ height: 1, backgroundColor: 'rgba(139,92,246,0.2)', marginBottom: 12 }} />
-                                    <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 6 }}>
+                                <View style={{ backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: 12, borderLeftWidth: 3, borderLeftColor: '#8B5CF6' }}>
+                                    <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, fontWeight: '800', letterSpacing: 1, marginBottom: 4 }}>
                                         MESSAGE
                                     </Text>
-                                    <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14, lineHeight: 20 }}>
+                                    <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, lineHeight: 18, fontStyle: 'italic' }} numberOfLines={3}>
                                         "{giftRequestModal.request.message}"
                                     </Text>
-                                </>
+                                </View>
                             )}
                         </View>
 
                         {/* Info Text */}
-                        <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, textAlign: 'center', marginBottom: 24, lineHeight: 18 }}>
-                            If you accept, {giftRequestModal.request?.senderName?.split(' ')[0]} will be charged ₹{giftRequestModal.request?.item?.price} and the gift will be delivered to you.
-                        </Text>
+                        <View style={{ backgroundColor: 'rgba(251,191,36,0.08)', borderRadius: 12, padding: 12, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(251,191,36,0.2)' }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+                                <Ionicons name="information-circle" size={16} color="#FBB024" style={{ marginTop: 2 }} />
+                                <Text style={{ flex: 1, color: 'rgba(255,255,255,0.6)', fontSize: 11, lineHeight: 16 }}>
+                                    If you accept, {giftRequestModal.request?.senderName?.split(' ')[0]} will be charged ₹{giftRequestModal.request?.item?.price} and the gift will be delivered to you.
+                                </Text>
+                            </View>
+                        </View>
 
                         {/* Action Buttons */}
-                        <View style={{ gap: 12 }}>
+                        <View style={{ gap: 10 }}>
                             {/* Accept Button */}
                             <TouchableOpacity
-                                style={{ backgroundColor: '#8B5CF6', borderRadius: 18, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
+                                style={{ borderRadius: 16, overflow: 'hidden' }}
                                 onPress={async () => {
                                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                                     
@@ -1498,13 +1531,20 @@ await new Promise(resolve => setTimeout(resolve, delay));
                                     }
                                 }}
                             >
-                                <Ionicons name="checkmark-circle" size={24} color="#fff" />
-                                <Text style={{ color: '#fff', fontSize: 17, fontWeight: '900' }}>Accept Gift</Text>
+                                <LinearGradient
+                                    colors={['#8B5CF6', '#7C3AED']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
+                                    style={{ paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
+                                >
+                                    <Ionicons name="checkmark-circle" size={22} color="#fff" />
+                                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '900', letterSpacing: 0.5 }}>Accept Gift</Text>
+                                </LinearGradient>
                             </TouchableOpacity>
 
                             {/* Decline Button */}
                             <TouchableOpacity
-                                style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 18, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}
+                                style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, paddingVertical: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}
                                 onPress={() => {
                                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                                     
@@ -1526,18 +1566,10 @@ await new Promise(resolve => setTimeout(resolve, delay));
                                     setGiftRequestModal({ visible: false, request: null });
                                 }}
                             >
-                                <Ionicons name="close-circle" size={24} color="rgba(255,255,255,0.5)" />
-                                <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 17, fontWeight: '900' }}>Decline</Text>
+                                <Ionicons name="close-circle" size={20} color="rgba(255,255,255,0.5)" />
+                                <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 15, fontWeight: '800' }}>Decline</Text>
                             </TouchableOpacity>
                         </View>
-
-                        {/* Close Button */}
-                        <TouchableOpacity
-                            style={{ position: 'absolute', top: 16, right: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' }}
-                            onPress={() => setGiftRequestModal({ visible: false, request: null })}
-                        >
-                            <Ionicons name="close" size={20} color="rgba(255,255,255,0.5)" />
-                        </TouchableOpacity>
                     </View>
                 </View>
             </Modal>
