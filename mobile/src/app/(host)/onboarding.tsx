@@ -374,7 +374,7 @@ export default function Onboarding() {
             </View>
 
             <View style={styles.footerBtns}>
-                <TouchableOpacity style={styles.backBtn} onPress={() => transitionToStep(2)}>
+                <TouchableOpacity style={styles.backBtn} onPress={() => transitionToStep(2)} disabled={isSubmitting}>
                     <Ionicons name="arrow-back" size={20} color="#FFF" />
                 </TouchableOpacity>
                 <TouchableOpacity 
@@ -382,7 +382,12 @@ export default function Onboarding() {
                     onPress={handleSubmit}
                     disabled={!aadhaarFile || !panFile || isSubmitting}
                 >
-                    {isSubmitting ? <ActivityIndicator color="#FFF" size="small" /> : (
+                    {isSubmitting ? (
+                        <LinearGradient colors={['#10B981', '#059669']} style={styles.gradient} start={{x:0, y:0}} end={{x:1, y:0}}>
+                            <ActivityIndicator color="#FFF" size="small" style={{ marginRight: 8 }} />
+                            <Text style={styles.btnText}>Uploading Documents...</Text>
+                        </LinearGradient>
+                    ) : (
                         <LinearGradient colors={['#10B981', '#059669']} style={styles.gradient} start={{x:0, y:0}} end={{x:1, y:0}}>
                             <Text style={styles.btnText}>Finish Verification</Text>
                         </LinearGradient>
