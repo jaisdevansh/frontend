@@ -10,6 +10,7 @@ import {
     ScrollView,
     Animated,
     ActivityIndicator,
+    Keyboard,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -54,6 +55,8 @@ export default function WriteReview() {
 
     // Animated scale for stars
     const starScales = useRef([1, 2, 3, 4, 5].map(() => new Animated.Value(1))).current;
+    const scrollViewRef = useRef<ScrollView>(null);
+    const textInputRef = useRef<TextInput>(null);
 
     const animateStar = useCallback((index: number) => {
         Animated.sequence([
@@ -219,10 +222,11 @@ export default function WriteReview() {
 
                 <KeyboardAvoidingView
                     style={{ flex: 1 }}
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    keyboardVerticalOffset={0}
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
                 >
                     <ScrollView
+                        ref={scrollViewRef}
                         contentContainerStyle={styles.scroll}
                         showsVerticalScrollIndicator={false}
                         keyboardShouldPersistTaps="handled"
@@ -307,6 +311,7 @@ export default function WriteReview() {
                             <Text style={styles.sectionLabel}>YOUR STORY</Text>
                             <View style={styles.inputCard}>
                                 <TextInput
+                                    ref={textInputRef}
                                     style={styles.textInput}
                                     placeholder="Tell everyone what made this night special (or not)..."
                                     placeholderTextColor="rgba(255,255,255,0.2)"
@@ -316,6 +321,12 @@ export default function WriteReview() {
                                     value={reviewText}
                                     onChangeText={setReviewText}
                                     selectionColor={COLORS.primary}
+                                    onFocus={() => {
+                                        // Scroll to bottom when text input is focused
+                                        setTimeout(() => {
+                                            scrollViewRef.current?.scrollToEnd({ animated: true });
+                                        }, 300);
+                                    }}
                                 />
                                 <Text style={styles.charCount}>{reviewText.length}/500</Text>
                             </View>
@@ -344,7 +355,8 @@ export default function WriteReview() {
                             </LinearGradient>
                         </TouchableOpacity>
 
-                        <View style={{ height: 40 }} />
+                        {/* Extra padding for keyboard */}
+                        <View style={{ height: 300 }} />
                     </ScrollView>
                 </KeyboardAvoidingView>
             </SafeAreaView>
