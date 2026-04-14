@@ -109,6 +109,11 @@ export default function UnderReview() {
     const handleRecheck = useCallback(async () => {
         console.log('[UnderReview] 🔄 Manual recheck triggered');
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        
+        // Force invalidate ALL caches
+        await queryClient.invalidateQueries({ queryKey: ['hostProfile'] });
+        await queryClient.resetQueries({ queryKey: ['hostProfile'] });
+        
         const result = await refetch();
         
         console.log('[UnderReview] 📥 Refetch result:', result.data);
@@ -119,23 +124,20 @@ export default function UnderReview() {
         
         if (newStatus === 'ACTIVE') {
             console.log('[UnderReview] ✅ APPROVED! Navigating to dashboard...');
-            // ⚡ INSTANT redirect
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             showToast('🎉 Verification Approved! Welcome to Host Terminal', 'success');
             updateUser({ hostStatus: 'ACTIVE' });
             router.replace('/(host)/dashboard' as any);
         } else if (newStatus === 'REJECTED') {
             console.log('[UnderReview] ❌ REJECTED! Navigating to rejected...');
-            // ⚡ INSTANT redirect
             showToast('Verification rejected. Please check details.', 'error');
             updateUser({ hostStatus: 'REJECTED' });
             router.replace('/(host)/rejected' as any);
         } else {
             console.log('[UnderReview] ⏳ Still pending. Status:', newStatus);
-            // Still pending
             showToast('⏳ Your verification is still under review. Our team is working on it!', 'info');
         }
-    }, [refetch, showToast, updateUser, router]);
+    }, [refetch, showToast, updateUser, router, queryClient]);
 
     const getPulseStyle = (anim: Animated.Value) => ({
         transform: [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 2] }) }],
