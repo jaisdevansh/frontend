@@ -537,30 +537,30 @@ await new Promise(resolve => setTimeout(resolve, delay));
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setVisibility(val);
         const currentSocket = useChatStore.getState().socket;
-        if (currentSocket && activeEventId) {
-            // Send location with visibility update
-            const payload: any = { 
+        if (currentSocket && activeEventId && userLoc) {
+            const payload = { 
                 eventId: activeEventId, 
-                visibility: val 
+                visibility: val,
+                lat: userLoc.lat,
+                lng: userLoc.lng
             };
             
-            // Include location if available
-            if (userLoc) {
-                payload.lat = userLoc.lat;
-                payload.lng = userLoc.lng;
-                console.log('📡 [toggleVisibility] Sending presence with location:', payload);
-            } else {
-                console.warn('⚠️ [toggleVisibility] No location available, sending without coordinates');
-            }
-            
+            console.log('📡 [toggleVisibility] Emitting updatePresence:', payload);
             currentSocket.emit('updatePresence', payload);
             
             // Refetch nearby users after visibility change
             if (val) {
                 setTimeout(() => {
+                    console.log('🔄 [toggleVisibility] Refetching nearby users...');
                     nearby.refetch();
-                }, 1000);
+                }, 1500);
             }
+        } else {
+            console.warn('⚠️ [toggleVisibility] Missing requirements:', {
+                hasSocket: !!currentSocket,
+                hasEventId: !!activeEventId,
+                hasLocation: !!userLoc
+            });
         }
     };
 
