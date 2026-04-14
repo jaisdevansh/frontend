@@ -142,7 +142,6 @@ export default function HostVenueProfile() {
                 showToast('Location fetched successfully!', 'success');
             }
         } catch (error) {
-            console.error('Location Error:', error);
             showToast('Failed to get current location', 'error');
         } finally {
             setLoading(false);
@@ -188,7 +187,6 @@ export default function HostVenueProfile() {
                 showToast('Failed to update venue profile', 'error');
             }
         } catch (error: any) {
-            console.error('Save Venue Error:', error);
             const errorMsg = error?.response?.data?.message || error.message || 'Failed to save changes';
             showToast(errorMsg, 'error');
         } finally {

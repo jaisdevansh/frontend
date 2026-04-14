@@ -25,7 +25,7 @@ export default function InsightsReviews() {
                 setReviews(res.data);
             }
         } catch (error) {
-            console.error('Fetch Reviews:', error);
+            // Silent error
         } finally {
             setLoading(false);
         }

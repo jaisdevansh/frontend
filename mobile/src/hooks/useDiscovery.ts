@@ -40,15 +40,20 @@ export const useDiscovery = (eventId?: string | null) => {
             } catch (e: any) {
                 const status = e.response?.status;
                 if (status === 502 || status === 503) {
-}
+                    console.warn('⚠️ [useDiscovery] Backend cold start, retrying...');
+                }
                 return [];
             }
         },
-        enabled: !!eventId && !!token, // Only fetch if authenticated
-        staleTime: 1000 * 30,
-        refetchInterval: 1000 * 60,
-        retry: 4,
-        retryDelay: (attemptIndex) => Math.min(2000 * 2 ** attemptIndex, 15000),
+        enabled: !!eventId && !!token,
+        staleTime: Infinity, // Never consider data stale - only refetch manually
+        gcTime: 1000 * 60 * 30, // 30 minutes cache
+        refetchInterval: false, // Disable auto refetch
+        refetchOnWindowFocus: false, // Disable refetch on focus
+        refetchOnMount: false, // Only fetch once on mount
+        refetchOnReconnect: false, // Don't refetch on socket reconnect
+        retry: 2,
+        retryDelay: 2000,
     });
 
     const gifts = useQuery({
@@ -61,15 +66,18 @@ export const useDiscovery = (eventId?: string | null) => {
             } catch (e: any) {
                 const status = e.response?.status;
                 if (status === 502 || status === 503) {
-}
+                    console.warn('⚠️ [useDiscovery] Backend cold start, retrying...');
+                }
                 return [];
             }
         },
-        enabled: !!eventId && !!token, // Only fetch if authenticated
-        staleTime: 1000 * 60 * 2,
-        gcTime: 1000 * 60 * 15,
-        retry: 4,
-        retryDelay: (attemptIndex) => Math.min(2000 * 2 ** attemptIndex, 15000),
+        enabled: !!eventId && !!token,
+        staleTime: 1000 * 60 * 10, // 10 minutes
+        gcTime: 1000 * 60 * 20,
+        refetchOnWindowFocus: false,
+        refetchOnMount: false,
+        retry: 2,
+        retryDelay: 2000,
     });
 
     const menu = useQuery({
@@ -82,14 +90,18 @@ export const useDiscovery = (eventId?: string | null) => {
             } catch (e: any) {
                 const status = e.response?.status;
                 if (status === 502 || status === 503) {
-}
+                    console.warn('⚠️ [useDiscovery] Backend cold start, retrying...');
+                }
                 return [];
             }
         },
-        enabled: !!eventId && !!token, // Only fetch if authenticated
-        staleTime: 1000 * 60 * 10,
-        retry: 4,
-        retryDelay: (attemptIndex) => Math.min(2000 * 2 ** attemptIndex, 15000),
+        enabled: !!eventId && !!token,
+        staleTime: 1000 * 60 * 15, // 15 minutes
+        gcTime: 1000 * 60 * 30,
+        refetchOnWindowFocus: false,
+        refetchOnMount: false,
+        retry: 2,
+        retryDelay: 2000,
     });
 
     return {

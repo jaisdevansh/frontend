@@ -43,7 +43,6 @@ export default function SplitRequestReceived() {
 
         // Guard: amount must be a valid positive number
         if (!shareAmount || shareAmount <= 0 || isNaN(shareAmount)) {
-            console.warn('[Split] Invalid shareAmount:', shareAmount);
             return;
         }
 

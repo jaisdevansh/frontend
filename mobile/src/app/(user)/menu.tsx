@@ -21,9 +21,6 @@ export default function PremiumMenu() {
     const { eventId, venueName: paramVenueName, hostId, bookingId, tableId } = params;
     const insets = useSafeAreaInsets();
 
-    // 🔍 DEBUG — print all params on every render
-    console.log('🎯 [menu] PARAMS:', JSON.stringify({ eventId, hostId, bookingId, tableId, venueName: paramVenueName }));
-    
     // Store Logic (for eventId path)
     const { menuItems, setMenu, loading, setLoading, categories } = useFoodStore();
     const [selectedCategory, setSelectedCategory] = useState('');
@@ -54,7 +51,9 @@ export default function PremiumMenu() {
                     setSelectedCategory('All');
                 }
             })
-            .catch(err => console.warn('[menu] fetch error:', err?.response?.status))
+            .catch(err => {
+                // Silent error
+            })
             .finally(() => setLocalLoading(false));
     }, []); // mount-once is correct — hostId is stable
 
@@ -71,7 +70,7 @@ export default function PremiumMenu() {
                 }
             }
         } catch (err) {
-            console.warn('[menu] event fetch error');
+            // Silent error
         } finally {
             setLoading(false);
         }

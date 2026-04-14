@@ -41,19 +41,16 @@ export default function UnderReview() {
     useEffect(() => {
         // DISABLED: Socket causing infinite reconnect loop
         // Will rely on polling only until backend JWT issue is resolved
-        console.log('[UnderReview] Using polling-only mode (socket disabled)');
         return () => {};
     }, []);
 
     useEffect(() => {
-        // ⚡ ULTRA-FAST polling every 1 second for instant admin approval detection
-        console.log('[UnderReview] Starting 1-second polling...');
+        // ⚡ ULTRA-FAST polling every 500ms for instant admin approval detection
+        console.log('[UnderReview] 🚀 Starting 500ms polling...');
         const pollInt = setInterval(() => {
-            console.log('[UnderReview] Polling... Current status:', host?.hostStatus);
-            // Force invalidate cache before refetch
-            queryClient.invalidateQueries({ queryKey: ['hostProfile'] });
+            console.log('[UnderReview] 📡 Polling... Current status:', host?.hostStatus);
             refetch();
-        }, 1000);
+        }, 500);
         
         const createLoop = (anim: Animated.Value, delay: number) => {
             Animated.loop(
@@ -73,57 +70,65 @@ export default function UnderReview() {
         createLoop(pulse2, 1000);
 
         return () => {
-            console.log('[UnderReview] Stopping polling');
+            console.log('[UnderReview] 🛑 Stopping polling');
             clearInterval(pollInt);
         };
-    }, [refetch, host?.hostStatus, queryClient]);
+    }, []); // Empty deps - only run once on mount
 
-    // 🚀 Auto-Transition Logic (Sub-ms reaction to status changes)
+    // 🚀 Auto-Transition Logic (Instant reaction to status changes)
     useEffect(() => {
-        console.log('[UnderReview] Status check - hostStatus:', host?.hostStatus);
+        console.log('[UnderReview] 🔍 Status check useEffect triggered');
+        console.log('[UnderReview] 📊 host object:', host);
+        console.log('[UnderReview] 📌 host?.hostStatus:', host?.hostStatus);
         
-        if (host?.hostStatus === 'ACTIVE') {
+        if (!host?.hostStatus) {
+            console.log('[UnderReview] ⚠️ No host status available yet');
+            return;
+        }
+        
+        console.log('[UnderReview] ✅ Status available:', host.hostStatus);
+        
+        if (host.hostStatus === 'ACTIVE') {
             console.log('[UnderReview] 🎉 STATUS IS ACTIVE! Navigating to dashboard...');
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             showToast('🎉 Approved! Welcome to Host Terminal', 'success');
-            
-            // ⚡ CRITICAL: Update user state SYNCHRONOUSLY then navigate
-            updateUser({ hostStatus: 'ACTIVE' }).then(() => {
-                console.log('[UnderReview] User state updated, forcing navigation...');
-                // Force navigation with a tiny delay to ensure state propagation
-                requestAnimationFrame(() => {
-                    router.replace('/(host)/dashboard' as any);
-                });
-            });
-        } else if (host?.hostStatus === 'REJECTED') {
+            updateUser({ hostStatus: 'ACTIVE' });
+            router.replace('/(host)/dashboard' as any);
+        } else if (host.hostStatus === 'REJECTED') {
             console.log('[UnderReview] ❌ STATUS IS REJECTED! Navigating to rejected...');
-            updateUser({ hostStatus: 'REJECTED' }).then(() => {
-                requestAnimationFrame(() => {
-                    router.replace('/(host)/rejected' as any);
-                });
-            });
+            updateUser({ hostStatus: 'REJECTED' });
+            router.replace('/(host)/rejected' as any);
+        } else {
+            console.log('[UnderReview] ⏳ Status still pending:', host.hostStatus);
         }
-    }, [host?.hostStatus, updateUser, router, showToast]);
+    }, [host?.hostStatus]); // Only trigger when status changes
 
     const handleRecheck = useCallback(async () => {
+        console.log('[UnderReview] 🔄 Manual recheck triggered');
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         const result = await refetch();
         
+        console.log('[UnderReview] 📥 Refetch result:', result.data);
+        
         // Check the refetched status
         const newStatus = result.data?.hostStatus;
+        console.log('[UnderReview] 🎯 New status from refetch:', newStatus);
         
         if (newStatus === 'ACTIVE') {
-            // ⚡ INSTANT redirect - no delay
+            console.log('[UnderReview] ✅ APPROVED! Navigating to dashboard...');
+            // ⚡ INSTANT redirect
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             showToast('🎉 Verification Approved! Welcome to Host Terminal', 'success');
-            await updateUser({ hostStatus: 'ACTIVE' });
+            updateUser({ hostStatus: 'ACTIVE' });
             router.replace('/(host)/dashboard' as any);
         } else if (newStatus === 'REJECTED') {
-            // ⚡ INSTANT redirect - no delay
+            console.log('[UnderReview] ❌ REJECTED! Navigating to rejected...');
+            // ⚡ INSTANT redirect
             showToast('Verification rejected. Please check details.', 'error');
-            await updateUser({ hostStatus: 'REJECTED' });
+            updateUser({ hostStatus: 'REJECTED' });
             router.replace('/(host)/rejected' as any);
         } else {
+            console.log('[UnderReview] ⏳ Still pending. Status:', newStatus);
             // Still pending
             showToast('⏳ Your verification is still under review. Our team is working on it!', 'info');
         }

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import SafeFlashList from '../../components/SafeFlashList';
@@ -15,6 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import apiClient from '../../services/apiClient';
 import { ListSkeleton } from '../../components/Skeletons/ListSkeleton';
 import { useSmartRefresh } from '../../hooks/useSmartRefresh';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '../../context/AuthContext';
 
 type Tab = 'upcoming' | 'past' | 'orders';
 
@@ -31,90 +33,70 @@ const ORDER_STATUS_CONFIG: Record<string, { color: string; bg: string; label: st
 export default function MyBookings() {
     const router = useRouter();
     const { showToast } = useToast();
+    const { token } = useAuth();
     const [activeTab, setActiveTab] = useState<Tab>('upcoming');
-    const [loading, setLoading] = useState(true);
-    const [allBookings, setAllBookings] = useState<any[]>([]);
-
-    const [orders, setOrders] = useState<any[]>([]);
-    const [loadingOrders, setLoadingOrders] = useState(false);
     
     const params = useLocalSearchParams<{ tab?: Tab }>();
 
-    // ⚡ SMART REFRESH: Separate for bookings and orders
-    const { refreshing: refreshingBookings, onRefresh: onRefreshBookings } = useSmartRefresh({
-        endpoint: '/user/bookings',
-        checkUpdatesEndpoint: '/user/bookings/check-updates',
-        cacheKey: 'bookings_lastFetch',
-        onRefresh: async () => {
+    // 🚀 REACT QUERY: Auto-refresh bookings every 30 seconds
+    const bookingsQuery = useQuery({
+        queryKey: ['user', 'bookings'],
+        queryFn: async () => {
             const res = await userService.getMyBookings();
             if (res.success && res.data) {
-                // Backend now returns { bookings: [], pagination: {} }
                 const bookingsData = res.data.bookings || res.data;
-                setAllBookings(Array.isArray(bookingsData) ? bookingsData : []);
+                return Array.isArray(bookingsData) ? bookingsData : [];
             }
+            return [];
         },
+        enabled: !!token,
+        staleTime: 1000 * 30, // Consider data stale after 30 seconds
+        refetchInterval: 1000 * 30, // Auto-refetch every 30 seconds
+        refetchOnWindowFocus: true, // Refetch when app comes to foreground
+        refetchOnMount: true, // Always refetch on mount
     });
 
-    const { refreshing: refreshingOrders, onRefresh: onRefreshOrders } = useSmartRefresh({
-        endpoint: '/user/orders/my',
-        checkUpdatesEndpoint: '/user/orders/check-updates',
-        cacheKey: 'orders_lastFetch',
-        onRefresh: async () => {
+    // 🚀 REACT QUERY: Auto-refresh orders every 30 seconds
+    const ordersQuery = useQuery({
+        queryKey: ['user', 'orders'],
+        queryFn: async () => {
             const res = await apiClient.get('/user/orders/my');
             if (res.data?.success) {
-                // Backend now returns { orders: [], pagination: {} }
                 const ordersData = res.data.data?.orders || res.data.data;
-                setOrders(Array.isArray(ordersData) ? ordersData : []);
+                return Array.isArray(ordersData) ? ordersData : [];
             }
+            return [];
         },
+        enabled: !!token,
+        staleTime: 1000 * 30, // Consider data stale after 30 seconds
+        refetchInterval: 1000 * 30, // Auto-refetch every 30 seconds
+        refetchOnWindowFocus: true,
+        refetchOnMount: true,
     });
 
+    const allBookings = bookingsQuery.data || [];
+    const orders = ordersQuery.data || [];
+    const loading = bookingsQuery.isLoading;
+    const loadingOrders = ordersQuery.isLoading;
+
+    // Manual refresh handlers
+    const onRefreshBookings = useCallback(async () => {
+        await bookingsQuery.refetch();
+    }, [bookingsQuery]);
+
+    const onRefreshOrders = useCallback(async () => {
+        await ordersQuery.refetch();
+    }, [ordersQuery]);
+
     // Combined refreshing state based on active tab
-    const refreshing = activeTab === 'orders' ? refreshingOrders : refreshingBookings;
+    const refreshing = activeTab === 'orders' ? ordersQuery.isRefetching : bookingsQuery.isRefetching;
     const onRefresh = activeTab === 'orders' ? onRefreshOrders : onRefreshBookings;
 
-    React.useEffect(() => {
+    useEffect(() => {
         if (params.tab && ['upcoming', 'past', 'orders'].includes(params.tab)) {
             setActiveTab(params.tab as Tab);
         }
     }, [params.tab]);
-
-    useFocusEffect(
-        useCallback(() => {
-            let active = true;
-            const fetchBookings = async () => {
-                try {
-                    setLoading(true);
-                    const res = await userService.getMyBookings();
-                    if (res.success && res.data && active) {
-                        // Backend now returns { bookings: [], pagination: {} }
-                        const bookingsData = res.data.bookings || res.data;
-                        setAllBookings(Array.isArray(bookingsData) ? bookingsData : []);
-                    }
-                } catch (error: any) {
-                    // silently fail in production
-                } finally {
-                    if (active) setLoading(false);
-                }
-            };
-            const fetchOrders = async () => {
-                try {
-                    setLoadingOrders(true);
-                    const res = await apiClient.get('/user/orders/my');
-                    if (res.data?.success && active) {
-                        // Backend now returns { orders: [], pagination: {} }
-                        const ordersData = res.data.data?.orders || res.data.data;
-                        setOrders(Array.isArray(ordersData) ? ordersData : []);
-                    }
-                } catch { } // silent on orders
-                finally { if (active) setLoadingOrders(false); }
-            };
-
-            fetchBookings();
-            fetchOrders();
-            return () => { active = false; };
-        }, [])
-    );
 
     const getStatusGroup = useCallback((booking: any) => {
         if (['cancelled', 'rejected'].includes(booking.status)) return 'cancelled';

@@ -79,7 +79,7 @@ export default function SecurityPanel() {
             const res = await staffService.getProfile();
             if (res.success) setProfile(res.data);
         } catch (err) {
-            console.log('Profile fetch error', err);
+            // Silent error
         }
     };
 
@@ -178,14 +178,6 @@ export default function SecurityPanel() {
         const theme = PRIORITY_CONFIG[issue.type] || PRIORITY_CONFIG.other;
         const isActive = activeTab === 'active';
         const isInProgress = activeTab === 'in_progress';
-        
-        console.log('[Security] Issue data:', { 
-            id: issue._id, 
-            zone: issue.zone, 
-            tableId: issue.tableId,
-            userId: issue.userId?.name,
-            reportedBy: issue.reportedBy?.name 
-        });
         
         return (
             <View style={[styles.issueCard, { borderColor: '#FF9500', borderWidth: 2 }]}>

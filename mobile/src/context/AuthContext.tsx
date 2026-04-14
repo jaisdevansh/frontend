@@ -73,7 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             data.userId = decoded.userId || decoded.id || decoded.sub;
                         }
                     } catch (decodeErr) {
-                        console.warn('[Auth] JWT decode soft fail:', decodeErr);
+                        // JWT decode failed, continue with basic data
                     }
                     
                     apiClient.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
@@ -82,7 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setAuthState({ ...data, ...userData });
             }
         } catch (e) {
-            console.error('[Auth] Load failed:', e);
+            // Silent fail - app continues with no auth
         } finally {
             setIsLoading(false);
         }
@@ -103,7 +103,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const storedStatus = authState.user?.hostStatus;
 
                 if (serverStatus && serverStatus !== storedStatus) {
-                    console.log(`[Auth] ⚡ Host status synced: ${storedStatus} → ${serverStatus}`);
                     // Update both in-memory state and AsyncStorage silently
                     await persistAuth({
                         user: { ...authState.user, hostStatus: serverStatus },
@@ -189,7 +188,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             apiClient.defaults.headers.common['Authorization'] = '';
             delete apiClient.defaults.headers.common['Authorization'];
         } catch (e) {
-            console.error('[Auth] Hard reset failed:', e);
+            // Silent fail - continue with logout
         }
 
         await queryClient.cancelQueries();
@@ -219,7 +218,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 user: payload.user,
             }));
         } catch (storageError) {
-            console.error('[Auth] Storage failed:', storageError);
             throw new Error('Failed to save session. Please try again.');
         }
 
@@ -250,14 +248,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Merges non-critical user fields (name, image, hostStatus etc.) without touching token or role
     const updateUser = async (userData: Partial<any>) => {
+        console.log('[AuthContext] 📝 updateUser called with:', userData);
         await persistAuth({
             user: { ...authState.user, ...userData },
         });
+        console.log('[AuthContext] ✅ User updated. New user object:', { ...authState.user, ...userData });
     };
 
     const logout = async () => {
-        console.log('[Auth] Starting HARD logout - clearing EVERYTHING...');
-        
         try {
             // ── MANDATORY RESET ──
             await AsyncStorage.removeItem('auth');
@@ -273,7 +271,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             queryClient.removeQueries(); // Completely drop them from memory instantly
             queryClient.clear();
         } catch (e) {
-            console.error('[Auth] Logout cleanup failed:', e);
+            // Silent cleanup failure
         }
 
         setAuthState({
@@ -281,11 +279,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             userId: null,
             role: null,
             hostId: null,
-            user: null, // Reset state to null
+            user: null,
             onboardingCompleted: false,
         });
-        
-        console.log('[Auth] Logout complete - ZERO data remains');
     };
 
     return (

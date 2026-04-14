@@ -34,7 +34,7 @@ export default function PayoutHistory() {
             if (payoutRes.success) setSummary(payoutRes.data.summary);
             if (paymentRes.success) setPayments(paymentRes.data);
         } catch (error) {
-            console.error('Failed to load payouts', error);
+            // Silent error
         } finally {
             setLoading(false);
         }

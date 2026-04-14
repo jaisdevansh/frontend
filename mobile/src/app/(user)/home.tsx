@@ -259,7 +259,6 @@ export default function HomeScreen() {
                     setCityName('Location Access Needed');
                 }
             } catch (error: any) {
-                console.warn('[Home] Location fetch failed:', error.message || 'Location error');
                 setCityName('Location Unavailable');
             }
         };
@@ -402,7 +401,6 @@ export default function HomeScreen() {
             
             <TouchableOpacity 
                 activeOpacity={1} 
-                onLongPress={() => router.push('/(user)/debug')}
                 style={{ paddingHorizontal: 20, marginBottom: 10 }}
             >
                 <Text style={{ color: '#fff', fontSize: 18, fontWeight: '900' }}>Explore Events</Text>

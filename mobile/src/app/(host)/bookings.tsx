@@ -72,7 +72,6 @@ export default function HostBookings() {
                 setBookings(res.data || []);
             }
         } catch (error) {
-            console.error('Fetch Bookings Error:', error);
             showToast('Failed to load bookings', 'error');
         } finally {
             setLoading(false);

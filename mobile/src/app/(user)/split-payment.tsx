@@ -84,7 +84,7 @@ export default function SplitPayScreen() {
                 }
             }
         } catch (error) {
-            console.error('Contacts Error:', error);
+            // Silent error
         } finally {
             setLoadingContacts(false);
         }

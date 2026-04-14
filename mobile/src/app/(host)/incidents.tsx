@@ -36,7 +36,7 @@ export default function SecurityIncidents() {
                 setIncidents(res.data);
             }
         } catch (error) {
-            console.error('Fetch Incidents:', error);
+            // Silent error
         } finally {
             setLoading(false);
         }
@@ -54,7 +54,7 @@ export default function SecurityIncidents() {
                     setIncidents(prev => [newReport, ...prev]);
                 });
             } catch (err) {
-                console.log('Socket init error:', err);
+                // Silent socket init error
             }
         };
 
@@ -70,7 +70,6 @@ export default function SecurityIncidents() {
         try {
             await hostService.resolveIncident(id);
         } catch (error) {
-            console.error('Resolve Incident:', error);
             showToast('Failed to resolve. Reverting...', 'error');
             fetchIncidents();
         }
@@ -93,7 +92,6 @@ export default function SecurityIncidents() {
                         try {
                             await hostService.deleteIncident(id);
                         } catch (error) {
-                            console.error('Delete Incident:', error);
                             showToast('Failed to delete', 'error');
                             fetchIncidents();
                         }

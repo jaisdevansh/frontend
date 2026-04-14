@@ -133,51 +133,39 @@ export default function DiscoverScreen() {
     // 📡 REACT-QUERY: REAL-TIME DATA REPLACING DUMMY 📡
     const { nearby, gifts, menu, isLoading: queryLoadingBase, refetchAll } = useDiscovery(activeEventId);
 
-    // Sync nearby users with store when data changes
+    // Sync nearby users with store ONLY when data actually changes - using stable reference
     useEffect(() => {
-        if (nearby.data && Array.isArray(nearby.data)) {
-            console.log('🔄 [Discover] Syncing nearby users to store:', nearby.data.length);
-            setNearbyUsers(nearby.data);
+        if (nearby.data && Array.isArray(nearby.data) && nearby.data.length > 0) {
+            const currentIds = nearby.data.map((u: any) => u._id || u.id).sort().join(',');
+            const prevIds = nearbyUsers.map((u: any) => u._id || u.id).sort().join(',');
+            
+            if (currentIds !== prevIds) {
+                setNearbyUsers(nearby.data);
+            }
         }
-    }, [nearby.data]); // Removed setNearbyUsers to prevent infinite loop
+    }, [nearby.data]);
 
-    // 🎁 HOST-SPECIFIC GIFTS — background refresh
     const hostGifts = useQuery({
         queryKey: ['host', 'gifts', activeHostId],
         queryFn: async () => {
-            if (!activeHostId) {
-                console.log('🎁 [hostGifts] No activeHostId, skipping fetch');
-                return [];
-            }
-            if (!token) {
-                console.log('🎁 [hostGifts] No token, user logged out');
-                return [];
-            }
-            console.log('🎁 [hostGifts] Fetching for hostId:', activeHostId);
+            if (!activeHostId || !token) return [];
             try {
                 const res = await apiClient.get(`/user/host/${activeHostId}/gifts`);
-                console.log('🎁 [hostGifts] Response:', res.data?.success, 'Count:', res.data?.data?.length || 0);
                 return res.data?.success && res.data.data ? res.data.data : [];
             } catch (e: any) {
-                console.error('🎁 [hostGifts] Error:', e.message);
                 return [];
             }
         },
-        enabled: !!activeHostId && !!token, // Only fetch if authenticated
-        staleTime: 1000 * 60 * 2, // 2 min
+        enabled: !!activeHostId && !!token,
+        staleTime: 1000 * 60 * 2,
         gcTime: 1000 * 60 * 20,
-        placeholderData: [], // Show empty array while loading
+        placeholderData: [],
     });
 
-    // 🍽️ HOST-SPECIFIC MENU — background refresh
     const hostMenu = useQuery({
         queryKey: ['host', 'menu', activeHostId],
         queryFn: async () => {
-            if (!activeHostId) return [];
-            if (!token) {
-                console.log('🍽️ [hostMenu] No token, user logged out');
-                return [];
-            }
+            if (!activeHostId || !token) return [];
             try {
                 const res = await apiClient.get(`/user/host/${activeHostId}/menu`);
                 return res.data?.success && res.data.data ? res.data.data : [];
@@ -185,8 +173,8 @@ export default function DiscoverScreen() {
                 return [];
             }
         },
-        enabled: !!activeHostId && !!token, // Only fetch if authenticated
-        staleTime: 1000 * 60 * 2, // 2 min
+        enabled: !!activeHostId && !!token,
+        staleTime: 1000 * 60 * 2,
         gcTime: 1000 * 60 * 20,
     });
 
@@ -215,10 +203,8 @@ export default function DiscoverScreen() {
         }
     }, [token, currentUser?.id, initSocket]);
 
-    // Setup notification callback for incoming messages
     useEffect(() => {
         setMessageReceivedCallback((senderId: string, senderName: string, content: string) => {
-            console.log('🔔 [Discover] Message received notification:', { senderId, senderName, content });
             showBanner({
                 id: `chat_${senderId}_${Date.now()}`,
                 title: `${senderName}`,
@@ -229,12 +215,8 @@ export default function DiscoverScreen() {
         });
     }, [setMessageReceivedCallback, showBanner]);
 
-    // Setup chat request callback
     useEffect(() => {
         setChatRequestCallback((senderId: string, senderName: string, content: string, senderImage?: string) => {
-            console.log('🔔 [Discover] Chat request received:', { senderId, senderName, content });
-            
-            // Show chat request modal
             setChatRequestModal({
                 visible: true,
                 request: {
@@ -255,14 +237,8 @@ export default function DiscoverScreen() {
         });
     }, [setChatRequestCallback, showBanner]);
 
-    // Setup gift request callback
-    const { setGiftRequestCallback, giftRequests, addGiftRequest, removeGiftRequest } = useDiscoveryStore();
-    
     useEffect(() => {
         setGiftRequestCallback((request) => {
-            console.log('🎁 [Discover] Gift request received:', request);
-            
-            // Show gift request modal
             setGiftRequestModal({
                 visible: true,
                 request
@@ -322,13 +298,11 @@ await new Promise(resolve => setTimeout(resolve, delay));
 
     const [userLoc, setUserLoc] = useState<{lat: number, lng: number} | null>(null);
     const hasInitializedRef = useRef(false);
+    const hasUpdatedPresenceRef = useRef(false); // Track if we've already updated presence
 
     const initSystem = useCallback(async () => {
         // Prevent multiple initializations
-        if (hasInitializedRef.current) {
-            console.log('⏭️ [initSystem] Already initialized, skipping...');
-            return;
-        }
+        if (hasInitializedRef.current) return;
         
         try {
             let capturedLocation: {lat: number, lng: number} | null = null;
@@ -340,16 +314,13 @@ await new Promise(resolve => setTimeout(resolve, delay));
                     const reverse = await Location.reverseGeocodeAsync({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
                     if (reverse && reverse.length > 0) setLocationName(reverse[0].name || reverse[0].street || 'Private Event');
                     
-                    // Store user location for presence updates
                     capturedLocation = { lat: loc.coords.latitude, lng: loc.coords.longitude };
                     setUserLoc(capturedLocation);
-                    console.log('📍 [initSystem] User location captured:', capturedLocation);
                 } catch (locErr) { 
-                    console.warn('⚠️ [initSystem] Location error:', locErr);
+                    // Silent location error
                 }
             }
 
-            // Retry active-event API call with exponential backoff
             const eventRes = await retryApiCall(
                 () => apiClient.get('/user/active-event?refresh=true'),
                 3,
@@ -362,78 +333,47 @@ await new Promise(resolve => setTimeout(resolve, delay));
                 const hid = booking.hostId;
                 const crowd = booking.liveCrowd || 0;
                 
-                console.log('📍 [initSystem] Booking data:', { eid, hid, crowd, booking });
-                
                 if (eid) {
                     setActiveEventId(String(eid));
                     
-                    // Auto-seed EventPresence for testing (will be removed in production)
-                    try {
-                        console.log('🌱 [initSystem] Auto-seeding EventPresence...');
-                        await apiClient.post(`/test/seed-presence/${eid}`);
-                        console.log('✅ [initSystem] EventPresence seeded successfully');
-                        
-                        // After seeding, immediately update current user's presence with location
+                    // Update presence with location if available
+                    if (capturedLocation) {
                         const currentSocket = useChatStore.getState().socket;
-                        console.log('🔌 [initSystem] Socket status:', { 
-                            hasSocket: !!currentSocket, 
-                            isConnected: currentSocket?.connected,
-                            hasLocation: !!capturedLocation 
-                        });
                         
-                        if (currentSocket && capturedLocation) {
-                            if (currentSocket.connected) {
-                                console.log('📡 [initSystem] Auto-updating my presence with location:', capturedLocation);
-                                currentSocket.emit('updatePresence', {
-                                    eventId: eid,
-                                    lat: capturedLocation.lat,
-                                    lng: capturedLocation.lng,
-                                    visibility: true // Auto-enable visibility for testing
-                                });
-                                setVisibility(true);
-                            } else {
-                                console.warn('⚠️ [initSystem] Socket not connected yet, will update presence when connected');
-                                // Wait for socket to connect, then update
-                                currentSocket.once('connect', () => {
-                                    console.log('📡 [initSystem] Socket connected, now updating presence');
-                                    currentSocket.emit('updatePresence', {
+                        if (!hasUpdatedPresenceRef.current && capturedLocation) {
+                            const updatePresence = () => {
+                                if (hasUpdatedPresenceRef.current) return;
+                                
+                                const socket = useChatStore.getState().socket;
+                                if (socket) {
+                                    socket.emit('updatePresence', {
                                         eventId: eid,
                                         lat: capturedLocation.lat,
                                         lng: capturedLocation.lng,
                                         visibility: true
                                     });
                                     setVisibility(true);
-                                });
+                                    hasUpdatedPresenceRef.current = true;
+                                }
+                            };
+                            
+                            if (currentSocket) {
+                                if (currentSocket.connected) {
+                                    updatePresence();
+                                } else {
+                                    currentSocket.once('connect', updatePresence);
+                                }
                             }
-                        } else {
-                            console.warn('⚠️ [initSystem] Cannot update presence:', {
-                                hasSocket: !!currentSocket,
-                                hasLocation: !!capturedLocation
-                            });
                         }
-                    } catch (seedErr: any) {
-                        console.warn('⚠️ [initSystem] Seed failed (might already exist):', seedErr.message);
                     }
                 }
-                if (hid) {
-                    console.log('📍 [initSystem] Setting activeHostId:', String(hid));
-                    setActiveHostId(String(hid));
-                }
-                if (crowd) {
-                    console.log('👥 [initSystem] Setting live crowd:', crowd);
-                    setLiveCrowd(crowd);
-                }
-            } else {
-                console.log('📍 [initSystem] No active booking found');
+                if (hid) setActiveHostId(String(hid));
+                if (crowd) setLiveCrowd(crowd);
             }
             
             hasInitializedRef.current = true;
         } catch (e: any) { 
-            // Silent fail for 502/503 - these are expected during cold starts
-            const status = e.response?.status;
-            if (status === 502 || status === 503) {
-} else {
-}
+            // Silent fail for cold starts
         } finally { setLoading(false); }
     }, [setLocationName, setLoading, setLiveCrowd, setVisibility]);
 
@@ -462,6 +402,9 @@ await new Promise(resolve => setTimeout(resolve, delay));
     // Track if we've joined the event room to prevent duplicate joins
     const hasJoinedEventRef = useRef<string | null>(null);
 
+    // Debounce userVisible refetch to prevent rapid-fire updates
+    const userVisibleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    
     useEffect(() => {
         const currentSocket = useChatStore.getState().socket;
         if (currentSocket && activeEventId) {
@@ -485,7 +428,16 @@ await new Promise(resolve => setTimeout(resolve, delay));
             };
             const handleUserVisible = ({ userId }: any) => {
                 console.log('👁️ [Discover] User became visible:', userId);
-                nearby.refetch();
+                
+                // Debounce refetch to prevent rapid-fire updates
+                if (userVisibleTimeoutRef.current) {
+                    clearTimeout(userVisibleTimeoutRef.current);
+                }
+                
+                userVisibleTimeoutRef.current = setTimeout(() => {
+                    console.log('🔄 [Discover] Refetching after user visible event');
+                    nearby.refetch();
+                }, 3000); // Wait 3 seconds before refetching
             };
             const handleGiftRequest = (request: any) => {
                 console.log('🎁 [Discover] Received gift request:', request);
@@ -511,6 +463,9 @@ await new Promise(resolve => setTimeout(resolve, delay));
             
             // Cleanup listeners on unmount or when activeEventId changes
             return () => {
+                if (userVisibleTimeoutRef.current) {
+                    clearTimeout(userVisibleTimeoutRef.current);
+                }
                 currentSocket.off('presenceUpdate', handlePresenceUpdate);
                 currentSocket.off('notification', handleNotification);
                 currentSocket.off('userVisible', handleUserVisible);
@@ -519,7 +474,7 @@ await new Promise(resolve => setTimeout(resolve, delay));
                 currentSocket.off('gift_request_rejected', handleGiftRejected);
             };
         }
-    }, [activeEventId, setLiveCrowd, showBanner, nearby, addGiftRequest, removeGiftRequest, showToast]);
+    }, [activeEventId, setLiveCrowd, showBanner, addGiftRequest, removeGiftRequest, showToast]); // Removed 'nearby' from deps
     
     // Separate effect for leaving event room on unmount
     useEffect(() => {
@@ -533,11 +488,20 @@ await new Promise(resolve => setTimeout(resolve, delay));
         };
     }, []);
 
+    // Debounce presence updates to prevent rapid-fire emissions
+    const presenceUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    
     const toggleVisibility = (val: boolean) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setVisibility(val);
+        
         const currentSocket = useChatStore.getState().socket;
         if (currentSocket && activeEventId && userLoc) {
+            // Clear any pending presence update
+            if (presenceUpdateTimeoutRef.current) {
+                clearTimeout(presenceUpdateTimeoutRef.current);
+            }
+            
             const payload = { 
                 eventId: activeEventId, 
                 visibility: val,
@@ -548,12 +512,12 @@ await new Promise(resolve => setTimeout(resolve, delay));
             console.log('📡 [toggleVisibility] Emitting updatePresence:', payload);
             currentSocket.emit('updatePresence', payload);
             
-            // Refetch nearby users after visibility change
+            // Refetch nearby users after visibility change with debounce
             if (val) {
-                setTimeout(() => {
+                presenceUpdateTimeoutRef.current = setTimeout(() => {
                     console.log('🔄 [toggleVisibility] Refetching nearby users...');
                     nearby.refetch();
-                }, 1500);
+                }, 2000); // Increased delay to 2 seconds
             }
         } else {
             console.warn('⚠️ [toggleVisibility] Missing requirements:', {

@@ -24,7 +24,7 @@ export default function NotificationsScreen() {
                 setNotifications(res.data);
             }
         } catch (error) {
-            console.error('Failed to fetch notifications', error);
+            // Silent error
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -48,7 +48,7 @@ export default function NotificationsScreen() {
             await userService.markAsRead(id);
             setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
         } catch (error) {
-            console.error('Failed to mark notification as read', id, error);
+            // Silent error
         }
     };
 
@@ -57,7 +57,7 @@ export default function NotificationsScreen() {
             await userService.markAllAsRead();
             setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
         } catch (error) {
-            console.error('Failed to mark all as read', error);
+            // Silent error
         }
     };
 

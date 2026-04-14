@@ -145,7 +145,6 @@ export default function VenueGiftsScreen() {
                     fetchGifts(); 
                 }
             } catch (err) {
-                console.warn("[Media Sync] Projection delayed:", err);
                 showToast('Sync paused. Retrying...', 'warning');
             }
         }, 300);

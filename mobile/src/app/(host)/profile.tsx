@@ -39,7 +39,6 @@ export default function HostProfile() {
                 setProfile(res.data);
             }
         } catch (error: any) {
-            console.error('[HostProfile] Load error:', error);
             showToast('Unable to reach services. Please try again.', 'error');
             
             if (error.response?.status === 403) {

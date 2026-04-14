@@ -66,6 +66,7 @@ export default function StaffLoginScreen() {
                     return;
                 }
 
+                // Use data from OTP response directly (includes staffType and staffRole)
                 await login({
                     token: res.data.accessToken,
                     role: res.data.role,

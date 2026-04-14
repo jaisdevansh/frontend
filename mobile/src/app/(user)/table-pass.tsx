@@ -251,7 +251,6 @@ export default function TablePass() {
                                 activeOpacity={0.85}
                                 onPress={() => {
                                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                                    console.log('🍽️ [table-pass] Opening menu with hostId:', resolvedHostId);
                                     router.push({
                                         pathname: '/(user)/discover' as any,
                                         params: { 

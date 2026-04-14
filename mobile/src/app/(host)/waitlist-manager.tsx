@@ -26,7 +26,7 @@ export default function WaitlistManager() {
                 setWaitlist(res.data);
             }
         } catch (error) {
-            console.error('Failed to fetch waitlist:', error);
+            // Silent error
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -59,7 +59,6 @@ export default function WaitlistManager() {
         try {
             await hostService.processWaitlist(id, action);
         } catch (error) {
-            console.error('Failed to process waitlist:', error);
             showToast('Network error, reverting', 'error');
             fetchWaitlist(); // rollback
         }

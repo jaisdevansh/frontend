@@ -94,7 +94,6 @@ export default function UserTabsLayout() {
             />
 
             {/* HIDE NON-TAB SCREENS FROM THE TAB BAR */}
-            <Tabs.Screen name="debug" options={{ href: null, tabBarStyle: { display: 'none' } }} />
             <Tabs.Screen name="chat/[id]" options={{ href: null, tabBarStyle: { display: 'none' } }} />
             <Tabs.Screen name="my-reviews" options={{ href: null, tabBarStyle: { display: 'none' } }} />
             <Tabs.Screen name="edit-review" options={{ href: null, tabBarStyle: { display: 'none' } }} />

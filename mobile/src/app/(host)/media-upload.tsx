@@ -28,7 +28,6 @@ export default function HostMediaUpload() {
                 setMediaList(res.data || []);
             }
         } catch (error) {
-            console.error('Fetch Media Error:', error);
             showToast('Failed to load gallery', 'error');
         } finally {
             setLoading(false);

@@ -66,7 +66,6 @@ function generateTimeSlots(startTime: string, endTime: string) {
         
         return slots.length > 0 ? slots : ['10:00 PM', '11:00 PM', '12:30 AM', '01:30 AM'];
     } catch (error) {
-        console.log('[TimeSlots] Error generating slots:', error);
         return ['10:00 PM', '11:00 PM', '12:30 AM', '01:30 AM'];
     }
 }
@@ -105,9 +104,7 @@ const TableSelection = () => {
     }, [eventBasic?.date]);
     
     const timeSlots = React.useMemo(() => {
-        console.log('[TimeSlots] Event start:', eventBasic?.startTime, 'end:', eventBasic?.endTime);
         const slots = generateTimeSlots(eventBasic?.startTime || '', eventBasic?.endTime || '');
-        console.log('[TimeSlots] Generated slots:', slots);
         return slots;
     }, [eventBasic?.startTime, eventBasic?.endTime]);
     

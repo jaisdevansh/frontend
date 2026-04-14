@@ -29,7 +29,7 @@ export default function StaffProfileScreen() {
                 setProfile(res.data);
             }
         } catch (err) {
-            console.log('Staff Tab Profile fetch error', err);
+            // Silent error
         }
     };
 
@@ -79,7 +79,7 @@ export default function StaffProfileScreen() {
                         <Text style={styles.statLabel}>RATING</Text>
                     </View>
                     <View style={styles.statCard}>
-                        <Text style={styles.statValue}>{profile?.staffType || 'ACTIVE'}</Text>
+                        <Text style={styles.statValue}>{profile?.staffType || profile?.staffRole || 'ACTIVE'}</Text>
                         <Text style={styles.statLabel}>STATUS</Text>
                     </View>
                 </View>
@@ -87,7 +87,7 @@ export default function StaffProfileScreen() {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Quick Access</Text>
                     
-                    {profile?.staffType?.toUpperCase() === 'SECURITY' && (
+                    {(profile?.staffType?.toUpperCase() === 'SECURITY' || profile?.staffRole?.toUpperCase() === 'SECURITY') && (
                         <TouchableOpacity 
                             style={styles.menuItem} 
                             onPress={() => router.push('/(staff)/security')}
@@ -102,7 +102,7 @@ export default function StaffProfileScreen() {
                         </TouchableOpacity>
                     )}
                     
-                    {profile?.staffType?.toUpperCase() === 'WAITER' && (
+                    {(profile?.staffType?.toUpperCase() === 'WAITER' || profile?.staffRole?.toUpperCase() === 'WAITER') && (
                         <TouchableOpacity 
                             style={styles.menuItem} 
                             onPress={() => router.push('/(staff)/waiter')}
@@ -125,7 +125,7 @@ export default function StaffProfileScreen() {
                             <View style={[styles.iconBox, { backgroundColor: 'rgba(52, 199, 89, 0.1)' }]}>
                                 <Ionicons name="location" size={20} color="#34C759" />
                             </View>
-                            <Text style={styles.menuText}>Role: {profile?.staffType || 'WAITER'}</Text>
+                            <Text style={styles.menuText}>Role: {profile?.staffType || profile?.staffRole || 'WAITER'}</Text>
                         </View>
                         <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.2)" />
                     </TouchableOpacity>

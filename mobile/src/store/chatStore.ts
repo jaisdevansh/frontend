@@ -68,9 +68,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
         
         const socket = io(socketUrl, {
             auth: { token },
-            transports: ['websocket'],
+            transports: ['websocket', 'polling'], // Allow fallback to polling if websocket fails
             reconnection: true,
-            reconnectionAttempts: Infinity,
+            reconnectionAttempts: 3, // Reduced from 5 to prevent excessive reconnections
+            reconnectionDelay: 2000, // Increased from 1000
+            reconnectionDelayMax: 10000, // Increased from 5000
+            timeout: 30000, // Increased from 20000
         });
 
         socket.on('connect', () => {

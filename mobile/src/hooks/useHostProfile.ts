@@ -3,26 +3,32 @@ import { hostService } from '../services/hostService';
 import { useAuth } from '../context/AuthContext';
 
 export const useHostProfile = () => {
-    const { token } = useAuth();
+    const { token, role } = useAuth();
+    
+    // Only fetch if user is a host
+    const isHost = role === 'host';
+    
     return useQuery({
         queryKey: ['hostProfile'],
-        enabled: !!token,
-        placeholderData: null,
+        enabled: !!token && isHost, // Only fetch for hosts
         queryFn: async () => {
             try {
                 const res = await hostService.getProfile();
-                if (!res) return null;
-                return res.data || res.host || res;
+                if (!res) {
+                    return null;
+                }
+                const profile = res.data || res.host || res;
+                return profile;
             } catch (error: any) {
                 return null;
             }
         },
-        staleTime: 0,               // ⚡ Always stale
-        gcTime: 0,                  // ⚡ No cache - always fresh from server
-        retry: false,               // No retry for speed
-        refetchOnMount: true,       // ✅ Re-check on every screen mount
-        refetchOnWindowFocus: true, // ✅ Re-check when app comes back to foreground
-        refetchInterval: false,     // Disable auto-refetch (we control it manually)
+        staleTime: 0,               // Always stale
+        gcTime: 0,                  // Never cache
+        retry: false,               // No retry
+        refetchOnMount: true,       // Refetch on mount
+        refetchOnWindowFocus: false, // ❌ DISABLE to prevent infinite loop
+        refetchInterval: false,     // No auto-polling
     });
 };
 

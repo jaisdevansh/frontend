@@ -17,6 +17,7 @@ import { PremiumDateTimePicker } from '../../components/PremiumDateTimePicker';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { hostService } from '../../services/hostService';
+import { useQueryClient } from '@tanstack/react-query';
 
 const { width } = Dimensions.get('window');
 
@@ -38,6 +39,7 @@ export default function Onboarding() {
     const router = useRouter();
     const { updateUser } = useAuth();
     const { showToast } = useToast();
+    const queryClient = useQueryClient();
 
     const [currentStep, setCurrentStep] = useState(1);
     const progress = useRef(new Animated.Value(25)).current;
@@ -193,59 +195,45 @@ export default function Onboarding() {
     }, []);
 
     const handleSubmit = React.useCallback(async () => {
-        console.log(`\n\n[SUBMIT LOG]======================================`);
-        console.log(`[SUBMIT LOG] 1. Starting form validation...`);
-        
         if (!name || !dob || !location) {
-            console.log(`[SUBMIT LOG] ERROR: Basic details missing. name: ${!!name}, dob: ${!!dob}, location: ${!!location}`);
             return showToast('Please complete basic details', 'error');
         }
         if (!profileImage) {
-            console.log(`[SUBMIT LOG] ERROR: Profile photo missing`);
             return showToast('Profile photo is required', 'error');
         }
         if (!aadhaarFile || !panFile) {
-            console.log(`[SUBMIT LOG] ERROR: Govt ID missing. Aadhaar: ${!!aadhaarFile}, PAN: ${!!panFile}`);
             return showToast('All documents are required', 'error');
         }
-
-        console.log(`[SUBMIT LOG] 2. Base Validation Passed!`);
-        console.log(`[SUBMIT LOG] 3. Aadhaar Format Check - Base64 Length:`, aadhaarFile?.base64?.length);
-        console.log(`[SUBMIT LOG] 4. PAN Format Check - Base64 Length:`, panFile?.base64?.length);
         
         setIsSubmitting(true);
         try {
-            console.log(`[SUBMIT LOG] 5. Sending completeProfile request to hostService API...`);
             const payload = {
                 name, dob, location, profileImage,
                 aadhaarUrl: aadhaarFile.base64,
                 panUrl: panFile.base64,
             };
             
-            // Do not log base64 strings completely, they crash terminal
-            console.log(`[SUBMIT LOG] 6. Payload structural mapping correct.`);
-            
             const response = await hostService.completeProfile(payload);
-            console.log(`[SUBMIT LOG] 7. API response received:`, response);
             
             if (response.success) {
-                console.log(`[SUBMIT LOG] 8. Profile submission successful, updating context...`);
-                await updateUser({ hostStatus: 'PENDING_VERIFICATION' });
+                // 🔥 CRITICAL: Update user state immediately with response data
+                await updateUser({ hostStatus: response.data?.hostStatus || 'KYC_PENDING' });
+                
+                // Force cache invalidation and refetch
+                await queryClient.invalidateQueries({ queryKey: ['hostProfile'] });
+                await queryClient.refetchQueries({ queryKey: ['hostProfile'] });
+                
                 showToast('Verification request submitted!', 'success');
-                router.replace('/(host)/success' as any);
+                
+                // Navigate directly to under-review (skip success screen for faster flow)
+                router.replace('/(host)/under-review' as any);
             } else {
-                console.error(`[SUBMIT LOG ERROR] Response not successful:`, response.message);
                 showToast(response.message || 'Submission failed', 'error');
             }
         } catch (error: any) {
-            console.error('\n\n[SUBMIT LOG CRASH]================================');
-            console.error('[SUBMIT LOG CRASH] Exception:', error?.message || error);
-            console.error('[SUBMIT LOG CRASH] Full stack:', error?.stack);
-            console.error('[SUBMIT LOG CRASH]================================\n\n');
             showToast('Failed to submit profile', 'error');
         } finally {
             setIsSubmitting(false);
-            console.log(`[SUBMIT LOG]======================================\n\n`);
         }
     }, [name, dob, location, profileImage, aadhaarFile, panFile, showToast, updateUser]);
 
@@ -362,10 +350,7 @@ export default function Onboarding() {
             <View style={styles.docGrid}>
                 <TouchableOpacity 
                     style={[styles.docCard, aadhaarFile && styles.docCardActive]} 
-                    onPress={() => {
-                        console.log('\n[TAP EVENT] Aadhaar card clicked!');
-                        handlePickDocument('aadhaar');
-                    }}
+                    onPress={() => handlePickDocument('aadhaar')}
                 >
                     <View style={[styles.docStatusIcon, { backgroundColor: aadhaarFile ? `${COLORS.success}20` : 'rgba(255,255,255,0.05)' }]}>
                         <MaterialIcons name="badge" size={24} color={aadhaarFile ? COLORS.success : COLORS.textDim} />
@@ -377,10 +362,7 @@ export default function Onboarding() {
 
                 <TouchableOpacity 
                     style={[styles.docCard, panFile && styles.docCardActive]} 
-                    onPress={() => {
-                        console.log('\n[TAP EVENT] PAN card clicked!');
-                        handlePickDocument('pan');
-                    }}
+                    onPress={() => handlePickDocument('pan')}
                 >
                     <View style={[styles.docStatusIcon, { backgroundColor: panFile ? `${COLORS.success}20` : 'rgba(255,255,255,0.05)' }]}>
                         <MaterialIcons name="payment" size={24} color={panFile ? COLORS.success : COLORS.textDim} />

@@ -199,8 +199,6 @@ const BarChartSvg = ({ data }: { data: { value: number; label: string }[] }) => 
     const maxVal = Math.max(...data.map(d => d.value), 100);
     const every = Math.max(Math.floor(data.length / 6), 1);
 
-    console.log('BarChart - data points:', data.length, 'maxVal:', maxVal);
-
     return (
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <Svg width={W} height={H}>
@@ -427,7 +425,6 @@ export default function AnalyticsScreen() {
             });
         }
         
-        console.log('TrendData from April:', fullData.length, 'days, first:', fullData[0]?.label, 'last:', fullData[fullData.length-1]?.label);
         return fullData;
     }, [trend]);
 

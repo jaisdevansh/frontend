@@ -33,7 +33,7 @@ export default function MobilePOSOrders() {
                 setOrders(paid);
             }
         } catch (error) {
-            console.error('Fetch Orders:', error);
+            // Silent error
         } finally {
             setLoading(false);
         }
@@ -59,7 +59,6 @@ export default function MobilePOSOrders() {
         try {
             await hostService.updateOrderStatus(id, newStatus);
         } catch (error) {
-            console.error('Update Order Status:', error);
             showToast('Failed to sync. Please retry.', 'error');
             fetchOrders(); // Rollback
         }

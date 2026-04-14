@@ -41,6 +41,7 @@ import { ToastProvider, useToast } from '../context/ToastContext';
 import { AlertProvider } from '../context/AlertProvider';
 import { NotificationProvider } from '../context/NotificationContext';
 import { useNotifications } from '../hooks/useNotifications';
+import { useHostProfile } from '../hooks/useHostProfile';
 import { NetworkProvider } from '../context/NetworkProvider';
 import { QueryClient, QueryClientProvider, QueryCache } from '@tanstack/react-query';
 
@@ -128,6 +129,9 @@ function RootLayoutNav() {
   const router = useRouter();
   const { showToast } = useToast();
   useNotifications();
+  
+  // 🔥 SINGLE SOURCE OF TRUTH: Live API data for host status (only for hosts)
+  const { data: hostProfile } = useHostProfile();
 
   // Lock to avoid "baar baar" multiple toasts rendering at once
   const sessionToastLock = useRef(false);
@@ -177,7 +181,6 @@ function RootLayoutNav() {
 
     // 2. TOKEN EXPIRED / INVALID ROLE EDGE CASE
     if (!role) {
-      console.error('[Auth] Detected token without valid role. Clearing...');
       logout();
       return;
     }
@@ -185,7 +188,6 @@ function RootLayoutNav() {
     const currentPath = `/${segments.join('/')}`;
     const navigateTo = (path: string) => {
         if (currentPath !== path) {
-            console.log('[_layout] Navigating from', currentPath, 'to', path);
             router.replace(path as any);
         }
     };
@@ -204,21 +206,50 @@ function RootLayoutNav() {
     const dashMap: Record<string, string> = {
         'host': '/(host)/dashboard',
         'admin': '/admin/dashboard',
-        'staff': '/(staff)/tabs',
+        'staff': '/(staff)/tabs', // Will be overridden by staffType check below
         'user': '/(user)/home'
     };
 
-    // 5.1 HOST STATUS GUARD
+    // 5.0 STAFF TYPE ROUTING (Direct navigation based on staffType or staffRole)
+    if (role === 'staff') {
+        const staffType = (user?.staffType || user?.staffRole || '').toUpperCase();
+        if (staffType === 'SECURITY') {
+            dashMap['staff'] = '/(staff)/security';
+        } else if (staffType === 'WAITER') {
+            dashMap['staff'] = '/(staff)/waiter';
+        }
+        // If no staffType/staffRole, defaults to /(staff)/tabs
+    }
+
+    // 5.1 HOST STATUS GUARD - SINGLE SOURCE OF TRUTH
     if (role === 'host') {
-        const hStatus = user?.hostStatus || user?.status;
-        if (hStatus === 'INVITED') {
+        // 🔥 PRIMARY: Use API data, FALLBACK: Use user object during transitions
+        const hStatus = hostProfile?.hostStatus || user?.hostStatus;
+        console.log('[_layout] 🏠 Host detected. Live API Status:', hostProfile?.hostStatus, '| User Status:', user?.hostStatus, '| Using:', hStatus, '| Current segment:', segments[1]);
+        
+        // If no status available at all, wait
+        if (!hStatus) {
+            console.log('[_layout] ⏳ Waiting for status data...');
+            return;
+        }
+        
+        if (hStatus === 'INVITED' || hStatus === 'CREATED') {
+            console.log('[_layout] 📝 Status is INVITED/CREATED, routing to onboarding');
             if (segments[1] !== 'onboarding') return navigateTo('/(host)/onboarding');
         } else if (hStatus === 'KYC_PENDING' || hStatus === 'PENDING_VERIFICATION') {
+            console.log('[_layout] ⏳ Status is KYC_PENDING, routing to under-review');
             if (segments[1] !== 'under-review' && segments[1] !== 'success') return navigateTo('/(host)/under-review');
         } else if (hStatus === 'REJECTED') {
+            console.log('[_layout] ❌ Status is REJECTED, routing to rejected screen');
             if (segments[1] !== 'rejected') return navigateTo('/(host)/rejected');
         } else if (hStatus === 'SUSPENDED') {
             if (segments[1] !== 'suspended') return navigateTo('/(auth)/suspended');
+        } else if (hStatus === 'ACTIVE') {
+            console.log('[_layout] ✅ Status is ACTIVE, allowing dashboard access');
+            // Allow navigation to any host screen
+        } else {
+            console.log('[_layout] ⚠️ Unknown status:', hStatus, '- defaulting to onboarding');
+            if (segments[1] !== 'onboarding') return navigateTo('/(host)/onboarding');
         }
     }
 
@@ -238,7 +269,7 @@ function RootLayoutNav() {
     if (role === 'host' && ['admin', '(staff)'].includes(s0)) return navigateTo(targetHome);
     if (role === 'staff' && ['(host)', 'admin', '(user)'].includes(s0)) return navigateTo(targetHome);
     if (role === 'admin' && ['(host)', '(user)', '(staff)'].includes(s0)) return navigateTo(targetHome);
-  }, [token, role, hostId, user, isLoading, segments, onboardingCompleted, logout, router]);
+  }, [token, role, hostId, user, hostProfile, isLoading, segments, onboardingCompleted, logout, router]);
 
   // 🛡️ RENDER BLOCKING (MANDATORY)
   // We keep our custom splash screen visible until BOTH auth and animation are ready.

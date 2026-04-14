@@ -58,7 +58,7 @@ export default function MyReviews() {
                 message: `Check out my elite review for ${venueName} on Entry Club! Join now: https://entryclub.com`,
             });
         } catch (error) {
-            console.log(error);
+            // Silent error
         }
     };
 
