@@ -40,28 +40,13 @@ export default function KYCVerification() {
         mutationFn: ({ id, action, reason }: { id: string, action: 'approve' | 'reject', reason?: string }) => 
             adminService.verifyHost(id, action, reason),
         onSuccess: (data, variables) => {
-            console.log('═══════════════════════════════════════════════════');
-            console.log('[Admin KYC] ✅ APPROVAL SUCCESS!');
-            console.log('[Admin KYC] 📦 Response data:', JSON.stringify(data, null, 2));
-            console.log('[Admin KYC] 🎯 Action:', variables.action);
-            console.log('[Admin KYC] 🔄 Invalidating cache...');
-            console.log('═══════════════════════════════════════════════════');
-            
             queryClient.invalidateQueries({ queryKey: ['pending-hosts'] });
             setSelectedHost(null);
             setIsRejectModalVisible(false);
             setRejectReason('');
             showToast(`Host ${variables.action === 'approve' ? 'approved' : 'rejected'} successfully`, 'success');
-            
-            console.log('[Admin KYC] ✅ UI updated. Host should receive notification now.');
         },
         onError: (error: any) => {
-            console.log('═══════════════════════════════════════════════════');
-            console.log('[Admin KYC] ❌ APPROVAL FAILED!');
-            console.log('[Admin KYC] 🚨 Error:', error);
-            console.log('[Admin KYC] 📄 Error response:', error.response?.data);
-            console.log('═══════════════════════════════════════════════════');
-            
             showToast(error.response?.data?.message || 'Verification failed', 'error');
         }
     });
@@ -71,15 +56,6 @@ export default function KYCVerification() {
             showToast('Please wait, processing...', 'info');
             return;
         }
-        console.log('═══════════════════════════════════════════════════');
-        console.log('[Admin KYC] 🔘 APPROVE BUTTON CLICKED');
-        console.log('[Admin KYC] 📋 Host ID:', hostId);
-        console.log('[Admin KYC] 👤 Host Name:', selectedHost?.name);
-        console.log('[Admin KYC] 📧 Host Email:', selectedHost?.email);
-        console.log('[Admin KYC] ⏰ Timestamp:', new Date().toISOString());
-        console.log('[Admin KYC] 🚀 Sending approval request to backend...');
-        console.log('═══════════════════════════════════════════════════');
-        
         verifyMutation.mutate({ id: hostId, action: 'approve' });
     };
 

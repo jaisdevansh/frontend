@@ -225,30 +225,21 @@ function RootLayoutNav() {
     if (role === 'host') {
         // 🔥 PRIMARY: Use API data, FALLBACK: Use user object during transitions
         const hStatus = hostProfile?.hostStatus || user?.hostStatus;
-        console.log('[_layout] 🏠 Host detected. Live API Status:', hostProfile?.hostStatus, '| User Status:', user?.hostStatus, '| Using:', hStatus, '| Current segment:', segments[1]);
         
         // If no status available at all, wait
-        if (!hStatus) {
-            console.log('[_layout] ⏳ Waiting for status data...');
-            return;
-        }
+        if (!hStatus) return;
         
         if (hStatus === 'INVITED' || hStatus === 'CREATED') {
-            console.log('[_layout] 📝 Status is INVITED/CREATED, routing to onboarding');
             if (segments[1] !== 'onboarding') return navigateTo('/(host)/onboarding');
         } else if (hStatus === 'KYC_PENDING' || hStatus === 'PENDING_VERIFICATION') {
-            console.log('[_layout] ⏳ Status is KYC_PENDING, routing to under-review');
             if (segments[1] !== 'under-review' && segments[1] !== 'success') return navigateTo('/(host)/under-review');
         } else if (hStatus === 'REJECTED') {
-            console.log('[_layout] ❌ Status is REJECTED, routing to rejected screen');
             if (segments[1] !== 'rejected') return navigateTo('/(host)/rejected');
         } else if (hStatus === 'SUSPENDED') {
             if (segments[1] !== 'suspended') return navigateTo('/(auth)/suspended');
         } else if (hStatus === 'ACTIVE') {
-            console.log('[_layout] ✅ Status is ACTIVE, allowing dashboard access');
             // Allow navigation to any host screen
         } else {
-            console.log('[_layout] ⚠️ Unknown status:', hStatus, '- defaulting to onboarding');
             if (segments[1] !== 'onboarding') return navigateTo('/(host)/onboarding');
         }
     }
