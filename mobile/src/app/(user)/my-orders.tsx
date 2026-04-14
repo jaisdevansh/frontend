@@ -47,9 +47,27 @@ export default function MyOrders() {
         const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
         const items: any[] = item.items || [];
         const total = item.totalAmount ?? items.reduce((s: number, i: any) => s + (i.price * i.quantity), 0);
+        
+        // Check if this is a gift (has senderId or receiverId)
+        const isGiftReceived = item.receiverId && item.receiverId._id !== item.userId;
+        const isGiftSent = item.senderId && item.senderId._id === item.userId;
+        const giftLabel = isGiftReceived 
+            ? `🎁 Gift from ${item.senderId?.name || 'Someone'}` 
+            : isGiftSent 
+            ? `🎁 Gift to ${item.receiverId?.name || 'Someone'}` 
+            : null;
 
         return (
             <View style={styles.card}>
+                {/* Gift Badge */}
+                {giftLabel && (
+                    <View style={{ backgroundColor: 'rgba(139,92,246,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: 'rgba(139,92,246,0.2)' }}>
+                        <Text style={{ color: '#8B5CF6', fontSize: 11, fontWeight: '800', textAlign: 'center' }}>
+                            {giftLabel}
+                        </Text>
+                    </View>
+                )}
+                
                 {/* Header row */}
                 <View style={styles.cardHeader}>
                     <View>
