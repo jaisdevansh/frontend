@@ -1451,28 +1451,6 @@ await new Promise(resolve => setTimeout(resolve, delay));
                                     </View>
                                 </View>
                             </View>
-                            
-                            {/* Message */}
-                            {giftRequestModal.request?.message && (
-                                <View style={{ backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: 12, borderLeftWidth: 3, borderLeftColor: '#8B5CF6' }}>
-                                    <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, fontWeight: '800', letterSpacing: 1, marginBottom: 4 }}>
-                                        MESSAGE
-                                    </Text>
-                                    <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, lineHeight: 18, fontStyle: 'italic' }} numberOfLines={3}>
-                                        "{giftRequestModal.request.message}"
-                                    </Text>
-                                </View>
-                            )}
-                        </View>
-
-                        {/* Info Text */}
-                        <View style={{ backgroundColor: 'rgba(251,191,36,0.08)', borderRadius: 12, padding: 12, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(251,191,36,0.2)' }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
-                                <Ionicons name="information-circle" size={16} color="#FBB024" style={{ marginTop: 2 }} />
-                                <Text style={{ flex: 1, color: 'rgba(255,255,255,0.6)', fontSize: 11, lineHeight: 16 }}>
-                                    If you accept, {giftRequestModal.request?.senderName?.split(' ')[0]} will be charged ₹{giftRequestModal.request?.item?.price} and the gift will be delivered to you.
-                                </Text>
-                            </View>
                         </View>
 
                         {/* Action Buttons */}
