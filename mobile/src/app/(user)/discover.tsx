@@ -255,9 +255,33 @@ export default function DiscoverScreen() {
         });
     }, [setChatRequestCallback, showBanner]);
 
+    // Setup gift request callback
+    const { setGiftRequestCallback, giftRequests, addGiftRequest, removeGiftRequest } = useDiscoveryStore();
+    
+    useEffect(() => {
+        setGiftRequestCallback((request) => {
+            console.log('🎁 [Discover] Gift request received:', request);
+            
+            // Show gift request modal
+            setGiftRequestModal({
+                visible: true,
+                request
+            });
+            
+            showBanner({
+                id: `gift_request_${request.requestId}_${Date.now()}`,
+                title: `🎁 Gift from ${request.senderName}`,
+                body: `${request.item.name} - ${request.message || 'Someone wants to send you a gift!'}`,
+                type: 'ALERT',
+                createdAt: new Date(),
+            });
+        });
+    }, [setGiftRequestCallback, showBanner]);
+
     const [giftModal, setGiftModal] = useState<{ visible: boolean; user: any | null; item: any | null; msg: string; processing: boolean }>({
         visible: false, user: null, item: null, msg: '', processing: false
     });
+    const [giftRequestModal, setGiftRequestModal] = useState<{ visible: boolean, request: any | null }>({ visible: false, request: null });
     const [chatModal, setChatModal] = useState<{ visible: boolean, chatId: string | null, user: any, msgs: any[] }>({ visible: false, chatId: null, user: null, msgs: [] });
     const [chatRequestModal, setChatRequestModal] = useState<{ visible: boolean, request: any | null }>({ visible: false, request: null });
     const [drinkModal, setDrinkModal] = useState<{ visible: boolean, user: any, selectedItem: any | null }>({ visible: false, user: null, selectedItem: null });
@@ -463,19 +487,39 @@ await new Promise(resolve => setTimeout(resolve, delay));
                 console.log('👁️ [Discover] User became visible:', userId);
                 nearby.refetch();
             };
+            const handleGiftRequest = (request: any) => {
+                console.log('🎁 [Discover] Received gift request:', request);
+                addGiftRequest(request);
+            };
+            const handleGiftAccepted = ({ requestId }: any) => {
+                console.log('✅ [Discover] Gift request accepted:', requestId);
+                showToast('Your gift was accepted! 🎉', 'success');
+                removeGiftRequest(requestId);
+            };
+            const handleGiftRejected = ({ requestId }: any) => {
+                console.log('❌ [Discover] Gift request declined:', requestId);
+                showToast('Gift request was declined', 'info');
+                removeGiftRequest(requestId);
+            };
             
             currentSocket.on('presenceUpdate', handlePresenceUpdate);
             currentSocket.on('notification', handleNotification);
             currentSocket.on('userVisible', handleUserVisible);
+            currentSocket.on('receive_gift_request', handleGiftRequest);
+            currentSocket.on('gift_request_accepted', handleGiftAccepted);
+            currentSocket.on('gift_request_rejected', handleGiftRejected);
             
             // Cleanup listeners on unmount or when activeEventId changes
             return () => {
                 currentSocket.off('presenceUpdate', handlePresenceUpdate);
                 currentSocket.off('notification', handleNotification);
                 currentSocket.off('userVisible', handleUserVisible);
+                currentSocket.off('receive_gift_request', handleGiftRequest);
+                currentSocket.off('gift_request_accepted', handleGiftAccepted);
+                currentSocket.off('gift_request_rejected', handleGiftRejected);
             };
         }
-    }, [activeEventId, setLiveCrowd, showBanner, nearby]);
+    }, [activeEventId, setLiveCrowd, showBanner, nearby, addGiftRequest, removeGiftRequest, showToast]);
     
     // Separate effect for leaving event room on unmount
     useEffect(() => {
@@ -1080,31 +1124,45 @@ await new Promise(resolve => setTimeout(resolve, delay));
                                             return;
                                         }
 
-                                        setGiftModal(p => ({ ...p, processing: true }));
+                                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                                         
-                                        const payload = {
+                                        // Create gift request (not direct payment)
+                                        const requestId = `gift_req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                                        const giftRequest = {
+                                            requestId,
+                                            senderId: currentUser?.id || '',
+                                            senderName: currentUser?.name || 'Someone',
+                                            senderImage: currentUser?.profileImage,
                                             receiverId: giftModal.user.id || giftModal.user._id,
-                                            eventId: activeEventId,
-                                            items: [{ menuItemId: giftModal.item._id || giftModal.item.id, quantity: 1, price: giftModal.item.price, name: giftModal.item.name }],
-                                            message: giftModal.msg,
-                                            totalAmount: giftModal.item.price
+                                            item: {
+                                                _id: giftModal.item._id || giftModal.item.id,
+                                                name: giftModal.item.name,
+                                                price: giftModal.item.price,
+                                                image: giftModal.item.image
+                                            },
+                                            message: giftModal.msg || `${currentUser?.name} wants to send you a gift!`,
+                                            timestamp: new Date().toISOString(),
+                                            eventId: activeEventId
                                         };
-// Premium Simulated Delay to imply secure Razorpay routing
-                                        setTimeout(async () => {
-                                            try {
-                                                const res = await apiClient.post('/api/v1/drink-requests/send', payload);
-Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                                                showToast('Gift Sent successfully! 🎉', 'success'); 
-                                                setGiftModal({ visible: false, user: null, item: null, msg: '', processing: false });
-                                                refetchAll();
-                                            } catch (error: any) { 
-setGiftModal(p => ({ ...p, processing: false })); 
-                                                setCustomAlert({ visible: true, title: 'Error', message: 'Failed to process gift order. Check console logs.' }); 
-                                            }
-                                        }, 1800);
+                                        
+                                        // Send gift request via socket
+                                        const currentSocket = useChatStore.getState().socket;
+                                        if (currentSocket) {
+                                            console.log('🎁 [Discover] Sending gift request:', giftRequest);
+                                            currentSocket.emit('send_gift_request', giftRequest);
+                                            
+                                            showToast('Gift request sent! 🎁', 'success');
+                                            setGiftModal({ visible: false, user: null, item: null, msg: '', processing: false });
+                                        } else {
+                                            setCustomAlert({ 
+                                                visible: true, 
+                                                title: 'Connection Error', 
+                                                message: 'Unable to send gift request. Please check your connection.' 
+                                            });
+                                        }
                                     }}
                                 >
-                                    <LinearGradient colors={['#8B5CF6', '#6D28D9']} style={styles.giftSendGrad}><Text style={styles.giftSendTxt}>Confirm & Pay ₹{giftModal.item?.price || 0}</Text></LinearGradient>
+                                    <LinearGradient colors={['#8B5CF6', '#6D28D9']} style={styles.giftSendGrad}><Text style={styles.giftSendTxt}>Send Gift Request</Text></LinearGradient>
                                 </TouchableOpacity>
                             </>
                         )}
@@ -1292,6 +1350,180 @@ setGiftModal(p => ({ ...p, processing: false }));
                         <TouchableOpacity
                             style={{ position: 'absolute', top: 16, right: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' }}
                             onPress={() => setChatRequestModal({ visible: false, request: null })}
+                        >
+                            <Ionicons name="close" size={20} color="rgba(255,255,255,0.5)" />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* 🎁 Gift Request Modal */}
+            <Modal visible={giftRequestModal.visible} animationType="slide" transparent>
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.9)', padding: 20 }}>
+                    <View style={{ backgroundColor: '#131521', borderRadius: 32, padding: 32, width: '100%', maxWidth: 400, borderWidth: 1, borderColor: 'rgba(139,92,246,0.3)' }}>
+                        {/* Gift Item Image */}
+                        <View style={{ alignItems: 'center', marginBottom: 24 }}>
+                            <View style={{ position: 'relative' }}>
+                                {giftRequestModal.request?.item?.image ? (
+                                    <Image 
+                                        source={{ uri: giftRequestModal.request.item.image }} 
+                                        style={{ width: 120, height: 120, borderRadius: 20, borderWidth: 3, borderColor: '#8B5CF6' }}
+                                        contentFit="cover"
+                                        cachePolicy="memory-disk"
+                                    />
+                                ) : (
+                                    <View style={{ width: 120, height: 120, borderRadius: 20, backgroundColor: 'rgba(139,92,246,0.2)', alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#8B5CF6' }}>
+                                        <Ionicons name="gift" size={60} color="#8B5CF6" />
+                                    </View>
+                                )}
+                                <View style={{ position: 'absolute', bottom: -10, right: -10, width: 40, height: 40, borderRadius: 20, backgroundColor: '#8B5CF6', alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#131521' }}>
+                                    <Ionicons name="gift" size={20} color="#fff" />
+                                </View>
+                            </View>
+                        </View>
+
+                        {/* Title */}
+                        <Text style={{ color: '#fff', fontSize: 24, fontWeight: '900', textAlign: 'center', marginBottom: 8 }}>
+                            Gift Request
+                        </Text>
+                        
+                        {/* Sender Info */}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 20, gap: 8 }}>
+                            {giftRequestModal.request?.senderImage && (
+                                <Image 
+                                    source={{ uri: avatar(giftRequestModal.request.senderImage) }} 
+                                    style={{ width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: '#8B5CF6' }}
+                                    contentFit="cover"
+                                    cachePolicy="memory-disk"
+                                />
+                            )}
+                            <Text style={{ color: '#8B5CF6', fontSize: 18, fontWeight: '800' }}>
+                                {giftRequestModal.request?.senderName}
+                            </Text>
+                            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16 }}>
+                                wants to send you
+                            </Text>
+                        </View>
+
+                        {/* Gift Details */}
+                        <View style={{ backgroundColor: 'rgba(139,92,246,0.1)', borderRadius: 16, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(139,92,246,0.2)' }}>
+                            <Text style={{ color: '#8B5CF6', fontSize: 16, fontWeight: '900', marginBottom: 8, textAlign: 'center' }}>
+                                {giftRequestModal.request?.item?.name}
+                            </Text>
+                            <Text style={{ color: '#fff', fontSize: 24, fontWeight: '900', textAlign: 'center', marginBottom: 12 }}>
+                                ₹{giftRequestModal.request?.item?.price}
+                            </Text>
+                            {giftRequestModal.request?.message && (
+                                <>
+                                    <View style={{ height: 1, backgroundColor: 'rgba(139,92,246,0.2)', marginBottom: 12 }} />
+                                    <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 6 }}>
+                                        MESSAGE
+                                    </Text>
+                                    <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14, lineHeight: 20 }}>
+                                        "{giftRequestModal.request.message}"
+                                    </Text>
+                                </>
+                            )}
+                        </View>
+
+                        {/* Info Text */}
+                        <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, textAlign: 'center', marginBottom: 24, lineHeight: 18 }}>
+                            If you accept, {giftRequestModal.request?.senderName?.split(' ')[0]} will be charged ₹{giftRequestModal.request?.item?.price} and the gift will be delivered to you.
+                        </Text>
+
+                        {/* Action Buttons */}
+                        <View style={{ gap: 12 }}>
+                            {/* Accept Button */}
+                            <TouchableOpacity
+                                style={{ backgroundColor: '#8B5CF6', borderRadius: 18, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
+                                onPress={async () => {
+                                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                    
+                                    if (!giftRequestModal.request) return;
+                                    
+                                    try {
+                                        // Process payment and create order
+                                        const payload = {
+                                            senderId: giftRequestModal.request.senderId,
+                                            receiverId: currentUser?.id,
+                                            eventId: giftRequestModal.request.eventId || activeEventId,
+                                            items: [{
+                                                menuItemId: giftRequestModal.request.item._id,
+                                                quantity: 1,
+                                                price: giftRequestModal.request.item.price,
+                                                name: giftRequestModal.request.item.name
+                                            }],
+                                            message: giftRequestModal.request.message,
+                                            totalAmount: giftRequestModal.request.item.price,
+                                            requestId: giftRequestModal.request.requestId
+                                        };
+                                        
+                                        const res = await apiClient.post('/api/v1/drink-requests/send', payload);
+                                        
+                                        if (res.data.success) {
+                                            showToast('Gift accepted! 🎉 Payment processed.', 'success');
+                                            
+                                            // Notify sender via socket
+                                            const currentSocket = useChatStore.getState().socket;
+                                            if (currentSocket) {
+                                                currentSocket.emit('gift_request_accepted', {
+                                                    requestId: giftRequestModal.request.requestId,
+                                                    senderId: giftRequestModal.request.senderId,
+                                                    receiverId: currentUser?.id
+                                                });
+                                            }
+                                            
+                                            removeGiftRequest(giftRequestModal.request.requestId);
+                                            setGiftRequestModal({ visible: false, request: null });
+                                            refetchAll();
+                                        }
+                                    } catch (error: any) {
+                                        console.error('Gift accept error:', error);
+                                        setCustomAlert({ 
+                                            visible: true, 
+                                            title: 'Payment Failed', 
+                                            message: error.response?.data?.message || 'Failed to process payment. Please try again.' 
+                                        });
+                                    }
+                                }}
+                            >
+                                <Ionicons name="checkmark-circle" size={24} color="#fff" />
+                                <Text style={{ color: '#fff', fontSize: 17, fontWeight: '900' }}>Accept Gift</Text>
+                            </TouchableOpacity>
+
+                            {/* Decline Button */}
+                            <TouchableOpacity
+                                style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 18, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}
+                                onPress={() => {
+                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                    
+                                    if (giftRequestModal.request) {
+                                        // Notify sender via socket
+                                        const currentSocket = useChatStore.getState().socket;
+                                        if (currentSocket) {
+                                            currentSocket.emit('gift_request_rejected', {
+                                                requestId: giftRequestModal.request.requestId,
+                                                senderId: giftRequestModal.request.senderId,
+                                                receiverId: currentUser?.id
+                                            });
+                                        }
+                                        
+                                        removeGiftRequest(giftRequestModal.request.requestId);
+                                        showToast('Gift declined', 'info');
+                                    }
+                                    
+                                    setGiftRequestModal({ visible: false, request: null });
+                                }}
+                            >
+                                <Ionicons name="close-circle" size={24} color="rgba(255,255,255,0.5)" />
+                                <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 17, fontWeight: '900' }}>Decline</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Close Button */}
+                        <TouchableOpacity
+                            style={{ position: 'absolute', top: 16, right: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' }}
+                            onPress={() => setGiftRequestModal({ visible: false, request: null })}
                         >
                             <Ionicons name="close" size={20} color="rgba(255,255,255,0.5)" />
                         </TouchableOpacity>
