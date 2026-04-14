@@ -39,18 +39,54 @@ export default function UnderReview() {
 
     // 🔥 REAL-TIME STATUS UPDATE via Socket.io
     useEffect(() => {
+        const socket = getSocket();
+        
+        if (!socket) {
+            console.log('[UnderReview] ⚠️ Socket not available');
+            return;
+        }
+
+        console.log('[UnderReview] 🔌 Setting up socket listener for status updates');
+
+        const handleStatusUpdate = (data: any) => {
+            console.log('[UnderReview] 🔥 SOCKET EVENT RECEIVED:', data);
+            
+            if (data.hostStatus === 'ACTIVE') {
+                console.log('[UnderReview] ✅ APPROVED via Socket! Navigating to dashboard...');
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                showToast('🎉 Approved! Welcome to Host Terminal', 'success');
+                updateUser({ hostStatus: 'ACTIVE' });
+                router.replace('/(host)/dashboard' as any);
+            } else if (data.hostStatus === 'REJECTED') {
+                console.log('[UnderReview] ❌ REJECTED via Socket!');
+                showToast(data.reason || 'Verification rejected', 'error');
+                updateUser({ hostStatus: 'REJECTED' });
+                router.replace('/(host)/rejected' as any);
+            }
+        };
+
+        socket.on('host:status:updated', handleStatusUpdate);
+
+        return () => {
+            console.log('[UnderReview] 🔌 Removing socket listener');
+            socket.off('host:status:updated', handleStatusUpdate);
+        };
+    }, []);
+
+    // 🔥 REAL-TIME STATUS UPDATE via Socket.io
+    useEffect(() => {
         // DISABLED: Socket causing infinite reconnect loop
         // Will rely on polling only until backend JWT issue is resolved
         return () => {};
     }, []);
 
     useEffect(() => {
-        // ⚡ ULTRA-FAST polling every 500ms for instant admin approval detection
-        console.log('[UnderReview] 🚀 Starting 500ms polling...');
+        // ⚡ Slower polling (5 seconds) - Socket is primary, this is backup
+        console.log('[UnderReview] 🚀 Starting 5s backup polling...');
         const pollInt = setInterval(() => {
-            console.log('[UnderReview] 📡 Polling... Current status:', host?.hostStatus);
+            console.log('[UnderReview] 📡 Backup polling... Current status:', host?.hostStatus);
             refetch();
-        }, 500);
+        }, 5000); // 5 seconds instead of 500ms
         
         const createLoop = (anim: Animated.Value, delay: number) => {
             Animated.loop(
