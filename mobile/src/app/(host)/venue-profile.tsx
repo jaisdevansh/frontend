@@ -205,7 +205,7 @@ export default function HostVenueProfile() {
     return (
         <KeyboardAvoidingView
             style={[styles.container, { paddingTop: insets.top }]}
-            behavior={RNPlatform.OS === 'ios' ? 'padding' : 'height'}
+            behavior={RNPlatform.OS === 'ios' ? 'padding' : undefined}
             keyboardVerticalOffset={RNPlatform.OS === 'ios' ? 0 : 0}
         >
             <ScrollView
