@@ -466,7 +466,17 @@ const EventDetails = () => {
                         </TouchableOpacity>
 
                         {/* HOST INFO */}
-                        <View style={styles.hostContainer}>
+                        <TouchableOpacity 
+                            style={styles.hostContainer} 
+                            activeOpacity={0.8}
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                router.push({
+                                    pathname: '/(user)/host-media',
+                                    params: { hostId: event.hostId?._id || event.hostId || event.host?._id || event.host || '' }
+                                });
+                            }}
+                        >
                             <Image
                                 source={{ uri: avatar(event.hostId?.profileImage, event.hostId?.name) || '' }}
                                 style={styles.hostAvatar}
@@ -487,7 +497,7 @@ const EventDetails = () => {
                                 <Text style={styles.hostStatsTxt}>{event.attendeeCount || '100+'} ATTENDING</Text>
                                 <Text style={styles.hostStatsSub}>{event.startTime || '10PM'} - {event.endTime || 'LATE'}</Text>
                             </View>
-                        </View>
+                        </TouchableOpacity>
 
                         {/* HOUSE RULES */}
                         <Text style={styles.sectionLabel}>HOUSE RULES</Text>
