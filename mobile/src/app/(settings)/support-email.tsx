@@ -93,7 +93,7 @@ export default function SupportEmail() {
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
                     enableOnAndroid={true}
-                    extraScrollHeight={80}
+                    extraScrollHeight={250}
                 >
                     <View style={styles.form}>
                         <Text style={styles.label}>YOUR NAME</Text>
@@ -131,7 +131,7 @@ export default function SupportEmail() {
                     </TouchableOpacity>
                     
                     {/* Extra padding for keyboard */}
-                    <View style={{ height: 20 }} />
+                    <View style={{ height: 100 }} />
                 </KeyboardAwareScrollView>
         </SafeAreaView>
     );
