@@ -27,12 +27,8 @@ LogBox.ignoreLogs([
 ]);
 
 if (Platform.OS === 'android') {
-  try {
-    NavigationBar.setBackgroundColorAsync('#030303');
-    NavigationBar.setButtonStyleAsync('light');
-  } catch (e) {
-    // Edge-to-edge handled automatically, ignore warning
-  }
+  NavigationBar.setBackgroundColorAsync('#030303').catch(() => {});
+  NavigationBar.setButtonStyleAsync('light').catch(() => {});
 }
 
 import { useColorScheme } from '@/components/useColorScheme';

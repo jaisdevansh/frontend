@@ -7,21 +7,28 @@ export const useDashboardStats = () => {
     return useQuery({
         queryKey: ['dashboardStats'],
         enabled: !!token,
-        placeholderData: { totalBookings: 0, totalEvents: 0 },
+        placeholderData: { totalBookings: 0, totalEvents: 0, revenue: 0, checkedIn: 0, capacityUsage: '0%' },
         queryFn: async () => {
             try {
                 const res = await hostService.getDashboardStats();
-                if (!res) return { totalBookings: 0, totalEvents: 0 };
-                if (res.data) return res.data;
-                return res || { totalBookings: 0, totalEvents: 0 };
+                if (!res) return { totalBookings: 0, totalEvents: 0, revenue: 0, checkedIn: 0, capacityUsage: '0%' };
+                // Backend returns { success, stats: { totalBookings, totalEvents, ... } }
+                const stats = res.stats || res.data?.stats || res.data || res;
+                return {
+                    totalBookings: stats.totalBookings ?? 0,
+                    totalEvents: stats.totalEvents ?? 0,
+                    revenue: stats.revenue ?? 0,
+                    checkedIn: stats.checkedIn ?? 0,
+                    capacityUsage: stats.capacityUsage ?? '0%',
+                };
             } catch (error: any) {
-                return { totalBookings: 0, totalEvents: 0 };
+                return { totalBookings: 0, totalEvents: 0, revenue: 0, checkedIn: 0, capacityUsage: '0%' };
             }
         },
-        staleTime: 60 * 1000,       // 1 min - dashboard is live data
-        gcTime: 5 * 60 * 1000,      // Keep in memory for 5 min
-        refetchOnMount: true,        // Always re-check on screen mount
-        refetchOnWindowFocus: true,  // Re-fetch when app returns to foreground
+        staleTime: 60 * 1000,
+        gcTime: 5 * 60 * 1000,
+        refetchOnMount: true,
+        refetchOnWindowFocus: true,
         retry: false,
     });
 };

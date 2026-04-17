@@ -20,15 +20,62 @@ const { width } = Dimensions.get('window');
 
 const EventCard = React.memo(({ item, onPress }: { item: any; onPress: (id: string) => void }) => {
     const imgUrl = item.coverImage || item.image || item.imageUrl;
-    const isTicketLive = item.bookingOpenDate ? dayjs().isAfter(dayjs(item.bookingOpenDate)) : true;
-    
+
+    // Compute a 3-state status:
+    // 1. EXPIRED  — the event date/time has already passed
+    // 2. LIVE     — tickets are open but event hasn't started yet
+    // 3. UPCOMING — tickets not open yet
+    const getEventStatus = () => {
+        const now = dayjs();
+
+        // Check if event date has passed (event over)
+        if (item.date) {
+            // Try to use endTime if available, otherwise treat as expired at end of event day
+            let eventEnd: dayjs.Dayjs;
+            if (item.endTime) {
+                // e.g. endTime = "23:00", combine with date
+                const [endH, endM] = item.endTime.split(':').map(Number);
+                eventEnd = dayjs(item.date).hour(endH || 23).minute(endM || 59);
+            } else if (item.startTime) {
+                // Assume 4-hour event if no endTime provided
+                const [startH, startM] = item.startTime.split(':').map(Number);
+                eventEnd = dayjs(item.date).hour(startH || 20).minute(startM || 0).add(4, 'hour');
+            } else {
+                // Fallback: expired at end of event day
+                eventEnd = dayjs(item.date).endOf('day');
+            }
+
+            if (now.isAfter(eventEnd)) {
+                return 'EXPIRED';
+            }
+        }
+
+        // Check if tickets/booking are live
+        const isTicketLive = item.bookingOpenDate ? now.isAfter(dayjs(item.bookingOpenDate)) : true;
+        return isTicketLive ? 'LIVE' : 'UPCOMING';
+    };
+
+    const eventStatus = getEventStatus();
+    const isExpired = eventStatus === 'EXPIRED';
+    const isLive = eventStatus === 'LIVE';
+
+    const badgeStyle = isExpired
+        ? styles.ticketExpiredBadge
+        : isLive
+        ? styles.ticketLiveBadge
+        : styles.ticketUpcomingBadge;
+
     return (
-        <TouchableOpacity style={styles.eventCard} onPress={() => onPress(item._id || item.id)} activeOpacity={0.85}>
+        <TouchableOpacity
+            style={[styles.eventCard, isExpired && styles.eventCardExpired]}
+            onPress={() => onPress(item._id || item.id)}
+            activeOpacity={0.85}
+        >
             <View style={styles.eventImageContainer}>
                 {imgUrl ? (
                     <Image
                         source={{ uri: imgUrl }}
-                        style={styles.eventImage}
+                        style={[styles.eventImage, isExpired && styles.eventImageExpired]}
                         contentFit="cover"
                         cachePolicy="memory-disk"
                     />
@@ -37,34 +84,45 @@ const EventCard = React.memo(({ item, onPress }: { item: any; onPress: (id: stri
                         <Text style={styles.placeholderText}>EC</Text>
                     </View>
                 )}
-                {/* Ticket Status Badge */}
-                <View style={[styles.ticketStatusBadge, isTicketLive ? styles.ticketLiveBadge : styles.ticketUpcomingBadge]}>
-                    <View style={[styles.ticketStatusDot, isTicketLive ? styles.liveDot : styles.upcomingDot]} />
-                    <Text style={styles.ticketStatusText}>
-                        {isTicketLive ? 'LIVE' : 'UPCOMING'}
-                    </Text>
+                {/* Status Badge */}
+                <View style={[styles.ticketStatusBadge, badgeStyle]}>
+                    {!isExpired && (
+                        <View style={[styles.ticketStatusDot, styles.liveDot]} />
+                    )}
+                    {isExpired && (
+                        <Ionicons name="time-outline" size={10} color="#fff" />
+                    )}
+                    <Text style={styles.ticketStatusText}>{eventStatus}</Text>
                 </View>
+
+                {/* Dim overlay on expired */}
+                {isExpired && <View style={styles.expiredOverlay} />}
             </View>
+
             <View style={styles.eventInfo}>
                 <View style={{ flex: 1 }}>
-                    <Text style={styles.eventTitle} numberOfLines={1}>{item.title || 'event'}</Text>
-                    <Text style={styles.eventDate}>
-                        {item.date 
-                            ? `${dayjs(item.date).format('MMM DD')}${item.startTime ? ` • ${item.startTime}` : ''}` 
-                            : 'Date TBD'}
+                    <Text style={[styles.eventTitle, isExpired && styles.textMuted]} numberOfLines={1}>
+                        {item.title || 'event'}
                     </Text>
-                    {/* Ticket Live Time */}
-                    {item.bookingOpenDate && (
+                    <Text style={styles.eventDate}>
+                        {item.date
+                            ? `${dayjs(item.date).format('MMM DD')}${item.startTime ? ` • ${item.startTime}` : ''}`
+                            : 'Date TBD'}
+                        {isExpired ? ' • EXPIRED' : ''}
+                    </Text>
+                    {item.bookingOpenDate && !isExpired && (
                         <Text style={styles.ticketLiveTime}>
-                            {isTicketLive 
+                            {isLive
                                 ? `Tickets live since ${dayjs(item.bookingOpenDate).format('MMM DD, hh:mm A')}`
                                 : `Tickets go live: ${dayjs(item.bookingOpenDate).format('MMM DD, hh:mm A')}`
                             }
                         </Text>
                     )}
                 </View>
-                <View style={styles.badge}>
-                    <Text style={styles.badgeText}>MANAGE</Text>
+                <View style={[styles.badge, isExpired && styles.badgeExpired]}>
+                    <Text style={[styles.badgeText, isExpired && styles.badgeTextExpired]}>
+                        {isExpired ? 'ENDED' : 'MANAGE'}
+                    </Text>
                 </View>
             </View>
         </TouchableOpacity>
@@ -93,6 +151,25 @@ export default function HostDashboard() {
     const { data: stats, isLoading: statsLoading } = useDashboardStats();
     const { data: events, isLoading: eventsLoading } = useEvents();
     
+    const expiredEventsCount = useMemo(() => {
+        if (!events) return 0;
+        const now = dayjs();
+        return events.filter((item: any) => {
+            if (!item.date) return false;
+            let eventEnd: dayjs.Dayjs;
+            if (item.endTime) {
+                const [endH, endM] = item.endTime.split(':').map(Number);
+                eventEnd = dayjs(item.date).hour(endH || 23).minute(endM || 59);
+            } else if (item.startTime) {
+                const [startH, startM] = item.startTime.split(':').map(Number);
+                eventEnd = dayjs(item.date).hour(startH || 20).minute(startM || 0).add(4, 'hour');
+            } else {
+                eventEnd = dayjs(item.date).endOf('day');
+            }
+            return now.isAfter(eventEnd);
+        }).length;
+    }, [events]);
+
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     
     const queryClient = useQueryClient();
@@ -200,16 +277,19 @@ export default function HostDashboard() {
                         </View>
                         <View style={styles.statsRow}>
                             <StatCardHalfSkeleton />
+                            <StatCardHalfSkeleton />
                         </View>
                     </>
                 ) : (
                     <>
                         <View style={styles.statsRow}>
-                            <View style={styles.statCard}>
+                            <TouchableOpacity style={styles.statCard} onPress={() => router.push('/(host)/bookings' as any)} activeOpacity={0.7}>
                                 <Text style={styles.statLbl}>TOTAL BOOKINGS</Text>
                                 <Text style={styles.statVal}>{stats?.totalBookings ?? '0'}</Text>
-                                <Text style={styles.statChange}>+0% this week</Text>
-                            </View>
+                                <Text style={styles.statChange}>
+                                    {(stats?.totalBookings ?? 0) > 0 ? `${stats?.checkedIn ?? 0} checked in` : 'No bookings yet'}
+                                </Text>
+                            </TouchableOpacity>
                             <View style={styles.statCard}>
                                 <Text style={styles.statLbl}>TOTAL EVENTS</Text>
                                 <Text style={styles.statVal}>{stats?.totalEvents ?? '0'}</Text>
@@ -219,9 +299,14 @@ export default function HostDashboard() {
                         <View style={styles.statsRow}>
                             <View style={styles.statCardHalf}>
                                 <Text style={styles.statLbl}>CAPACITY USAGE</Text>
-                                <Text style={styles.statVal}>0%</Text>
+                                <Text style={styles.statVal}>{stats?.capacityUsage ?? '0%'}</Text>
                                 <Text style={styles.statChange}>Realtime Data</Text>
                             </View>
+                            <TouchableOpacity style={styles.statCardHalf} onPress={() => router.push('/(host)/events' as any)} activeOpacity={0.7}>
+                                <Text style={styles.statLbl}>EXPIRED EVENTS</Text>
+                                <Text style={styles.statVal}>{expiredEventsCount}</Text>
+                                <Text style={[styles.statChange, { color: '#F59E0B' }]}>Past History</Text>
+                            </TouchableOpacity>
                         </View>
                     </>
                 )}
@@ -355,6 +440,9 @@ const styles = StyleSheet.create({
     ticketUpcomingBadge: { 
         backgroundColor: 'rgba(251, 146, 60, 0.9)',
     },
+    ticketExpiredBadge: {
+        backgroundColor: 'rgba(100, 100, 120, 0.92)',
+    },
     ticketStatusDot: {
         width: 6,
         height: 6,
@@ -384,6 +472,15 @@ const styles = StyleSheet.create({
     },
     badge: { backgroundColor: 'rgba(16, 185, 129, 0.1)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
     badgeText: { color: '#10B981', fontSize: 11, fontWeight: '700' },
+    badgeExpired: { backgroundColor: 'rgba(255,255,255,0.06)' },
+    badgeTextExpired: { color: 'rgba(255,255,255,0.35)' },
+    eventCardExpired: { opacity: 0.75 },
+    eventImageExpired: { opacity: 0.55 },
+    expiredOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.35)',
+    },
+    textMuted: { color: 'rgba(255,255,255,0.4)' },
     
     actionButtons: { flexDirection: 'row', paddingHorizontal: 20, gap: 12, marginTop: 20 },
     primaryBtn: { flex: 1, flexDirection: 'row', backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center', paddingVertical: 16, borderRadius: 16, gap: 8 },

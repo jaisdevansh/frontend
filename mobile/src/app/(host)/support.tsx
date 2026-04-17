@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Linking, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStrictBack } from '../../hooks/useStrictBack';
@@ -9,16 +9,45 @@ import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { useToast } from '../../context/ToastContext';
 import { hostService } from '../../services/hostService';
+import { useAuth } from '../../context/AuthContext';
+
+const ADMIN_WHATSAPP = '917772828027'; // India country code prefix
 
 export default function SupportDashboard() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
     const goBack = useStrictBack('/(host)/profile');
     const { showToast } = useToast();
+    const { user } = useAuth();
 
     const [showTicketModal, setShowTicketModal] = useState(false);
     const [ticket, setTicket] = useState({ subject: '', description: '' });
     const [submitting, setSubmitting] = useState(false);
+
+    const openWhatsApp = async () => {
+        const hostName = user?.name || 'Host';
+        const message = encodeURIComponent(
+            `Hello Entry Club Admin! 👋\n\nMy name is *${hostName}* and I am a host on the Entry Club platform.\n\nI need assistance with:`
+        );
+        const waUrl = `whatsapp://send?phone=${ADMIN_WHATSAPP}&text=${message}`;
+        const webUrl = `https://wa.me/${ADMIN_WHATSAPP}?text=${message}`;
+
+        try {
+            const canOpen = await Linking.canOpenURL(waUrl);
+            if (canOpen) {
+                await Linking.openURL(waUrl);
+            } else {
+                // Fallback to web WhatsApp if app not installed
+                await Linking.openURL(webUrl);
+            }
+        } catch (err) {
+            Alert.alert(
+                'WhatsApp Not Found',
+                'Please install WhatsApp to chat with support, or contact us at +91 7772828027',
+                [{ text: 'OK' }]
+            );
+        }
+    };
 
     const handleRaiseTicket = async () => {
         if (!ticket.subject || !ticket.description) {
@@ -53,16 +82,19 @@ export default function SupportDashboard() {
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 <View style={[styles.card, styles.aiCard]}>
                     <View style={styles.aiIconBox}>
-                        <Ionicons name="headset-outline" size={32} color="white" />
+                        <Ionicons name="logo-whatsapp" size={32} color="white" />
                     </View>
-                    <Text style={styles.aiTitle}>Chat With Admin Support</Text>
-                    <Text style={styles.aiDescription}>Direct access to Entry Club human support for high-priority business guidance.</Text>
+                    <Text style={styles.aiTitle}>Chat With Admin</Text>
+                    <Text style={styles.aiDescription}>
+                        Tap below to chat directly with Entry Club Admin on WhatsApp. Your name will be sent automatically.
+                    </Text>
                     <Button
-                        title="Start Chat"
-                        onPress={() => router.push('/(host)/support-chat')}
+                        title="💬  Open WhatsApp Chat"
+                        onPress={openWhatsApp}
                         style={styles.chatBtn}
-                        textStyle={{ color: '#000000' }}
+                        textStyle={{ color: '#000000', fontWeight: '800', fontSize: 15 }}
                     />
+                    <Text style={styles.waNumber}>+91 7772828027</Text>
                 </View>
 
                 <View style={styles.menu}>
@@ -207,6 +239,13 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.2,
         shadowRadius: 10,
         elevation: 5,
+    },
+    waNumber: {
+        color: 'rgba(255,255,255,0.6)',
+        fontSize: 13,
+        fontWeight: '600',
+        marginTop: 12,
+        letterSpacing: 0.5,
     },
     menu: {
         gap: 12,

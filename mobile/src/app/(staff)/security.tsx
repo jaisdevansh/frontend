@@ -180,9 +180,9 @@ export default function SecurityPanel() {
         const isInProgress = activeTab === 'in_progress';
         
         return (
-            <View style={[styles.issueCard, { borderColor: '#FF9500', borderWidth: 2 }]}>
+            <View style={[styles.issueCard, { borderColor: theme.color + '40', borderWidth: 1 }]}>
                 <LinearGradient
-                    colors={['rgba(255,255,255,0.06)', 'rgba(255,255,255,0.02)']}
+                    colors={[`${theme.color}1A`, `${theme.color}05`, 'rgba(255,255,255,0.02)']}
                     style={styles.cardContent}
                 >
                     <View style={styles.cardHeader}>
@@ -195,9 +195,9 @@ export default function SecurityPanel() {
                                 <Text style={styles.timeLabel}>{getTimeAgo(issue.createdAt)}</Text>
                             </View>
                         </View>
-                        <View style={[styles.priorityTag, { borderColor: `${theme.color}30` }]}>
+                        <View style={[styles.priorityTag, { borderColor: `${theme.color}40`, backgroundColor: `${theme.color}10` }]}>
                             <View style={[styles.priorityDot, { backgroundColor: theme.color }]} />
-                            <Text style={[styles.priorityText, { color: theme.color }]}>HIGH</Text>
+                            <Text style={[styles.priorityText, { color: theme.color }]}>{issue.type === 'other' ? 'NORMAL' : 'CRITICAL'}</Text>
                         </View>
                     </View>
 
@@ -210,7 +210,7 @@ export default function SecurityPanel() {
                         <View style={styles.stripItem}>
                             <Text style={styles.stripLabel}>TABLE</Text>
                             <Text style={styles.stripValue}>
-                                {issue.tableId && issue.tableId !== 'N/A' ? issue.tableId : '--'}
+                                {issue.tableId && issue.tableId !== 'N/A' && issue.tableId !== '--' ? issue.tableId : 'FLOOR'}
                             </Text>
                         </View>
                         <View style={styles.stripDivider} />

@@ -38,11 +38,21 @@ export default function EditProfileScreen() {
     const queryClient = useQueryClient();
     const { updateUser } = useAuth();
 
-    // Fetch Profile
-    const { data: profileResponse, isLoading: isFetching } = useQuery({
+    // Use SAME queryKey as useHostProfile hook → data is already cached, no extra network call
+    const { data: profileData, isLoading: isFetching } = useQuery({
         queryKey: ['hostProfile'],
-        queryFn: hostService.getProfile,
+        queryFn: async () => {
+            try {
+                const res = await hostService.getProfile();
+                if (!res) return null;
+                // Backend returns { success: true, data: { name, email, ... } }
+                return res.data || res.host || res;
+            } catch {
+                return null;
+            }
+        },
         staleTime: 5 * 60 * 1000,
+        retry: false,
     });
 
     const [form, setForm] = useState({
@@ -54,19 +64,20 @@ export default function EditProfileScreen() {
         email: ''
     });
 
-    // Populate form on fetch
+    // Pre-populate form when profile data arrives (or from cache)
     useEffect(() => {
-        if (profileResponse?.data) {
-            setForm({
-                name: profileResponse.data.name || '',
-                username: profileResponse.data.username || '',
-                profileImage: profileResponse.data.profileImage || '',
-                location: profileResponse.data.location?.address || profileResponse.data.location || '',
-                contactNumber: profileResponse.data.phone || profileResponse.data.contactNumber || '',
-                email: profileResponse.data.email || ''
-            });
-        }
-    }, [profileResponse]);
+        if (!profileData) return;
+        // Profile data is already unwrapped at this point
+        const p = profileData;
+        setForm({
+            name: p.name || '',
+            username: p.username || '',
+            profileImage: p.profileImage || p.logo || '',
+            location: typeof p.location === 'object' ? (p.location?.address || '') : (p.location || ''),
+            contactNumber: p.phone || p.contactNumber || '',
+            email: p.email || ''
+        });
+    }, [profileData]);
 
     // Update Profile Mutation
     const updateMutation = useMutation({
@@ -146,10 +157,11 @@ export default function EditProfileScreen() {
         }
     }, [handleChange]);
 
-    if (isFetching) {
+    if (isFetching && !profileData) {
         return (
             <SafeAreaView style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#8B5CF6" />
+                <Text style={{ color: 'rgba(255,255,255,0.4)', marginTop: 12, fontSize: 14 }}>Loading profile…</Text>
             </SafeAreaView>
         );
     }

@@ -191,47 +191,54 @@ export default function VenueDetails() {
 
 
 
-                    {/* GALLERY SECTION — Host uploaded media */}
-                    {venueData?.media && venueData.media.length > 0 && (
-                        <View style={{ marginBottom: 28 }}>
-                            <Text style={styles.sectionTitle}>Gallery 📸</Text>
-                            <ScrollView
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                style={{ marginTop: 12 }}
-                                contentContainerStyle={{ gap: 10 }}
-                            >
-                                {venueData.media.map((m: any, idx: number) => (
-                                    <View
-                                        key={m._id || idx}
-                                        style={{
-                                            width: 160,
-                                            height: 110,
-                                            borderRadius: 14,
-                                            overflow: 'hidden',
-                                            backgroundColor: 'rgba(255,255,255,0.05)',
-                                        }}
-                                    >
-                                        <Image
-                                            source={{ uri: m.url }}
-                                            style={{ width: '100%', height: '100%' }}
-                                            resizeMode="cover"
-                                        />
-                                        {m.type === 'video' && (
-                                            <View style={{
-                                                ...StyleSheet.absoluteFillObject,
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                backgroundColor: 'rgba(0,0,0,0.35)',
-                                            }}>
-                                                <Ionicons name="play-circle" size={32} color="#fff" />
-                                            </View>
-                                        )}
+                    {/* GALLERY SECTION — Host uploaded media, live instantly */}
+                    {venueData?.media && venueData.media.length > 0 && (() => {
+                        const interior = venueData.media.filter((m: any) => m.category === 'interior' || !m.category);
+                        const events   = venueData.media.filter((m: any) => m.category === 'events');
+                        return (
+                            <View style={{ marginBottom: 28 }}>
+                                {/* Club Interior */}
+                                {interior.length > 0 && (
+                                    <View style={{ marginBottom: 24 }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                                            <Ionicons name="business-outline" size={16} color="#6C63FF" />
+                                            <Text style={styles.sectionTitle}>Club Interior</Text>
+                                        </View>
+                                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+                                            {interior.map((m: any, idx: number) => (
+                                                <View key={m._id || idx} style={{ width: 160, height: 110, borderRadius: 14, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.05)' }}>
+                                                    <Image source={{ uri: m.url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                                                </View>
+                                            ))}
+                                        </ScrollView>
                                     </View>
-                                ))}
-                            </ScrollView>
-                        </View>
-                    )}
+                                )}
+
+                                {/* Past Events */}
+                                {events.length > 0 && (
+                                    <View>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                                            <Ionicons name="images-outline" size={16} color="#F59E0B" />
+                                            <Text style={styles.sectionTitle}>Past Events</Text>
+                                        </View>
+                                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+                                            {events.map((m: any, idx: number) => (
+                                                <View key={m._id || idx} style={{ width: 160, height: 110, borderRadius: 14, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.05)' }}>
+                                                    <Image source={{ uri: m.url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                                                    {m.type === 'video' && (
+                                                        <View style={{ ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.35)' }}>
+                                                            <Ionicons name="play-circle" size={32} color="#fff" />
+                                                        </View>
+                                                    )}
+                                                </View>
+                                            ))}
+                                        </ScrollView>
+                                    </View>
+                                )}
+                            </View>
+                        );
+                    })()}
+
 
                     <View style={styles.sectionHeader}>
                         <Text style={styles.sectionTitle}>Exclusive Events</Text>

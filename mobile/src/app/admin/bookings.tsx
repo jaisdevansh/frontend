@@ -74,11 +74,29 @@ const BookingRow = React.memo(({ item }: { item: AdminBooking }) => {
                 </View>
             </View>
 
-            {/* Body: User & Event Details */}
+            {/* Body: Host -> Event -> User Details */}
             <View style={styles.cardBody}>
-                {/* User Info */}
+                {/* Host Info (Primary focus) */}
                 <View style={styles.entityRow}>
-                    <View style={styles.avatarWrap}>
+                    <View style={[styles.avatarWrap, { borderRadius: 18 }]}>
+                        <Image
+                            source={{ uri: item.hostId?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.hostId?.name || 'Platform')}&background=4f46e5&color=fff&bold=true` }}
+                            style={styles.avatar}
+                            cachePolicy="memory-disk"
+                        />
+                    </View>
+                    <View style={styles.entityInfo}>
+                        <Text style={styles.entityName} numberOfLines={1}>{item.hostId?.name || 'Platform Admin'}</Text>
+                        <View style={styles.contactRow}>
+                            <MaterialIcons name="event" size={12} color={COLORS.primary} />
+                            <Text style={[styles.contactText, { color: COLORS.primary }]} numberOfLines={1}>{item.eventId?.title || 'Unknown Event'}</Text>
+                        </View>
+                    </View>
+                </View>
+
+                {/* User Info (Secondary focus) */}
+                <View style={[styles.entityRow, { marginTop: 12 }]}>
+                    <View style={[styles.avatarWrap, { width: 30, height: 30, borderRadius: 15 }]}>
                         <Image
                             source={{ uri: item.userId?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.userId?.name || 'U')}&background=1e293b&color=fff&bold=true` }}
                             style={styles.avatar}
@@ -86,28 +104,14 @@ const BookingRow = React.memo(({ item }: { item: AdminBooking }) => {
                         />
                     </View>
                     <View style={styles.entityInfo}>
-                        <Text style={styles.entityName} numberOfLines={1}>{item.userId?.name || 'Unknown User'}</Text>
+                        <Text style={[styles.entityName, { fontSize: 13, color: COLORS.textDim }]} numberOfLines={1}>{item.userId?.name || 'Unknown User'}</Text>
                         <View style={styles.contactRow}>
                             <MaterialCommunityIcons 
                                 name={contactType === 'email' ? 'email-outline' : contactType === 'phone' ? 'phone-outline' : 'identifier'} 
                                 size={12} 
                                 color={COLORS.textDim} 
                             />
-                            <Text style={styles.contactText} numberOfLines={1}>{contactInfo || 'N/A'}</Text>
-                        </View>
-                    </View>
-                </View>
-
-                {/* Event Info */}
-                <View style={[styles.entityRow, { marginTop: 12 }]}>
-                    <View style={styles.iconWrap}>
-                        <MaterialIcons name="local-activity" size={16} color={COLORS.textDim} />
-                    </View>
-                    <View style={styles.entityInfo}>
-                        <Text style={styles.entityName} numberOfLines={1}>{item.eventId?.title || 'Unknown Event'}</Text>
-                        <View style={styles.contactRow}>
-                            <MaterialIcons name="storefront" size={12} color={COLORS.textDim} />
-                            <Text style={styles.contactText} numberOfLines={1}>{item.hostId?.name || 'Platform Event'}</Text>
+                            <Text style={[styles.contactText, { fontSize: 11 }]} numberOfLines={1}>{contactInfo || 'N/A'}</Text>
                         </View>
                     </View>
                 </View>

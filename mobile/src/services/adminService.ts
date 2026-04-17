@@ -197,7 +197,15 @@ const adminService = {
         return { ...response.data, page };
     },
 
+    toggleStaffStatus: async (id: string, isActive: boolean) => {
+        const response = await apiClient.put(`/admin/staff/${id}/status`, { isActive });
+        return response.data;
+    },
 
+    deleteStaff: async (id: string) => {
+        const response = await apiClient.delete(`/admin/staff/${id}`);
+        return response.data;
+    },
 
     // Admin Global Stats
     getStats: async (): Promise<AdminStats> => {
