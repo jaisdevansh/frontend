@@ -556,14 +556,36 @@ const EventDetails = () => {
                                     <TouchableOpacity style={styles.mapOverlay} activeOpacity={0.8} onPress={openMaps} />
                                 </View>
                             )}
-                            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 14, gap: 12 }}>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.mapVenueName}>{venueName}</Text>
-                                    {venueAddress ? <Text style={[styles.mapAddress, (event.locationVisibility === 'hidden' && !event.isLocationRevealed) && { color: COLORS.primary }]} numberOfLines={1}>{venueAddress}</Text> : null}
+                            <View style={{ paddingHorizontal: 18, paddingVertical: 14 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.mapVenueName}>{venueName}</Text>
+                                        {venueAddress ? <Text style={[styles.mapAddress, (event.locationVisibility === 'hidden' && !event.isLocationRevealed) && { color: COLORS.primary }]} numberOfLines={1}>{venueAddress}</Text> : null}
+                                    </View>
+                                    <TouchableOpacity onPress={openMaps} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 }}>
+                                        <Ionicons name="navigate-circle" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
+                                        <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Directions</Text>
+                                    </TouchableOpacity>
                                 </View>
-                                <TouchableOpacity onPress={openMaps} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 }}>
-                                    <Ionicons name="navigate-circle" size={18} color="#fff" style={{ marginRight: 6 }} />
-                                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Get Directions</Text>
+                                <TouchableOpacity 
+                                    style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary, paddingVertical: 12, borderRadius: 14 }}
+                                    activeOpacity={0.8}
+                                    onPress={() => {
+                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                        const img = (event.coverImage as string) || safeArray<any>(event.images)[0] || '';
+                                        router.push({
+                                            pathname: '/(user)/venue-details' as any,
+                                            params: { 
+                                                id: event.hostId?._id || event.hostId || event.venueId?._id || event.venueId,
+                                                name: venueName,
+                                                image: img,
+                                                type: 'Exclusive Venue'
+                                            }
+                                        });
+                                    }}
+                                >
+                                    <Ionicons name="business" size={16} color="#fff" style={{ marginRight: 8 }} />
+                                    <Text style={{ color: '#fff', fontSize: 14, fontWeight: '800' }}>View Venue / Media</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
