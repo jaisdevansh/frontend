@@ -52,6 +52,7 @@ export default function SupportEmail() {
             });
 
             if (res.success) {
+                console.log('✅ [Frontend] API Success Response Received! Moving to success screen.');
                 setSubmitted(true);
                 showToast('Support request sent to devanshjais20@gmail.com', 'success');
             }

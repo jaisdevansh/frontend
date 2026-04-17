@@ -163,7 +163,17 @@ export default function PremiumMenu() {
                         </View>
                     )}
                     ListEmptyComponent={() => (
-                        <Text style={styles.emptyTxt}>No items available in this category.</Text>
+                        <View style={styles.emptyStateContainer}>
+                            {!isHostMode ? (
+                                <>
+                                    <Ionicons name="calendar" size={64} color="rgba(255,255,255,0.2)" />
+                                    <Text style={styles.emptyStateTitle}>Menu Unavailable</Text>
+                                    <Text style={styles.emptyStateDesc}>You need to book an active event or table to see the menu for this venue or host.</Text>
+                                </>
+                            ) : (
+                                <Text style={styles.emptyTxt}>No items available in this category.</Text>
+                            )}
+                        </View>
                     )}
                 />
             )}
@@ -191,5 +201,8 @@ const styles = StyleSheet.create({
     headerLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.1)', marginLeft: 16 },
     loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     loaderTxt: { color: 'rgba(255,255,255,0.4)', marginTop: 12, fontSize: 13, fontWeight: '600' },
-    emptyTxt: { color: 'rgba(255,255,255,0.4)', textAlign: 'center', marginTop: 40 }
+    emptyTxt: { color: 'rgba(255,255,255,0.4)', textAlign: 'center', marginTop: 40 },
+    emptyStateContainer: { alignItems: 'center', justifyContent: 'center', marginTop: 80, paddingHorizontal: 30 },
+    emptyStateTitle: { color: 'white', fontSize: 20, fontWeight: '800', marginTop: 20, marginBottom: 8 },
+    emptyStateDesc: { color: 'rgba(255,255,255,0.4)', fontSize: 14, textAlign: 'center', lineHeight: 22 }
 });
