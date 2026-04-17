@@ -28,11 +28,11 @@ type TabType = 'active' | 'in_progress' | 'history';
 const { width, height } = Dimensions.get('window');
 
 const PRIORITY_CONFIG: any = {
-    medical: { color: '#FF3B30', icon: 'hospital-box', label: 'MEDICAL' },
-    harassment: { color: '#FF9500', icon: 'account-alert', label: 'HARASSMENT' },
-    fight: { color: '#AF52DE', icon: 'hand-back-fist', label: 'FIGHT' },
-    unsafe: { color: '#FFCC00', icon: 'eye-warning', label: 'UNSAFE' },
-    other: { color: '#8E8E93', icon: 'information', label: 'INFO' }
+    medical: { color: '#FF3B30', icon: 'hospital-box', label: 'MEDICAL', grad: ['#FF3B3030', '#1A0B0B'] },
+    harassment: { color: '#FF9500', icon: 'account-alert', label: 'HARASSMENT', grad: ['#FF950030', '#1A1005'] },
+    fight: { color: '#AF52DE', icon: 'hand-back-fist', label: 'FIGHT', grad: ['#AF52DE30', '#160A1C'] },
+    unsafe: { color: '#FFCC00', icon: 'eye-warning', label: 'UNSAFE', grad: ['#FFCC0030', '#1A1705'] },
+    other: { color: '#FF8A00', icon: 'information', label: 'INFO', grad: ['#FF8A0030', '#1A0E05'] }
 };
 
 export default function SecurityPanel() {
@@ -179,70 +179,92 @@ export default function SecurityPanel() {
         const isActive = activeTab === 'active';
         const isInProgress = activeTab === 'in_progress';
         
+        const isCritical = issue.type && issue.type !== 'other' && PRIORITY_CONFIG[issue.type];
+        
         return (
-            <View style={[styles.issueCard, { borderColor: theme.color + '40', borderWidth: 1 }]}>
+            <View style={[styles.issueCard, { shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }, elevation: 15 }]}>
                 <LinearGradient
-                    colors={[`${theme.color}1A`, `${theme.color}05`, 'rgba(255,255,255,0.02)']}
+                    colors={['rgba(25, 20, 15, 0.9)', 'rgba(10, 8, 5, 0.95)', '#050505']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
                     style={styles.cardContent}
                 >
+                    {/* Sleek Saffron Accent Border */}
+                    <LinearGradient 
+                        colors={[theme.color, 'transparent']} 
+                        style={styles.cardGlowBorder} 
+                    />
+
                     <View style={styles.cardHeader}>
                         <View style={styles.headerL}>
-                            <View style={[styles.iconBox, { backgroundColor: `${theme.color}15` }]}>
+                            <View style={[styles.iconBox, { backgroundColor: `${theme.color}15`, borderColor: `${theme.color}30` }]}>
                                 <MaterialCommunityIcons name={theme.icon} size={22} color={theme.color} />
                             </View>
                             <View>
-                                <Text style={styles.typeLabel}>{theme.label} ALERT</Text>
+                                <Text style={[styles.typeLabel, { color: theme.color }]}>{theme.label} ALERT</Text>
                                 <Text style={styles.timeLabel}>{getTimeAgo(issue.createdAt)}</Text>
                             </View>
                         </View>
-                        <View style={[styles.priorityTag, { borderColor: `${theme.color}40`, backgroundColor: `${theme.color}10` }]}>
+                        <View style={[styles.priorityTag, { borderColor: `${theme.color}30`, backgroundColor: `${theme.color}10` }]}>
                             <View style={[styles.priorityDot, { backgroundColor: theme.color }]} />
-                            <Text style={[styles.priorityText, { color: theme.color }]}>{issue.type === 'other' ? 'NORMAL' : 'CRITICAL'}</Text>
+                            <Text style={[styles.priorityText, { color: 'white' }]}>{isCritical ? 'CRITICAL' : 'NORMAL'}</Text>
                         </View>
                     </View>
 
-                    <View style={styles.locationStrip}>
+                    <View style={[styles.locationStrip, { backgroundColor: 'rgba(0,0,0,0.4)', borderColor: `${theme.color}20`, borderWidth: 1 }]}>
                         <View style={styles.stripItem}>
                             <Text style={styles.stripLabel}>ZONE</Text>
-                            <Text style={styles.stripValue}>{issue.zone?.toUpperCase() || 'VIP'}</Text>
+                            <Text style={[styles.stripValue, { color: 'white' }]}>{issue.zone?.toUpperCase() || 'VIP'}</Text>
                         </View>
                         <View style={styles.stripDivider} />
                         <View style={styles.stripItem}>
                             <Text style={styles.stripLabel}>TABLE</Text>
-                            <Text style={styles.stripValue}>
+                            <Text style={[styles.stripValue, { color: theme.color }]}>
                                 {issue.tableId && issue.tableId !== 'N/A' && issue.tableId !== '--' ? issue.tableId : 'FLOOR'}
                             </Text>
                         </View>
                         <View style={styles.stripDivider} />
                         <View style={styles.stripItem}>
                             <Text style={styles.stripLabel}>USER</Text>
-                            <Text style={styles.stripValue} numberOfLines={1}>{issue.userId?.name || issue.reportedBy?.name || 'Guest'}</Text>
+                            <Text style={[styles.stripValue, { color: 'white' }]} numberOfLines={1}>{issue.displayName || issue.userName || issue.userId?.name || 'Guest'}</Text>
                         </View>
                     </View>
 
                     <View style={styles.messageBox}>
-                        <Text style={styles.messageText}>{issue.message}</Text>
+                        <Text style={styles.messageText}>"{issue.message}"</Text>
                     </View>
 
                     {isActive && (
                         <TouchableOpacity 
-                            style={[styles.actionBtn, { backgroundColor: theme.color }]} 
+                            style={styles.actionBtnWrapper}
                             onPress={() => handleRespond(issue._id)}
                             activeOpacity={0.8}
                         >
-                            <Text style={styles.actionText}>RESPOND NOW</Text>
-                            <Ionicons name="radio" size={18} color="white" />
+                            <LinearGradient
+                                colors={['#F59E0B', '#B45309']} // Premium Dark Saffron Gradient
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={styles.actionBtnGlowing}
+                            >
+                                <Text style={styles.actionTextDark}>RESPOND NOW</Text>
+                                <Ionicons name="flash-outline" size={18} color="#111" />
+                            </LinearGradient>
                         </TouchableOpacity>
                     )}
 
                     {isInProgress && (
                         <TouchableOpacity 
-                            style={[styles.actionBtn, { backgroundColor: COLORS.emerald }]} 
+                            style={styles.actionBtnWrapper}
                             onPress={() => handleResolve(issue._id)}
                             activeOpacity={0.8}
                         >
-                            <Text style={styles.actionText}>RESOLVE INCIDENT</Text>
-                            <Ionicons name="shield-checkmark" size={18} color="white" />
+                            <LinearGradient
+                                colors={['#10B981', '#059669']}
+                                style={styles.actionBtnGlowing}
+                            >
+                                <Text style={styles.actionText}>RESOLVE SECURELY</Text>
+                                <Ionicons name="shield-checkmark" size={18} color="white" />
+                            </LinearGradient>
                         </TouchableOpacity>
                     )}
                 </LinearGradient>
@@ -551,28 +573,31 @@ const styles = StyleSheet.create({
     listArea: { paddingHorizontal: 20, paddingBottom: 40 },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     
-    issueCard: { marginBottom: 16, borderRadius: 28, overflow: 'hidden', borderWidth: 2, borderColor: '#FF9500' },
-    cardContent: { padding: 20 },
-    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 },
-    headerL: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    iconBox: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-    typeLabel: { color: 'white', fontSize: 13, fontWeight: '900', letterSpacing: 1 },
-    timeLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 2 },
+    issueCard: { marginBottom: 18, borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(245, 158, 11, 0.15)', backgroundColor: '#050505', position: 'relative' },
+    cardGlowBorder: { position: 'absolute', top: 0, left: 0, bottom: 0, width: 3, zIndex: 10, opacity: 0.8 },
+    cardContent: { padding: 22 },
+    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
+    headerL: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+    iconBox: { width: 42, height: 42, borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
+    typeLabel: { fontSize: 14, fontWeight: '900', letterSpacing: 1.5 },
+    timeLabel: { color: 'rgba(255,255,255,0.3)', fontSize: 11, marginTop: 4, fontWeight: '700', letterSpacing: 0.5 },
     priorityTag: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1 },
-    priorityDot: { width: 6, height: 6, borderRadius: 3 },
-    priorityText: { fontSize: 10, fontWeight: '900' },
+    priorityDot: { width: 6, height: 6, borderRadius: 3, shadowColor: '#FFF', shadowOpacity: 0.5, shadowRadius: 3, shadowOffset: { width: 0, height: 0 } },
+    priorityText: { fontSize: 9, fontWeight: '900', letterSpacing: 1 },
     
-    locationStrip: { flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: 15, padding: 12, marginBottom: 18 },
+    locationStrip: { flexDirection: 'row', borderRadius: 16, padding: 14, marginBottom: 22 },
     stripItem: { flex: 1, alignItems: 'center' },
-    stripLabel: { color: 'rgba(255,255,255,0.2)', fontSize: 8, fontWeight: '900', marginBottom: 4 },
-    stripValue: { color: 'white', fontSize: 13, fontWeight: '900' },
-    stripDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.05)' },
+    stripLabel: { color: 'rgba(255,255,255,0.3)', fontSize: 8, fontWeight: '900', marginBottom: 6, letterSpacing: 1.5 },
+    stripValue: { fontSize: 13, fontWeight: '900', letterSpacing: 0.5 },
+    stripDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.08)' },
     
-    messageBox: { marginBottom: 20 },
-    messageText: { color: 'rgba(255,255,255,0.8)', fontSize: 16, lineHeight: 24, fontWeight: '500' },
+    messageBox: { marginBottom: 24, backgroundColor: 'rgba(255,255,255,0.02)', padding: 16, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.04)' },
+    messageText: { color: 'rgba(255,255,255,0.7)', fontSize: 15, lineHeight: 24, fontWeight: '400', fontStyle: 'italic', letterSpacing: 0.2 },
     
-    actionBtn: { height: 60, borderRadius: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
-    actionText: { color: 'white', fontSize: 16, fontWeight: '900', letterSpacing: 1.5 },
+    actionBtnWrapper: { borderRadius: 18, shadowColor: '#B45309', shadowOpacity: 0.3, shadowRadius: 15, shadowOffset: { width: 0, height: 8 }, elevation: 10 },
+    actionBtnGlowing: { height: 56, borderRadius: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+    actionText: { color: 'white', fontSize: 15, fontWeight: '900', letterSpacing: 1.5 },
+    actionTextDark: { color: '#111', fontSize: 15, fontWeight: '900', letterSpacing: 2 },
     
     emptyWrap: { alignItems: 'center', marginTop: 100 },
     shieldIconBg: { marginBottom: 20 },
