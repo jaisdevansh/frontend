@@ -23,9 +23,9 @@ export default function VenueDetails() {
         log(`STEP 4: PARAM venueId: ${params.id}`);
     }, [params.id]);
 
-    const image = params.image && params.image !== 'undefined' ? String(params.image) : 'https://images.unsplash.com/photo-1514525253361-bee8a197c0c1?auto=format&fit=crop&q=80&w=800';
-    const name = params.name && params.name !== 'undefined' ? String(params.name) : 'Exclusive Venue';
-    const type = params.type && params.type !== 'undefined' ? String(params.type) : 'Nightclub';
+    const fallbackImage = params.image && params.image !== 'undefined' ? String(params.image) : 'https://images.unsplash.com/photo-1514525253361-bee8a197c0c1?auto=format&fit=crop&q=80&w=800';
+    const fallbackName = params.name && params.name !== 'undefined' ? String(params.name) : 'Exclusive Venue';
+    const fallbackType = params.type && params.type !== 'undefined' ? String(params.type) : 'Nightclub';
     const venueId = params.id ? String(params.id) : null;
 
     const [events, setEvents] = useState<any[]>([]);
@@ -86,8 +86,8 @@ export default function VenueDetails() {
             destination = `${realLat},${realLng}`;
         } else if (addr) {
             destination = encodeURIComponent(addr);
-        } else if (name) {
-            destination = encodeURIComponent(name);
+        } else if (displayName) {
+            destination = encodeURIComponent(displayName);
         } else {
             return;
         }
@@ -102,12 +102,19 @@ export default function VenueDetails() {
     };
 
 
+    const displayImage = venueData?.heroImage || venueData?.venueProfile?.heroImage || fallbackImage;
+    const displayName = venueData?.name || venueData?.venueProfile?.name || fallbackName;
+    const displayType = venueData?.venueType || venueData?.venueProfile?.venueType || fallbackType;
+    const displayRules = venueData?.rules || venueData?.venueProfile?.rules || 'Smart Elegant';
+    const displayCapacity = venueData?.capacity || venueData?.venueProfile?.capacity;
+    const displayDesc = venueData?.description || venueData?.venueProfile?.description || "Experience the pinnacle of nightlife. Monochromatic luxury interior with architectural lighting and world-class acoustics.";
+
     return (
         <View style={styles.container}>
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 <View style={styles.imageHeader}>
                     <Image
-                        source={{ uri: image }}
+                        source={{ uri: displayImage }}
                         style={styles.heroImage}
                     />
                     <TouchableOpacity
@@ -120,7 +127,7 @@ export default function VenueDetails() {
 
                 <View style={styles.content}>
                     <View style={styles.titleSection}>
-                        <Text style={styles.venueName}>{name}</Text>
+                        <Text style={styles.venueName}>{displayName}</Text>
                         <View style={styles.ratingRow}>
                             <View style={styles.stars}>
                                 <Ionicons name="star" size={16} color={COLORS.gold} />
@@ -136,16 +143,22 @@ export default function VenueDetails() {
                     <View style={styles.infoGrid}>
                         <View style={styles.infoItem}>
                             <Text style={styles.infoLabel}>TYPE</Text>
-                            <Text style={styles.infoValue}>{type}</Text>
+                            <Text style={styles.infoValue}>{displayType}</Text>
                         </View>
                         <View style={styles.infoItem}>
                             <Text style={styles.infoLabel}>DRESS CODE</Text>
-                            <Text style={styles.infoValue}>Smart Elegant</Text>
+                            <Text style={styles.infoValue}>{displayRules}</Text>
                         </View>
+                        {displayCapacity ? (
+                            <View style={styles.infoItem}>
+                                <Text style={styles.infoLabel}>CAPACITY</Text>
+                                <Text style={styles.infoValue}>{displayCapacity} PAX</Text>
+                            </View>
+                        ) : null}
                     </View>
 
                     <Text style={styles.description}>
-                        Experience the pinnacle of London's nightlife. Monochromatic luxury nightclub interior with architectural lighting and world-class acoustics.
+                        {displayDesc}
                     </Text>
 
                     <TouchableOpacity 
@@ -153,7 +166,7 @@ export default function VenueDetails() {
                         activeOpacity={0.7}
                         onPress={() => router.push({
                             pathname: '/(user)/write-review' as any,
-                            params: { id: venueId, name: name, image: image, type: type }
+                            params: { id: venueId, name: displayName, image: displayImage, type: displayType }
                         })}
                     >
                         <View style={styles.reviewPromptLeft}>
@@ -176,7 +189,7 @@ export default function VenueDetails() {
                         </View>
                         <View style={{ padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                             <View style={{ flex: 1 }}>
-                                <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '700' }}>{name}</Text>
+                                <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '700' }}>{displayName}</Text>
                                 <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginTop: 4 }}>
                                     {venueData?.address || venueData?.venueProfile?.address || 'Premium Lounge & Nightclub'}
                                 </Text>
@@ -266,7 +279,7 @@ export default function VenueDetails() {
                                                 params: {
                                                     eventId: event._id,
                                                     title: event.title,
-                                                    image: event.coverImage || image
+                                                    image: event.coverImage || displayImage
                                                 }
                                             });
                                             console.log(`[PERF] VenueEvent Navigation took ${Date.now() - startTime}ms`);

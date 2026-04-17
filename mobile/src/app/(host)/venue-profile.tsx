@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, KeyboardAvoidingView, Platform as RNPlatform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Image, Platform as RNPlatform } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStrictBack } from '../../hooks/useStrictBack';
@@ -203,16 +204,14 @@ export default function HostVenueProfile() {
     }
 
     return (
-        <KeyboardAvoidingView
-            style={[styles.container, { paddingTop: insets.top }]}
-            behavior={RNPlatform.OS === 'ios' ? 'padding' : undefined}
-            keyboardVerticalOffset={RNPlatform.OS === 'ios' ? 0 : 0}
-        >
-            <ScrollView
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+            <KeyboardAwareScrollView
                 contentContainerStyle={styles.scrollContent}
                 keyboardShouldPersistTaps="handled"
                 keyboardDismissMode="interactive"
                 showsVerticalScrollIndicator={false}
+                enableOnAndroid={true}
+                extraScrollHeight={100}
             >
                 <TouchableOpacity style={styles.backBtn} onPress={() => goBack()}>
                     <Ionicons name="arrow-back" size={24} color="white" />
@@ -382,7 +381,7 @@ export default function HostVenueProfile() {
                         </TouchableOpacity>
                     </View>
                 </View>
-            </ScrollView>
+            </KeyboardAwareScrollView>
 
             <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
                 <Button
@@ -400,7 +399,7 @@ export default function HostVenueProfile() {
                 initialDate={pickerInitialDate}
                 title={pickerType === 'opening' ? 'Opening Time' : 'Closing Time'}
             />
-        </KeyboardAvoidingView>
+        </View>
     );
 }
 

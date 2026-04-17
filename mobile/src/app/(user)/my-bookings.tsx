@@ -150,7 +150,11 @@ export default function MyBookings() {
                         styles.statusText,
                         (booking.status === 'completed' || booking.status === 'checked_in') && styles.statusTextCompleted,
                         (booking.status === 'cancelled' || booking.status === 'rejected') && styles.statusTextCancelled
-                    ]}>{booking.status?.toUpperCase() || 'PENDING'}</Text>
+                    ]}>
+                        {booking.status === 'checked_in' ? 'ATTENDED' : 
+                         booking.status === 'completed' ? 'COMPLETED' : 
+                         booking.status?.toUpperCase() || 'PENDING'}
+                    </Text>
                 </View>
                 <Text style={styles.bookingId}>#{booking._id.substring(0, 8).toUpperCase()}</Text>
             </View>
@@ -311,6 +315,7 @@ export default function MyBookings() {
                                 </Text>
                                 <TouchableOpacity
                                     style={styles.emptyCta}
+                                    activeOpacity={0.85}
                                     onPress={() => {
                                         if (activeTab === 'orders') {
                                             // Find the first active/upcoming booking to get event context
@@ -420,20 +425,25 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
         paddingVertical: 4,
         borderRadius: 6,
+        borderWidth: 1,
+        borderColor: 'transparent',
     },
     statusCompleted: {
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        backgroundColor: 'rgba(255, 59, 48, 0.1)',
+        borderColor: '#FF3B30',
     },
     statusCancelled: {
-        backgroundColor: 'rgba(255, 59, 48, 0.1)',
+        backgroundColor: 'rgba(255, 59, 48, 0.05)',
+        borderColor: 'rgba(255, 59, 48, 0.5)',
     },
     statusText: {
         color: COLORS.emerald,
         fontSize: 10,
-        fontWeight: '800',
+        fontWeight: '900',
+        letterSpacing: 1,
     },
     statusTextCompleted: {
-        color: '#FFFFFF',
+        color: '#FF3B30',
     },
     statusTextCancelled: {
         color: '#FF3B30',
@@ -528,7 +538,7 @@ const styles = StyleSheet.create({
     },
     emptyContent: {
         alignItems: 'center',
-        paddingHorizontal: 32,
+        paddingHorizontal: 16,
     },
     illustrationContainer: {
         width: 240,
@@ -564,19 +574,21 @@ const styles = StyleSheet.create({
         marginBottom: 40,
     },
     emptyCta: {
-        width: '100%',
-        borderRadius: 20, // More rounded, modern pill-like
+        alignSelf: 'center',
+        borderRadius: 30, 
         overflow: 'hidden',
+        marginTop: 10,
         borderWidth: 1,
-        borderColor: 'rgba(59, 130, 246, 0.4)', // Glassy blue border
-        shadowColor: '#2563EB',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.5,
-        shadowRadius: 20,
-        elevation: 12,
+        borderColor: 'rgba(59, 130, 246, 0.4)',
+        shadowColor: '#3B82F6',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.35,
+        shadowRadius: 10,
+        elevation: 8,
     },
     emptyCtaGrad: {
-        height: 60, // Slightly taller for premium feel
+        paddingVertical: 18,
+        paddingHorizontal: 40,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -587,9 +599,9 @@ const styles = StyleSheet.create({
     },
     emptyCtaText: {
         color: '#FFFFFF',
-        fontSize: 15,
-        fontWeight: '900',
-        letterSpacing: 2.5, // Refined tracking
+        fontSize: 16,
+        fontWeight: '800',
+        letterSpacing: 1,
         textAlign: 'center',
     },
 

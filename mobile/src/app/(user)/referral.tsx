@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Activi
 import * as Contacts from 'expo-contacts';
 import * as SMS from 'expo-sms';
 import { BlurView } from 'expo-blur';
+import { useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useStrictBack } from '../../hooks/useStrictBack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../constants/design-system';
 import { useToast } from '../../context/ToastContext';
@@ -57,9 +57,21 @@ const ContactItem = React.memo(({ contact, onInvite, isInvited }: ContactItemPro
 });
 
 export default function ReferralScreen() {
-    const goBack = useStrictBack('/');
+    const router = useRouter();
     const insets = useSafeAreaInsets();
     const { showToast } = useToast();
+
+    // Bypass buggy Expo Router back behavior which defaults to home tab
+    const handleBack = React.useCallback(() => {
+        router.navigate('/(user)/profile');
+        return true; 
+    }, [router]);
+
+    React.useEffect(() => {
+        const { BackHandler } = require('react-native');
+        const sub = BackHandler.addEventListener('hardwareBackPress', handleBack);
+        return () => sub.remove();
+    }, [handleBack]);
 
     const [inputCode, setInputCode] = useState('');
     const [loading, setLoading] = useState(true);
@@ -204,7 +216,7 @@ export default function ReferralScreen() {
     return (
         <View style={styles.container}>
             <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-                <TouchableOpacity onPress={() => goBack()} style={styles.backBtn} activeOpacity={0.8}>
+                <TouchableOpacity onPress={handleBack} style={styles.backBtn} activeOpacity={0.8}>
                     <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Invite & Earn</Text>
@@ -391,7 +403,7 @@ export default function ReferralScreen() {
                             <Text style={styles.shareWhatsAppTxt}>Share via WhatsApp</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.backDashboardBtn} onPress={() => { setShowSuccessModal(false); goBack(); }}>
+                        <TouchableOpacity style={styles.backDashboardBtn} onPress={() => { setShowSuccessModal(false); handleBack(); }}>
                             <Text style={styles.backDashboardTxt}>Back to Dashboard</Text>
                         </TouchableOpacity>
                     </View>

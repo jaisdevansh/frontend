@@ -31,7 +31,7 @@ export const Input: React.FC<InputProps> = ({
             ]}>
                 <TextInput
                     style={[styles.input, style]}
-                    placeholderTextColor="rgba(255, 255, 255, 0.2)"
+                    placeholderTextColor="rgba(255, 255, 255, 0.5)"
                     autoCapitalize="none"
                     secureTextEntry={isObscured}
                     {...props}

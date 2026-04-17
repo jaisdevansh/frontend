@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, TouchableOpacity, Dimensions, TextInput, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, Platform, TouchableOpacity, Dimensions, TextInput } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
@@ -28,7 +29,6 @@ export default function LoginScreen() {
     const [loading, setLoading] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
     const [inputType, setInputType] = useState<'phone' | 'email'>('phone');
-    const scrollerRef = useRef<ScrollView>(null);
 
     // Phone mode based on manual toggle
     const isPhoneMode = inputType === 'phone';
@@ -167,17 +167,16 @@ export default function LoginScreen() {
                 end={{ x: 1, y: 1 }}
                 style={styles.background}
             />
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            <KeyboardAwareScrollView
+                contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="interactive"
+                showsVerticalScrollIndicator={false}
+                enableOnAndroid={true}
+                extraScrollHeight={100}
                 style={styles.keyboardView}
             >
-                <ScrollView 
-                    ref={scrollerRef}
-                    contentContainerStyle={styles.scrollContent}
-                    showsVerticalScrollIndicator={false}
-                    keyboardShouldPersistTaps="handled"
-                >
-                    <View style={[styles.innerContent, { paddingTop: insets.top + 10 }]}>
+                <View style={[styles.innerContent, { paddingTop: insets.top + 10 }]}>
                         
                         <View style={styles.topSection}>
                             <TouchableOpacity onPress={() => goBack()} style={styles.backBtn}>
@@ -237,12 +236,7 @@ export default function LoginScreen() {
                                         keyboardType={isPhoneMode ? 'phone-pad' : 'email-address'}
                                         autoCapitalize="none"
                                         autoCorrect={false}
-                                        onFocus={() => {
-                                            setIsFocused(true);
-                                            setTimeout(() => {
-                                                scrollerRef.current?.scrollTo({ y: 150, animated: true });
-                                            }, 100);
-                                        }}
+                                        onFocus={() => setIsFocused(true)}
                                         onBlur={() => setIsFocused(false)}
                                     />
                                 </View>
@@ -271,9 +265,8 @@ export default function LoginScreen() {
                             />
 
                         </View>
-                    </View>
-                </ScrollView>
-            </KeyboardAvoidingView>
+                </View>
+            </KeyboardAwareScrollView>
         </View>
     );
 }

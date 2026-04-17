@@ -244,15 +244,24 @@ export default function HomeScreen() {
             try {
                 const { status } = await Location.requestForegroundPermissionsAsync();
                 if (status === 'granted') {
-                    const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-                    const reverse = await Location.reverseGeocodeAsync({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
-                    setUserLoc({ lat: loc.coords.latitude, lng: loc.coords.longitude });
-                    if (reverse && reverse.length > 0) {
-                        const city = reverse[0].city || reverse[0].district || reverse[0].subregion || 'Your City';
-                        const country = reverse[0].isoCountryCode || 'IN';
-                        setCityName(`${city}, ${country}`);
-                    } else {
-                        setCityName('Your Location');
+                    // Try to get cached location FIRST for instant load (0ms delay typically)
+                    let loc = await Location.getLastKnownPositionAsync();
+                    
+                    if (!loc) {
+                        // Fallback to Lowest accuracy for fast fetch since we just need the city
+                        loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Lowest });
+                    }
+
+                    if (loc) {
+                        setUserLoc({ lat: loc.coords.latitude, lng: loc.coords.longitude });
+                        const reverse = await Location.reverseGeocodeAsync({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+                        if (reverse && reverse.length > 0) {
+                            const city = reverse[0].city || reverse[0].district || reverse[0].subregion || 'Your City';
+                            const country = reverse[0].isoCountryCode || 'IN';
+                            setCityName(`${city}, ${country}`);
+                        } else {
+                            setCityName('Your Location');
+                        }
                     }
                 } else {
                     // Permission denied

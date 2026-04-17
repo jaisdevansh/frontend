@@ -2,15 +2,25 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useStrictBack } from '../../hooks/useStrictBack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../constants/design-system';
 import { useToast } from '../../context/ToastContext';
 
 export default function TermsSupport() {
     const router = useRouter();
-    const goBack = useStrictBack('/');
     const { showToast } = useToast();
+    
+    // Bypass buggy Expo Router back behavior which defaults to home tab
+    const handleBack = React.useCallback(() => {
+        router.navigate('/(user)/profile');
+        return true; 
+    }, [router]);
+
+    React.useEffect(() => {
+        const { BackHandler } = require('react-native');
+        const sub = BackHandler.addEventListener('hardwareBackPress', handleBack);
+        return () => sub.remove();
+    }, [handleBack]);
 
     const handleAction = (action: string) => {
         if (action === 'clear_cache') {
@@ -23,7 +33,7 @@ export default function TermsSupport() {
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => goBack()} style={styles.backButton} activeOpacity={0.8}>
+                <TouchableOpacity onPress={handleBack} style={styles.backButton} activeOpacity={0.8}>
                     <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Terms & Support</Text>

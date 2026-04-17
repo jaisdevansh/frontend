@@ -32,7 +32,7 @@ export default function OnboardingScreen() {
     const [loading, setLoading] = useState(false);
 
     const insets = useSafeAreaInsets();
-    const { setOnboardingStatus, updateUser } = useAuth();
+    const { setOnboardingStatus, updateUser, logout } = useAuth();
     const router = useRouter();
     const { showToast } = useToast();
     const { showAlert } = useAlert();
@@ -178,7 +178,14 @@ export default function OnboardingScreen() {
                     showsVerticalScrollIndicator={false}
                 >
                     <View style={styles.header}>
+                        <TouchableOpacity style={styles.backButton} onPress={async () => {
+                            await logout();
+                            router.replace('/(auth)/login');
+                        }}>
+                            <Ionicons name="chevron-back" size={28} color="#FFF" />
+                        </TouchableOpacity>
                         <Text style={styles.title}>Complete Profile</Text>
+                        <View style={styles.rightSpacer} />
                     </View>
 
                     <View style={styles.previewContainer}>
@@ -195,7 +202,7 @@ export default function OnboardingScreen() {
                         <View>
                             <Input
                                 label=""
-                                placeholder="Username (e.g. johndoe123)"
+                                placeholder="Username (e.g. rahul_sharma123)"
                                 value={username}
                                 onChangeText={(text) => setUsername(text.toLowerCase().replace(/\s/g, ''))}
                                 containerStyle={styles.inputGap}
@@ -312,8 +319,10 @@ const styles = StyleSheet.create({
     background: { ...StyleSheet.absoluteFillObject },
     keyboardView: { flex: 1 },
     scrollContent: { paddingHorizontal: SPACING.xl, paddingBottom: 60 },
-    header: { alignItems: 'center', marginBottom: SPACING.xl },
-    title: { color: '#FFF', fontSize: 28, fontWeight: '800', letterSpacing: 0.5 },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.xl },
+    title: { color: '#FFF', fontSize: 26, fontWeight: '800', letterSpacing: 0.5 },
+    backButton: { width: 40, paddingVertical: 8, alignItems: 'flex-start' },
+    rightSpacer: { width: 40 },
     form: { width: '100%' },
     inputGap: { marginBottom: 16 },
     dividerContainer: { flexDirection: 'row', alignItems: 'center', marginVertical: 24, opacity: 0.4 },

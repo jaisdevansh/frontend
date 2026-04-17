@@ -83,16 +83,33 @@ export default function TablePass() {
         ? 'STX-' + bookingId.substring(0, 6).toUpperCase()
         : (params.bookingRef ? String(params.bookingRef) : 'STX-000000');
     const pricePaid   = booking?.pricePaid || 0;
-    const status      = booking?.status || 'pending';
+    const rawStatus   = booking?.status || 'pending';
 
-    const statusColor = status === 'approved' || status === 'active' ? '#22c55e'
-                      : status === 'pending' ? '#f59e0b'
-                      : status === 'cancelled' ? '#ef4444' : '#22c55e';
+    // ── Expiration Logic ──
+    // Consider event over after its endTime, or 6 AM the day after the event date
+    const isExpired = event.endTime 
+        ? dayjs().isAfter(dayjs(event.endTime))
+        : event.date 
+        ? dayjs().isAfter(dayjs(event.date).add(1, 'day').startOf('day').add(6, 'hour')) 
+        : false;
 
-    const statusLabel = status === 'approved' ? 'Confirmed'
-                      : status === 'active' ? 'Active'
-                      : status === 'pending' ? 'Pending Approval'
-                      : status === 'cancelled' ? 'Cancelled'
+    let displayStatus = rawStatus;
+    if (isExpired && rawStatus !== 'checked_in' && rawStatus !== 'cancelled') {
+        displayStatus = 'expired';
+    }
+
+    const statusColor = displayStatus === 'approved' || displayStatus === 'active' ? '#22c55e'
+                      : displayStatus === 'checked_in' ? '#3b82f6'
+                      : displayStatus === 'pending' ? '#f59e0b'
+                      : displayStatus === 'cancelled' ? '#ef4444' 
+                      : displayStatus === 'expired' ? '#6b7280' : '#22c55e'; // gray for expired
+
+    const statusLabel = displayStatus === 'approved' ? 'Confirmed'
+                      : displayStatus === 'active' ? 'Active'
+                      : displayStatus === 'pending' ? 'Pending Approval'
+                      : displayStatus === 'cancelled' ? 'Cancelled'
+                      : displayStatus === 'checked_in' ? 'Checked In'
+                      : displayStatus === 'expired' ? 'Expired'
                       : 'Confirmed';
 
     const handleShare = async () => {
@@ -114,7 +131,17 @@ export default function TablePass() {
 
             {/* Header */}
             <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-                <TouchableOpacity style={styles.headerBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back(); }}>
+                <TouchableOpacity 
+                    style={styles.headerBtn} 
+                    onPress={() => { 
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); 
+                        // Explicitly route to my-bookings and force the correct tab instead of relying on buggy router.back()
+                        router.navigate({
+                            pathname: '/(user)/my-bookings' as any,
+                            params: { tab: isExpired || displayStatus === 'expired' ? 'past' : 'upcoming' }
+                        });
+                    }}
+                >
                     <Ionicons name="chevron-back" size={22} color="#fff" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Reservation</Text>
@@ -131,17 +158,17 @@ export default function TablePass() {
                 {/* Confirmed icon */}
                 <View style={styles.checkCircle}>
                     <LinearGradient
-                        colors={status === 'cancelled' ? ['#ef4444', '#b91c1c'] : ['#6d28d9', '#4f46e5']}
+                        colors={displayStatus === 'cancelled' || displayStatus === 'expired' ? ['#ef4444', '#b91c1c'] : ['#6d28d9', '#4f46e5']}
                         style={styles.checkGrad}
                     >
-                        <Ionicons name={status === 'cancelled' ? 'close' : 'checkmark'} size={28} color="#fff" />
+                        <Ionicons name={displayStatus === 'cancelled' || displayStatus === 'expired' ? 'close' : 'checkmark'} size={28} color="#fff" />
                     </LinearGradient>
                     <View style={[styles.ripple, { width: 72, height: 72, opacity: 0.2, borderColor: statusColor }]} />
                     <View style={[styles.ripple, { width: 92, height: 92, opacity: 0.1, borderColor: statusColor }]} />
                 </View>
 
                 <Text style={styles.confirmedTitle}>
-                    {status === 'cancelled' ? 'Booking Cancelled' : 'Reservation Confirmed'}
+                    {displayStatus === 'cancelled' ? 'Booking Cancelled' : displayStatus === 'expired' ? 'Booking Expired' : 'Reservation Confirmed'}
                 </Text>
                 <Text style={styles.tableIdLabel}>TABLE: {tableId.toUpperCase()}</Text>
 
@@ -218,7 +245,20 @@ export default function TablePass() {
                                             <View style={[styles.corner, styles.cornerTR]} />
                                             <View style={[styles.corner, styles.cornerBL]} />
                                             <View style={[styles.corner, styles.cornerBR]} />
-                                            <Image source={{ uri: qrUrl }} style={styles.qrImage} contentFit="contain" />
+                                            
+                                            {displayStatus === 'expired' ? (
+                                                <View style={styles.qrOverlay}>
+                                                    <Ionicons name="time-outline" size={40} color="rgba(255,255,255,0.4)" />
+                                                    <Text style={styles.qrOverlayTxt}>EXPIRED</Text>
+                                                </View>
+                                            ) : displayStatus === 'checked_in' ? (
+                                                <View style={styles.qrOverlay}>
+                                                    <Ionicons name="checkmark-done-circle" size={40} color="#3b82f6" />
+                                                    <Text style={[styles.qrOverlayTxt, { color: '#3b82f6' }]}>CHECKED IN</Text>
+                                                </View>
+                                            ) : (
+                                                <Image source={{ uri: qrUrl }} style={styles.qrImage} contentFit="contain" />
+                                            )}
                                         </View>
                                         <Text style={styles.qrHint}>Show Pass {i + 1} of {numGuests} at entrance</Text>
                                         <Text style={styles.bookingIdTxt}>{displayBookingId}-{i + 1}</Text>
@@ -246,9 +286,10 @@ export default function TablePass() {
 
                     if (!resolvedHostId) return null;
                     return (
-                        <View style={{ width: '100%', marginTop: 8 }}>
+                        <View style={{ width: '100%', marginTop: 8, opacity: isExpired ? 0.5 : 1 }}>
                             <TouchableOpacity
                                 activeOpacity={0.85}
+                                disabled={isExpired}
                                 onPress={() => {
                                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                                     router.push({
@@ -264,9 +305,9 @@ export default function TablePass() {
                                 }}
                                 style={styles.ctaBtn}
                             >
-                                <LinearGradient colors={['#6d28d9', '#4f46e5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.ctaBtnInner}>
+                                <LinearGradient colors={isExpired ? ['#4b5563', '#374151'] : ['#6d28d9', '#4f46e5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.ctaBtnInner}>
                                     <Ionicons name="restaurant" size={18} color="#fff" />
-                                    <Text style={styles.ctaBtnTxt}>View Menu 🍽️</Text>
+                                    <Text style={styles.ctaBtnTxt}>{isExpired ? 'Menu Disabled (Event Over)' : 'View Menu 🍽️'}</Text>
                                 </LinearGradient>
                             </TouchableOpacity>
                         </View>
@@ -341,6 +382,9 @@ const styles = StyleSheet.create({
     cornerTR:           { top: 4, right: 4, borderTopWidth: 2.5, borderRightWidth: 2.5, borderTopRightRadius: 6 },
     cornerBL:           { bottom: 4, left: 4, borderBottomWidth: 2.5, borderLeftWidth: 2.5, borderBottomLeftRadius: 6 },
     cornerBR:           { bottom: 4, right: 4, borderBottomWidth: 2.5, borderRightWidth: 2.5, borderBottomRightRadius: 6 },
+    
+    qrOverlay:          { width: 180, height: 180, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 10 },
+    qrOverlayTxt:       { color: 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '900', letterSpacing: 2, marginTop: 10 },
 
     qrHint:             { color: 'rgba(255,255,255,0.35)', fontSize: 12, textAlign: 'center' },
     bookingIdTxt:       { color: 'rgba(255,255,255,0.2)', fontSize: 11, fontWeight: '700', marginTop: 6, letterSpacing: 1 },

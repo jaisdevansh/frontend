@@ -110,7 +110,10 @@ export default function DiscoverScreen() {
         visibility, setVisibility, 
         liveCrowd, setLiveCrowd, 
         locationName, setLocationName,
-        setLoading
+        setLoading,
+        addGiftRequest,
+        removeGiftRequest,
+        setGiftRequestCallback,
     } = useDiscoveryStore();
     
     // UI Local State
@@ -403,7 +406,7 @@ await new Promise(resolve => setTimeout(resolve, delay));
     const hasJoinedEventRef = useRef<string | null>(null);
 
     // Debounce userVisible refetch to prevent rapid-fire updates
-    const userVisibleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const userVisibleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     
     useEffect(() => {
         const currentSocket = useChatStore.getState().socket;
@@ -489,7 +492,7 @@ await new Promise(resolve => setTimeout(resolve, delay));
     }, []);
 
     // Debounce presence updates to prevent rapid-fire emissions
-    const presenceUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const presenceUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     
     const toggleVisibility = (val: boolean) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -751,7 +754,7 @@ await new Promise(resolve => setTimeout(resolve, delay));
                     </View>
                     
                     {/* Live User Avatars Positioned on Radar */}
-                    {filteredUsers.slice(0, 6).map((user, index) => {
+                    {filteredUsers.slice(0, 6).map((user: any, index: number) => {
                         // Random position around center within radar range
                         const angle = (index * 60 + Math.random() * 30) * (Math.PI / 180);
                         const distance = 30 + Math.random() * 40; // Random distance from center

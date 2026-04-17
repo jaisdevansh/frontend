@@ -2,7 +2,6 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, LayoutAnimation, Platform, UIManager, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useStrictBack } from '../../hooks/useStrictBack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../constants/design-system';
 
@@ -45,25 +44,36 @@ const FAQItem = ({ question, answer, isOpen, onPress }: FAQItemProps) => {
 
 export default function HelpCenterScreen() {
     const router = useRouter();
-    const goBack = useStrictBack('/');
     const [openIndex, setOpenIndex] = useState<number | null>(null);
+
+    // Bypass buggy Expo Router back behavior which defaults to home tab
+    const handleBack = useCallback(() => {
+        router.navigate('/(settings)/terms-support');
+        return true; 
+    }, [router]);
+
+    React.useEffect(() => {
+        const { BackHandler } = require('react-native');
+        const sub = BackHandler.addEventListener('hardwareBackPress', handleBack);
+        return () => sub.remove();
+    }, [handleBack]);
 
     const faqs = useMemo(() => [
         {
-            question: "How do I reset my password?",
-            answer: "Go to the Login screen and tap 'Forgot Password?'. Enter your email and we'll send you a link to reset your password. You can also change it from the Profile settings when logged in."
+            question: "How do I use my booking QR pass?",
+            answer: "Once your booking is confirmed, you'll see it under 'My Bookings'. Tap the pass to reveal your secure QR code and present it to the bouncer at the venue entrance. It updates securely in real-time."
         },
         {
-            question: "How do I update profile?",
-            answer: "Tap on your profile icon at the bottom of the home screen, then click the 'Edit Profile' button. You can update your bio, profile picture, and display name there."
+            question: "How do I update my profile?",
+            answer: "Tap on your profile tab at the bottom, then click 'Edit Profile'. You can update your display name, gender, and date of birth there."
         },
         {
-            question: "How do I cancel subscription?",
-            answer: "Go to Settings > Subscription. You'll see your current plan and an option to 'Manage Subscription' where you can cancel or downgrade your tier. Benefits will continue until the end of the billing cycle."
+            question: "How do I earn and use Loyalty Points?",
+            answer: "You earn points for every completed booking and for referring friends! Redeem these points in the 'My Rewards & Coupons' section to unlock exclusive discount codes."
         },
         {
-            question: "How do I contact support?",
-            answer: "You can use our 'Party Support AI' chat for instant help, or send an email to support@partyapp.com. Our concierge team is available 24/7 for Black tier members."
+            question: "What do I need to bring to the venue?",
+            answer: "You strictly need your Entry Club QR Pass and a valid, physical Government-issued ID. Venues reserve the right to deny entry if you fail to bring valid identification."
         }
     ], []);
 
@@ -75,7 +85,7 @@ export default function HelpCenterScreen() {
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => goBack()} style={styles.backButton}>
+                <TouchableOpacity onPress={handleBack} style={styles.backButton}>
                     <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Help Center</Text>
@@ -242,9 +252,9 @@ const styles = StyleSheet.create({
         paddingBottom: SPACING.lg,
     },
     faqAnswer: {
-        color: 'rgba(255,255,255,0.6)',
+        color: 'rgba(255,255,255,0.85)',
         fontSize: 14,
-        lineHeight: 20,
+        lineHeight: 22,
     },
     supportSection: {
         marginTop: SPACING.sm,

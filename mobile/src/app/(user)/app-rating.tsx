@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Platform, TouchableWithoutFeedback, Keyboard, Dimensions, BackHandler } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useStrictBack } from '../../hooks/useStrictBack';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../constants/design-system';
 import { useToast } from '../../context/ToastContext';
@@ -14,10 +15,21 @@ import * as Haptics from 'expo-haptics';
 const { width, height } = Dimensions.get('window');
 
 export default function AppRatingScreen() {
-    const goBack = useStrictBack('/(user)/profile');
+    const router = useRouter();
     const insets = useSafeAreaInsets();
     const { showToast } = useToast();
-    const scrollRef = useRef<ScrollView>(null);
+    const scrollRef = useRef<any>(null); // For KeyboardAwareScrollView
+
+    // Bypass buggy Expo Router back behavior which defaults to home tab
+    const handleBack = React.useCallback(() => {
+        router.navigate('/(user)/profile');
+        return true; // prevent default hardware back
+    }, [router]);
+
+    React.useEffect(() => {
+        const sub = BackHandler.addEventListener('hardwareBackPress', handleBack);
+        return () => sub.remove();
+    }, [handleBack]);
 
     const [rating, setRating] = useState(0);
     const [feedback, setFeedback] = useState('');
@@ -26,10 +38,6 @@ export default function AppRatingScreen() {
     const handleStarPress = (star: number) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         setRating(star);
-        // Auto-scroll to feedback area after a short delay
-        setTimeout(() => {
-            scrollRef.current?.scrollToEnd({ animated: true });
-        }, 300);
     };
 
     const handleSubmit = async () => {
@@ -65,24 +73,22 @@ export default function AppRatingScreen() {
             <View style={[styles.orb, { bottom: height / 4, left: -100, backgroundColor: '#8A2BE2' }]} />
 
             <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) }]}>
-                <TouchableOpacity onPress={() => goBack()} style={styles.backBtn} activeOpacity={0.8}>
+                <TouchableOpacity onPress={handleBack} style={styles.backBtn} activeOpacity={0.8}>
                     <Ionicons name="close" size={24} color="rgba(255,255,255,0.7)" />
                 </TouchableOpacity>
             </View>
 
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                <KeyboardAvoidingView 
-                    style={styles.keyboardView} 
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+                <KeyboardAwareScrollView 
+                    ref={scrollRef}
+                    style={styles.keyboardView}
+                    contentContainerStyle={styles.scrollContent} 
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="interactive"
+                    enableOnAndroid={true}
+                    extraScrollHeight={100}
                 >
-                    <ScrollView 
-                        ref={scrollRef}
-                        contentContainerStyle={styles.scrollContent} 
-                        showsVerticalScrollIndicator={false}
-                        keyboardShouldPersistTaps="handled"
-                        keyboardDismissMode="on-drag"
-                    >
                         
                         <View style={styles.heroSection}>
                             <View style={styles.iconWrapper}>
@@ -128,18 +134,6 @@ export default function AppRatingScreen() {
                                         maxLength={500}
                                         value={feedback}
                                         onChangeText={setFeedback}
-                                        onFocus={() => {
-                                            // ⚡ FIX: Scroll to bottom when keyboard appears
-                                            setTimeout(() => {
-                                                scrollRef.current?.scrollToEnd({ animated: true });
-                                            }, 100);
-                                        }}
-                                        onContentSizeChange={() => {
-                                            // ⚡ FIX: Auto-scroll as user types
-                                            if (feedback.length > 50) {
-                                                scrollRef.current?.scrollToEnd({ animated: true });
-                                            }
-                                        }}
                                     />
                                 </View>
                             )}
@@ -166,15 +160,14 @@ export default function AppRatingScreen() {
 
                             <TouchableOpacity 
                                 style={styles.cancelBtn}
-                                onPress={() => goBack()}
+                                onPress={handleBack}
                                 activeOpacity={0.8}
                             >
                                 <Text style={styles.cancelText}>Maybe Later</Text>
                             </TouchableOpacity>
                         </BlurView>
 
-                    </ScrollView>
-                </KeyboardAvoidingView>
+                </KeyboardAwareScrollView>
             </TouchableWithoutFeedback>
         </View>
     );
@@ -219,7 +212,7 @@ const styles = StyleSheet.create({
         flexGrow: 1,
         alignItems: 'center',
         paddingHorizontal: SPACING.lg,
-        paddingBottom: 120, // ⚡ FIX: Extra padding so button is visible above keyboard
+        paddingBottom: 40,
         paddingTop: 20,
     },
     heroSection: {

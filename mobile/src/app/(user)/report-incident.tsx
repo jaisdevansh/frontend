@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, Keyboard, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Platform, Keyboard, Image } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useStrictBack } from '../../hooks/useStrictBack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../constants/design-system';
 import { useToast } from '../../context/ToastContext';
@@ -9,6 +9,7 @@ import apiClient from '../../services/apiClient';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
+import dayjs from 'dayjs';
 
 const INCIDENT_TYPES = [
     { id: 'Harassment & Conduct', label: 'Harassment & Conduct', icon: 'hand-left-outline' },
@@ -20,10 +21,21 @@ const INCIDENT_TYPES = [
 ];
 
 export default function ReportIncidentScreen() {
-    const goBack = useStrictBack('/');
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const { showToast } = useToast();
+
+    // Bypass buggy Expo Router back behavior which defaults to home tab
+    const handleBack = React.useCallback(() => {
+        router.navigate('/(settings)/terms-support');
+        return true; 
+    }, [router]);
+
+    React.useEffect(() => {
+        const { BackHandler } = require('react-native');
+        const sub = BackHandler.addEventListener('hardwareBackPress', handleBack);
+        return () => sub.remove();
+    }, [handleBack]);
 
     const [selectedType, setSelectedType] = useState<string | null>(null);
     const [title, setTitle] = useState('');
@@ -31,6 +43,41 @@ export default function ReportIncidentScreen() {
     const [images, setImages] = useState<string[]>([]);
     const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+
+    // Context for currently active event to enable/disable reporting
+    const [hasActiveEvent, setHasActiveEvent] = useState<boolean | null>(null);
+    const [bookingContext, setBookingContext] = useState<any>(null);
+
+    React.useEffect(() => {
+        const fetchActiveBooking = async () => {
+            try {
+                const bookingRes = await apiClient.get('/user/bookings');
+                const activeBooking = bookingRes.data.data?.find((b: any) => 
+                    ['approved', 'active', 'checked_in'].includes(b.status)
+                );
+                
+                if (activeBooking && activeBooking.eventId) {
+                    setBookingContext(activeBooking);
+                    
+                    const event = activeBooking.eventId;
+                    // Expiration Logic: after endTime or 6 AM next day
+                    const isExpired = event.endTime 
+                        ? dayjs().isAfter(dayjs(event.endTime))
+                        : event.date 
+                        ? dayjs().isAfter(dayjs(event.date).add(1, 'day').startOf('day').add(6, 'hour')) 
+                        : false;
+                    
+                    setHasActiveEvent(!isExpired);
+                } else {
+                    setHasActiveEvent(false);
+                }
+            } catch (err) {
+                console.log('[ReportIncident] Could not fetch booking info:', err);
+                setHasActiveEvent(false); // Default to disabled if network fails? Safest option.
+            }
+        };
+        fetchActiveBooking();
+    }, []);
 
     const handlePickImages = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -59,7 +106,9 @@ export default function ReportIncidentScreen() {
     };
 
     const handleSubmit = async () => {
-        // ⚡ FIX: Proper validation with clear error messages
+        if (hasActiveEvent === false) {
+            return showToast('You can only report an incident during an active event.', 'error');
+        }
         if (!selectedType) {
             return showToast('Please select what this report is about.', 'error');
         }
@@ -76,25 +125,15 @@ export default function ReportIncidentScreen() {
         Keyboard.dismiss();
         setSubmitting(true);
         try {
-            // Fetch active booking to get tableId, zone, eventId, hostId
             let tableId = 'N/A';
             let zone = 'General';
             let eventId, hostId;
             
-            try {
-                const bookingRes = await apiClient.get('/user/bookings');
-                const activeBooking = bookingRes.data.data?.find((b: any) => 
-                    ['approved', 'active', 'checked_in'].includes(b.status)
-                );
-                
-                if (activeBooking) {
-                    tableId = activeBooking.tableId || activeBooking.seatIds?.[0] || 'N/A';
-                    zone = activeBooking.zone || 'General';
-                    eventId = activeBooking.eventId?._id || activeBooking.eventId;
-                    hostId = activeBooking.hostId?._id || activeBooking.hostId;
-                }
-            } catch (err) {
-                console.log('[ReportIncident] Could not fetch booking info:', err);
+            if (bookingContext) {
+                tableId = bookingContext.tableId || bookingContext.seatIds?.[0] || 'N/A';
+                zone = bookingContext.zone || 'General';
+                eventId = bookingContext.eventId?._id || bookingContext.eventId;
+                hostId = bookingContext.hostId?._id || bookingContext.hostId;
             }
             
             const res = await apiClient.post('/user/report-incident', {
@@ -126,7 +165,7 @@ export default function ReportIncidentScreen() {
                 <View style={styles.successCard}>
                     <TouchableOpacity 
                         style={styles.closeIconBtn}
-                        onPress={() => router.replace('/(user)/profile')}
+                        onPress={handleBack}
                     >
                         <Ionicons name="close" size={18} color="rgba(255,255,255,0.5)" />
                     </TouchableOpacity>
@@ -154,9 +193,9 @@ export default function ReportIncidentScreen() {
 
                     <TouchableOpacity 
                         style={styles.primaryReturnBtn}
-                        onPress={() => router.replace('/(user)/profile')}
+                        onPress={handleBack}
                     >
-                        <Text style={styles.primaryReturnBtnText}>Return to Profile</Text>
+                        <Text style={styles.primaryReturnBtnText}>Return to Support</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -167,25 +206,22 @@ export default function ReportIncidentScreen() {
     return (
         <View style={styles.container}>
             <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-                <TouchableOpacity onPress={() => goBack()} style={styles.backBtn} activeOpacity={0.8}>
+                <TouchableOpacity onPress={handleBack} style={styles.backBtn} activeOpacity={0.8}>
                     <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Report an Incident</Text>
                 <View style={{ width: 44 }} />
             </View>
 
-            <KeyboardAvoidingView
+            <KeyboardAwareScrollView
                 style={{ flex: 1 }}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
+                enableOnAndroid={true}
+                extraScrollHeight={80}
             >
-                <ScrollView
-                    style={{ flex: 1 }}
-                    contentContainerStyle={styles.scrollContent}
-                    showsVerticalScrollIndicator={false}
-                    keyboardShouldPersistTaps="handled"
-                    keyboardDismissMode="on-drag"
-                >
                     {/* Hero */}
                     <View style={styles.heroSection}>
                         <View style={styles.iconGlow}>
@@ -285,30 +321,30 @@ export default function ReportIncidentScreen() {
                         <Ionicons name="lock-closed" size={14} color="rgba(255,255,255,0.4)" />
                         <Text style={styles.privacyText}>This report is strictly confidential and encrypted.</Text>
                     </View>
+                    
+                    <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+                        <TouchableOpacity
+                            style={[
+                                styles.submitBtn,
+                                (!selectedType || !title.trim() || !description.trim() || submitting || hasActiveEvent === false) && styles.submitBtnDisabled
+                            ]}
+                            activeOpacity={0.9}
+                            onPress={handleSubmit}
+                            disabled={!selectedType || !title.trim() || !description.trim() || submitting || hasActiveEvent === false}
+                        >
+                            {submitting ? (
+                                <ActivityIndicator color="#FFFFFF" />
+                            ) : hasActiveEvent === false ? (
+                                <Text style={[styles.submitBtnText, { color: 'rgba(255,255,255,0.5)', fontSize: 11, letterSpacing: 1.5, textAlign: 'center', paddingHorizontal: 16 }]}>🚫 UNAVAILABLE - NO EVENTS</Text>
+                            ) : (
+                                <Text style={styles.submitBtnText}>Submit Secure Report</Text>
+                            )}
+                        </TouchableOpacity>
+                    </View>
 
                     {/* Extra padding for keyboard */}
-                    <View style={{ height: 100 }} />
-                </ScrollView>
-
-                {/* Footer Submit - Fixed position */}
-                <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-                    <TouchableOpacity
-                        style={[
-                            styles.submitBtn,
-                            (!selectedType || !title.trim() || !description.trim() || submitting) && styles.submitBtnDisabled
-                        ]}
-                        activeOpacity={0.9}
-                        onPress={handleSubmit}
-                        disabled={!selectedType || !title.trim() || !description.trim() || submitting}
-                    >
-                        {submitting ? (
-                            <ActivityIndicator color="#FFFFFF" />
-                        ) : (
-                            <Text style={styles.submitBtnText}>Submit Secure Report</Text>
-                        )}
-                    </TouchableOpacity>
-                </View>
-            </KeyboardAvoidingView>
+                    <View style={{ height: 20 }} />
+                </KeyboardAwareScrollView>
         </View>
     );
 }
@@ -345,8 +381,8 @@ const styles = StyleSheet.create({
     removeBtn: { position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
     privacyNote: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 20, gap: 6 },
     privacyText: { color: 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: '500' },
-    footer: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0, 0, 0, 0.97)', paddingHorizontal: SPACING.xl, paddingTop: SPACING.lg, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
-    submitBtn: { height: 56, backgroundColor: '#FF3B30', borderRadius: 100, alignItems: 'center', justifyContent: 'center', shadowColor: '#FF3B30', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 6 },
+    footer: { marginTop: SPACING.xl, paddingTop: SPACING.lg, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingBottom: 10 },
+    submitBtn: { marginHorizontal: SPACING.md, height: 56, backgroundColor: '#FF3B30', borderRadius: 100, alignItems: 'center', justifyContent: 'center', shadowColor: '#FF3B30', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 6 },
     submitBtnDisabled: { backgroundColor: 'rgba(255,255,255,0.05)', shadowOpacity: 0, elevation: 0, borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1 },
     submitBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800', letterSpacing: 0.5 },
     // Success Screen

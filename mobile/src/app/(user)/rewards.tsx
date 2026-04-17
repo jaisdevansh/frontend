@@ -13,6 +13,18 @@ export default function RewardsScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     
+    // Bypass buggy Expo Router back behavior which defaults to home tab
+    const handleBack = React.useCallback(() => {
+        router.navigate('/(user)/profile');
+        return true; 
+    }, [router]);
+
+    React.useEffect(() => {
+        const { BackHandler } = require('react-native');
+        const sub = BackHandler.addEventListener('hardwareBackPress', handleBack);
+        return () => sub.remove();
+    }, [handleBack]);
+
     const { data: wallet, isLoading: walletLoading } = useWallet();
     const { data: coupons, isLoading: storeLoading } = useCoupons();
     const { data: userCoupons, isLoading: userCouponsLoading } = useUserCoupons();
@@ -42,7 +54,7 @@ export default function RewardsScreen() {
             <SafeAreaView style={styles.safe} edges={['top']}>
                 {/* Header */}
                 <View style={styles.header}>
-                    <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                    <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
                         <Ionicons name="chevron-back" size={24} color="#FFF" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>ENTRY CLUB REWARDS</Text>

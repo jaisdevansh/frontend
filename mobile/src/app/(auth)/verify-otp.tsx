@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, Platform, TouchableOpacity, Dimensions } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -11,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { authService } from '../../services/authService';
 import { useToast } from '../../context/ToastContext';
 import { Logo } from '../../components/Logo';
+const { height } = Dimensions.get('window');
 
 export default function VerifyOtpScreen() {
     const { identifier, hint } = useLocalSearchParams<{ identifier: string, hint?: string }>();
@@ -22,7 +24,6 @@ export default function VerifyOtpScreen() {
     const { login } = useAuth();
     const router = useRouter();
     const { showToast } = useToast();
-    const scrollerRef = useRef<ScrollView>(null);
 
     const handleVerifyOtp = async () => {
         if (!otp || otp.length < 6) {
@@ -71,15 +72,16 @@ export default function VerifyOtpScreen() {
                 end={{ x: 1, y: 1 }}
                 style={styles.background}
             />
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            <KeyboardAwareScrollView
+                contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="interactive"
+                showsVerticalScrollIndicator={false}
+                enableOnAndroid={true}
+                extraScrollHeight={200}
                 style={styles.keyboardView}
             >
-                <ScrollView 
-                    ref={scrollerRef}
-                    contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20 }]}
-                    showsVerticalScrollIndicator={false}
-                >
+                <View style={[styles.innerContent, { paddingTop: insets.top + 20 }]}>
                     <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
                         <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
                     </TouchableOpacity>
@@ -102,12 +104,6 @@ export default function VerifyOtpScreen() {
                             onChangeText={setOtp}
                             keyboardType="number-pad"
                             maxLength={6}
-                            onFocus={() => {
-                                // Dynamic scroll to ensure the OTP input is centered/visible
-                                setTimeout(() => {
-                                    scrollerRef.current?.scrollTo({ y: 120, animated: true });
-                                }, 100);
-                            }}
                         />
 
                          <Button
@@ -124,8 +120,8 @@ export default function VerifyOtpScreen() {
                             </TouchableOpacity>
                         </View>
                     </View>
-                </ScrollView>
-            </KeyboardAvoidingView>
+                </View>
+            </KeyboardAwareScrollView>
         </View>
     );
 }
@@ -142,9 +138,13 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     scrollContent: {
+        flexGrow: 1,
+    },
+    innerContent: {
         paddingHorizontal: SPACING.xl,
         paddingBottom: 40,
-        flexGrow: 1,
+        flex: 1,
+        minHeight: height - 100,
     },
     backBtn: {
         width: 40,

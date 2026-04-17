@@ -8,9 +8,9 @@ import {
     ScrollView, 
     ActivityIndicator,
     Image,
-    KeyboardAvoidingView,
     Platform
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -110,11 +110,6 @@ export default function ReportBug() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <KeyboardAvoidingView 
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-                style={{ flex: 1 }}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
-            >
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
                         <Ionicons name="chevron-back" size={24} color="white" />
@@ -123,7 +118,14 @@ export default function ReportBug() {
                     <View style={{ width: 44 }} />
                 </View>
 
-                <ScrollView contentContainerStyle={styles.scroll}>
+                <KeyboardAwareScrollView 
+                    style={{ flex: 1 }}
+                    contentContainerStyle={styles.scroll}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    enableOnAndroid={true}
+                    extraScrollHeight={80}
+                >
                     <View style={styles.form}>
                         <Text style={styles.label}>YOUR NAME</Text>
                         <TextInput 
@@ -170,8 +172,10 @@ export default function ReportBug() {
                     >
                         {loading ? <ActivityIndicator size="small" color="white" /> : <Text style={styles.submitText}>Submit directly to dev</Text>}
                     </TouchableOpacity>
-                </ScrollView>
-            </KeyboardAvoidingView>
+                    
+                    {/* Extra padding for keyboard */}
+                    <View style={{ height: 20 }} />
+                </KeyboardAwareScrollView>
         </SafeAreaView>
     );
 }
