@@ -37,7 +37,7 @@ export async function initiateRazorpayPayment(
 
     // ── Check if Native Module exists (Expo Go Check) ──────────────────────────
     if (!NativeModules.RNRazorpayCheckout) {
-        console.warn(
+        false && console.warn(
             '[Razorpay] Native module "RNRazorpayCheckout" is missing.\n' +
             'This usually means you are running in Expo Go. Razorpay requires a Development Build (npx expo run:android).\n' +
             'Falling back to SIMULATION MODE for testing...'
@@ -137,7 +137,7 @@ export async function initiateRazorpayPayment(
         if (error?.code === 0 || error?.description?.includes('cancelled')) {
             return { success: false, error: 'Payment cancelled' };
         }
-        console.error('[Razorpay Error]', error);
+        false && console.error('[Razorpay Error]', error);
         return { success: false, error: error?.message || 'Payment failed. Please try again.' };
     }
 }
@@ -162,12 +162,12 @@ export async function initiateFoodPayment(
 
     // Simulation fallback (Expo Go)
     if (!NativeModules.RNRazorpayCheckout) {
-        console.log('[RAZORPAY DEBUG] Running in SIMULATION MODE (Expo Go or lacking native module)');
+        false && console.log('[RAZORPAY DEBUG] Running in SIMULATION MODE (Expo Go or lacking native module)');
         return new Promise(async (resolve) => {
             try {
-                console.log('[RAZORPAY DEBUG] Creating food order (Simulation)...');
+                false && console.log('[RAZORPAY DEBUG] Creating food order (Simulation)...');
                 const orderRes = await apiClient.post('/api/v1/payments/food/order', orderPayload);
-                console.log('[RAZORPAY DEBUG] Order creation response:', orderRes.data.success ? 'SUCCESS' : 'FAILED');
+                false && console.log('[RAZORPAY DEBUG] Order creation response:', orderRes.data.success ? 'SUCCESS' : 'FAILED');
                 if (!orderRes.data.success) {
                     return resolve({ success: false, error: 'Simulation: Failed to create food order' });
                 }
@@ -190,9 +190,9 @@ export async function initiateFoodPayment(
     }
 
     try {
-        console.log('[RAZORPAY DEBUG] Starting REAL payment flow...');
+        false && console.log('[RAZORPAY DEBUG] Starting REAL payment flow...');
         const orderRes = await apiClient.post('/api/v1/payments/food/order', orderPayload);
-        console.log('[RAZORPAY DEBUG] Order Response:', JSON.stringify(orderRes.data, null, 2));
+        false && console.log('[RAZORPAY DEBUG] Order Response:', JSON.stringify(orderRes.data, null, 2));
         if (!orderRes.data.success) return { success: false, error: 'Failed to create food order' };
         const { data: rzpOrder, foodOrderId } = orderRes.data;
 
@@ -213,11 +213,11 @@ export async function initiateFoodPayment(
             theme: { color: '#7c4dff' },
         };
 
-        console.log('[RAZORPAY DEBUG] Opening Razorpay UI with options:', JSON.stringify(rzpOptions, null, 2));
+        false && console.log('[RAZORPAY DEBUG] Opening Razorpay UI with options:', JSON.stringify(rzpOptions, null, 2));
         const paymentData: any = await RazorpayCheckout.open(rzpOptions);
-        console.log('[RAZORPAY DEBUG] Razorpay opened successfully. Payment Data:', JSON.stringify(paymentData, null, 2));
+        false && console.log('[RAZORPAY DEBUG] Razorpay opened successfully. Payment Data:', JSON.stringify(paymentData, null, 2));
 
-        console.log('[RAZORPAY DEBUG] Verifying food payment...');
+        false && console.log('[RAZORPAY DEBUG] Verifying food payment...');
         const verifyRes = await apiClient.post('/api/v1/payments/food/verify', {
             razorpay_order_id:   paymentData.razorpay_order_id,
             razorpay_payment_id: paymentData.razorpay_payment_id,
@@ -234,7 +234,7 @@ export async function initiateFoodPayment(
         if (error?.code === 0 || error?.description?.includes('cancelled')) {
             return { success: false, error: 'Payment cancelled' };
         }
-        console.error('[Razorpay Food Error]', error);
+        false && console.error('[Razorpay Food Error]', error);
         return { success: false, error: error?.message || 'Payment failed. Please try again.' };
     }
 }

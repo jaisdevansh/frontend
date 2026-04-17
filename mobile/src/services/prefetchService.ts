@@ -20,7 +20,7 @@ export const prefetchUserData = async (queryClient: QueryClient, userId?: string
             staleTime: 1000 * 60 * 5,
         });
     } catch (e) {
-        console.log('[Prefetch] User data prefetch failed');
+        false && console.log('[Prefetch] User data prefetch failed');
     }
 };
 
@@ -36,7 +36,7 @@ export const prefetchHostData = async (queryClient: QueryClient, hostId?: string
             staleTime: 1000 * 60 * 2,
         });
     } catch (e) {
-        console.log('[Prefetch] Host data prefetch failed');
+        false && console.log('[Prefetch] Host data prefetch failed');
     }
 };
 
@@ -52,7 +52,7 @@ export const prefetchAdminData = async (queryClient: QueryClient) => {
             staleTime: 1000 * 60 * 2,
         });
     } catch (e) {
-        console.log('[Prefetch] Admin data prefetch failed');
+        false && console.log('[Prefetch] Admin data prefetch failed');
     }
 };
 
@@ -80,7 +80,7 @@ export const prefetchMenuAndGifts = async (queryClient: QueryClient, hostId: str
             }),
         ]);
     } catch (e) {
-        console.log('[Prefetch] Menu/Gifts prefetch failed');
+        false && console.log('[Prefetch] Menu/Gifts prefetch failed');
     }
 };
 
@@ -97,6 +97,6 @@ export const prefetchEventData = async (queryClient: QueryClient, eventId: strin
             staleTime: 1000 * 60 * 5,
         });
     } catch (e) {
-        console.log('[Prefetch] Event data prefetch failed');
+        false && console.log('[Prefetch] Event data prefetch failed');
     }
 };

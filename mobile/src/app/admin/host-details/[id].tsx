@@ -1,7 +1,7 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity,
-    ActivityIndicator, Linking, StatusBar, Animated, Dimensions
+    ActivityIndicator, Linking, StatusBar, Animated, Dimensions, Modal, Alert
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,6 +32,7 @@ export default function HostDetailsScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const queryClient = useQueryClient();
+    const [isDocsModalVisible, setDocsModalVisible] = useState(false);
 
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useRef(new Animated.Value(40)).current;
@@ -92,6 +93,61 @@ export default function HostDetailsScreen() {
     const createdStr = new Date(host.createdAt).toLocaleDateString([], { month: 'long', year: 'numeric' });
 
     const spin = rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+    const isKycVerified = host.kyc?.isVerified || host.hostStatus === 'ACTIVE';
+
+    const handleOptions = () => {
+        const isBanned = host.hostStatus === 'SUSPENDED';
+        Alert.alert(
+            "Partner Operations",
+            "Select an administrative action to perform on this host account.",
+            [
+                {
+                    text: isBanned ? "Lift Suspension (Unban)" : "Suspend Host (Ban)",
+                    onPress: async () => {
+                        try {
+                            const newStatus = isBanned ? 'ACTIVE' : 'SUSPENDED';
+                            await adminService.toggleHostStatus(host._id, newStatus);
+                            Alert.alert('Operation Successful', `Host account has been ${isBanned ? 'unbanned' : 'suspended'}.`);
+                            router.replace(`/admin/host-details/${host._id}`);
+                        } catch (e) {
+                            Alert.alert('Operation Failed', 'Could not update host status. Please check network logs.');
+                        }
+                    },
+                    style: "default"
+                },
+                {
+                    text: "Permanently Remove",
+                    onPress: () => {
+                        Alert.alert("Confirm Deletion", "This action is irreversible. Are you sure you want to permanently delete this host profile and all associated data?", [
+                            { text: "Cancel", style: "cancel" },
+                            {
+                                text: "Confirm Remove",
+                                style: "destructive",
+                                onPress: async () => {
+                                    try {
+                                        await adminService.deleteHost(host._id);
+                                        Alert.alert('Deleted', 'Host profile has been permanently removed from the platform.');
+                                        router.back();
+                                    } catch(e) {
+                                        Alert.alert('Error', 'Failed to delete host profile.');
+                                    }
+                                }
+                            }
+                        ]);
+                    },
+                    style: "destructive"
+                },
+                { text: "Cancel", style: "cancel" }
+            ]
+        );
+    };
+
+    const handlePerformance = () => {
+        Alert.alert(
+            "Host Performance Data",
+            `• Target Name: ${displayName}\n• Fiscal Status: Operational\n• Platform Join Date: ${createdStr}\n• KYC Compliance: ${isKycVerified ? 'Verified' : 'Pending Action'}\n\nNote: Detailed aggregated performance metrics (total revenue, bookings, traffic analytics) are actively recorded and compiled. Granular charts will be reflected once primary events are published.`
+        );
+    };
 
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -103,9 +159,6 @@ export default function HostDetailsScreen() {
                 style={StyleSheet.absoluteFillObject}
             />
 
-            {/* Ambient Glow */}
-            <View style={[styles.ambientGlow, { backgroundColor: `${statusColor}18` }]} />
-
             {/* Header */}
             <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
@@ -115,12 +168,14 @@ export default function HostDetailsScreen() {
                     <Text style={styles.headerTitle}>Partner Profile</Text>
                     <Text style={styles.headerSub}>Admin Console</Text>
                 </View>
-                <TouchableOpacity style={styles.headerBtn}>
+                <TouchableOpacity style={styles.headerBtn} onPress={handleOptions}>
                     <Ionicons name="ellipsis-vertical" size={20} color="#FFF" />
                 </TouchableOpacity>
             </Animated.View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+                {/* Ambient Glow */}
+                <View style={[styles.ambientGlow, { backgroundColor: `${statusColor}18` }]} />
 
                 {/* Hero Section */}
                 <Animated.View style={[styles.heroSection, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
@@ -164,8 +219,8 @@ export default function HostDetailsScreen() {
                 {/* Stats Row */}
                 <Animated.View style={[styles.statsRow, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
                     <StatCard icon="monetization-on" label="Fiscal Status" value="Operational" color="#10B981" />
-                    <StatCard icon="star" label="Account Tier" value="Host Pro" color="#8b5cf6" />
-                    <StatCard icon="verified" label="KYC" value={host.kyc?.isVerified ? 'Verified' : 'Pending'} color={host.kyc?.isVerified ? '#10B981' : '#f59e0b'} />
+                    <StatCard icon="star" label="Account Tier" value="Host" color="#8b5cf6" />
+                    <StatCard icon="verified" label="KYC" value={(host.kyc?.isVerified || host.hostStatus === 'ACTIVE') ? 'Verified' : 'Pending'} color={(host.kyc?.isVerified || host.hostStatus === 'ACTIVE') ? '#10B981' : '#f59e0b'} />
                 </Animated.View>
 
                 {/* Communication Terminal */}
@@ -200,7 +255,7 @@ export default function HostDetailsScreen() {
                         iconBg="rgba(16,185,129,0.12)"
                         iconColor="#10B981"
                         label="Audit KYC Documentation"
-                        onPress={() => router.push(`/admin/kyc-verification` as any)}
+                        onPress={() => setDocsModalVisible(true)}
                     />
                     <View style={styles.cardDivider} />
                     <ActionRow
@@ -208,7 +263,7 @@ export default function HostDetailsScreen() {
                         iconBg="rgba(59,130,246,0.12)"
                         iconColor="#3b82f6"
                         label="View Performance Report"
-                        onPress={() => {}}
+                        onPress={handlePerformance}
                     />
                     <View style={styles.cardDivider} />
                     <ActionRow
@@ -217,7 +272,7 @@ export default function HostDetailsScreen() {
                         iconColor="#F43F5E"
                         label="Revoke Partner Access"
                         danger
-                        onPress={() => {}}
+                        onPress={handleOptions}
                     />
                 </Animated.View>
 
@@ -227,6 +282,38 @@ export default function HostDetailsScreen() {
                     <Text style={styles.securityTag}>🔐 Authorized Personnel Only</Text>
                 </View>
             </ScrollView>
+            {/* KYC Docs Modal */}
+            <Modal visible={isDocsModalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setDocsModalVisible(false)}>
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalHeader}>
+                        <Text style={styles.modalTitle}>KYC Documentation</Text>
+                        <TouchableOpacity onPress={() => setDocsModalVisible(false)}><Ionicons name="close" size={26} color="#FFF" /></TouchableOpacity>
+                    </View>
+                    <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalContent}>
+                        {(!host.kyc?.documents || host.kyc.documents.length === 0) ? (
+                            <View style={styles.emptyKycBox}>
+                                <MaterialIcons name="hourglass-empty" size={40} color="rgba(255,255,255,0.4)" />
+                                <Text style={styles.emptyKycText}>No Documents Found</Text>
+                                <Text style={styles.emptyKycSub}>This host has not uploaded any KYC files.</Text>
+                            </View>
+                        ) : (
+                            host.kyc.documents.map((doc: any, idx: number) => (
+                                <TouchableOpacity key={idx} style={styles.docItem} onPress={() => Linking.openURL(doc.url)}>
+                                    <View style={styles.docIconBox}><MaterialIcons name="description" size={20} color="#3b82f6" /></View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.docType}>{doc.type}</Text>
+                                        <Text style={styles.docStatus}>Status: {doc.status || 'Uploaded'}</Text>
+                                    </View>
+                                    <MaterialIcons name="open-in-new" size={18} color="rgba(255,255,255,0.4)" />
+                                </TouchableOpacity>
+                            ))
+                        )}
+                        <TouchableOpacity style={styles.closeBtn} onPress={() => setDocsModalVisible(false)}>
+                            <Text style={styles.closeBtnText}>Done</Text>
+                        </TouchableOpacity>
+                    </ScrollView>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -388,4 +475,20 @@ const styles = StyleSheet.create({
         borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
     },
     retryText: { color: '#FFF', fontSize: 14, fontWeight: '800' },
+    
+    // Modal Styles
+    modalContainer: { flex: 1, backgroundColor: '#000' },
+    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 24, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
+    modalTitle: { color: '#FFF', fontSize: 18, fontWeight: '900' },
+    modalScroll: { flex: 1 },
+    modalContent: { padding: 24 },
+    emptyKycBox: { padding: 40, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 24, borderStyle: 'dashed', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', width: '100%' },
+    emptyKycText: { color: '#FFF', fontSize: 18, fontWeight: '800', marginTop: 12 },
+    emptyKycSub: { color: 'rgba(255,255,255,0.4)', fontSize: 13, marginTop: 4, textAlign: 'center' },
+    docItem: { width: '100%', flexDirection: 'row', alignItems: 'center', backgroundColor: '#080808', padding: 16, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', marginBottom: 12 },
+    docIconBox: { width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(59, 130, 246, 0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+    docType: { color: '#FFF', fontSize: 15, fontWeight: '700' },
+    docStatus: { color: 'rgba(255,255,255,0.4)', fontSize: 12, marginTop: 2 },
+    closeBtn: { height: 56, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center', marginTop: 32 },
+    closeBtnText: { color: '#FFF', fontSize: 15, fontWeight: '800' },
 });

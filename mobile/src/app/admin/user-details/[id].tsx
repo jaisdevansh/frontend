@@ -1,7 +1,7 @@
 import React from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity,
-    ActivityIndicator, ScrollView, StatusBar, Linking
+    ActivityIndicator, ScrollView, StatusBar, Linking, Alert
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
@@ -62,6 +62,57 @@ const UserDetailScreen = () => {
         if (user.email) Linking.openURL(`mailto:${user.email}`);
     };
 
+    const handleOptions = () => {
+        if (!user) return;
+        const isBanned = !user.isActive;
+        
+        Alert.alert(
+            "User Actions",
+            "What would you like to do?",
+            [
+                {
+                    text: isBanned ? "Unban User" : "Ban User",
+                    onPress: async () => {
+                        try {
+                            await adminService.toggleUserStatus(id as string, isBanned);
+                            Alert.alert('Success', `User has been ${isBanned ? 'unbanned' : 'banned'}.`);
+                            router.replace(`/admin/user-details/${id}`);
+                        } catch (e) {
+                            Alert.alert('Error', 'Failed to update user status.');
+                        }
+                    },
+                    style: "default"
+                },
+                {
+                    text: "Remove User",
+                    onPress: () => {
+                        Alert.alert("Confirm Remove", "Are you sure you want to permanently remove this user?", [
+                            { text: "Cancel", style: "cancel" },
+                            { 
+                                text: "Remove", 
+                                style: "destructive", 
+                                onPress: async () => {
+                                    try {
+                                        await adminService.deleteUser(id as string);
+                                        Alert.alert('Success', 'User removed successfully.');
+                                        router.back();
+                                    } catch(e) {
+                                        Alert.alert('Error', 'Failed to remove user.');
+                                    }
+                                } 
+                            }
+                        ]);
+                    },
+                    style: "destructive"
+                },
+                {
+                    text: "Cancel",
+                    style: "cancel"
+                }
+            ]
+        );
+    };
+
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
             <StatusBar barStyle="light-content" />
@@ -71,8 +122,8 @@ const UserDetailScreen = () => {
                 <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
                     <Ionicons name="arrow-back" size={24} color="#FFF" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>User Dossier</Text>
-                <TouchableOpacity style={styles.iconBtn}>
+                <Text style={styles.headerTitle}>User Profile</Text>
+                <TouchableOpacity onPress={handleOptions} style={styles.iconBtn}>
                     <MaterialIcons name="more-vert" size={24} color="#FFF" />
                 </TouchableOpacity>
             </View>
@@ -99,9 +150,7 @@ const UserDetailScreen = () => {
                         <TouchableOpacity style={[styles.actionBtn, styles.actionBtnPrimary]} onPress={handleEmail} disabled={!user.email}>
                             <Ionicons name="mail" size={20} color={user.email ? "#FFF" : COLORS.textDim} />
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.actionBtn}>
-                            <Ionicons name="chatbubble-ellipses" size={20} color="#FFF" />
-                        </TouchableOpacity>
+
                     </View>
                 </View>
 

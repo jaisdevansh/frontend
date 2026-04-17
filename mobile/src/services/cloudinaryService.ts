@@ -25,11 +25,11 @@ export const uploadImage = async (imageUri: string): Promise<string> => {
     if (!imageUri || imageUri.startsWith('http')) return imageUri;
 
     try {
-        console.log('[Cloudinary] Starting upload...');
+        false && console.log('[Cloudinary] Starting upload...');
         
         // ── Base64 path (ImagePicker with base64: true) ────────────────────────
         if (imageUri.startsWith('data:')) {
-            console.log('[Cloudinary] Uploading base64 data');
+            false && console.log('[Cloudinary] Uploading base64 data');
             const data = new FormData();
             data.append('file', imageUri);
             data.append('upload_preset', UPLOAD_PRESET);
@@ -38,14 +38,14 @@ export const uploadImage = async (imageUri: string): Promise<string> => {
             const res = await cloudinaryClient.post(CLOUDINARY_URL, data);
 
             if (res.data?.secure_url) {
-                console.log('✅ Image uploaded successfully');
+                false && console.log('✅ Image uploaded successfully');
                 return res.data.secure_url;
             }
             throw new Error('Upload failed: No secure_url in response');
         }
 
         // ── File URI path (file://) ────────────────────────────────────────────
-        console.log('[Cloudinary] Uploading file URI');
+        false && console.log('[Cloudinary] Uploading file URI');
         const data = new FormData();
         const rawName = imageUri.split('/').pop() || 'upload.jpg';
         const fileName = rawName.replace(/[/\\?%*:|"<>]/g, '-').replace(/^-+|-+$/g, '') || 'upload.jpg';
@@ -62,17 +62,17 @@ export const uploadImage = async (imageUri: string): Promise<string> => {
         const res = await cloudinaryClient.post(CLOUDINARY_URL, data);
 
         if (res.data?.secure_url) {
-            console.log('✅ Image uploaded successfully');
+            false && console.log('✅ Image uploaded successfully');
             return res.data.secure_url;
         }
 
         throw new Error('Upload failed: No secure_url in response');
     } catch (error: any) {
         const msg = error?.response?.data?.error?.message || error.message || 'Unknown error';
-        console.error('[Cloudinary] Upload failed:', msg);
+        false && console.error('[Cloudinary] Upload failed:', msg);
 
         // Return original URI as fallback instead of throwing
-        console.warn('[Cloudinary] Using original URI as fallback');
+        false && console.warn('[Cloudinary] Using original URI as fallback');
         return imageUri;
     }
 };
