@@ -472,7 +472,7 @@ const EventDetails = () => {
                             onPress={() => {
                                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                                 router.push({
-                                    pathname: '/(user)/host-media',
+                                    pathname: '/(user)/host-media' as any,
                                     params: { hostId: event.hostId?._id || event.hostId || event.host?._id || event.host || '' }
                                 });
                             }}
