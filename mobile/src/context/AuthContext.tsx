@@ -132,6 +132,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else if (authState.role === 'admin') {
             const timer = setTimeout(fetchAdminProfile, 500); // Admin profile is critical for UI instantly
             return () => clearTimeout(timer);
+        } else if (authState.role === 'staff') {
+            // ⚡ STAFF: Silent validation for Staff profile to guarantee correct target routing
+            const fetchStaffProfile = async () => {
+                try {
+                    const res = await apiClient.get('/api/v1/staff/profile');
+                    if (res.data?.data) {
+                        await persistAuth({ user: res.data.data });
+                    }
+                } catch (e) {
+                    // Ignore silently
+                }
+            };
+            const timer = setTimeout(fetchStaffProfile, 500);
+            return () => clearTimeout(timer);
         }
     }, [authState.token, authState.role]); // Only runs when token/role first loads
 
@@ -146,6 +160,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             prefetchAdminData(queryClient);
         } else if (role === 'host') {
             prefetchHostData(queryClient);
+        } else if (role === 'staff') {
+            // Staff data relies on live sockets and immediate polling, no prefetch needed yet.
         } else {
             prefetchUserData(queryClient, authState.userId || undefined);
         }
@@ -236,6 +252,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 prefetchAdminData(queryClient);
             } else if (normalizedRole === 'host') {
                 prefetchHostData(queryClient);
+            } else if (normalizedRole === 'staff') {
+                // Avoid dropping into prefetchUserData
             } else {
                 prefetchUserData(queryClient, payload.userId || undefined);
             }
