@@ -174,6 +174,38 @@ export default function SecurityPanel() {
         return diff <= 0 ? 'Recently' : `${diff}m ago`;
     };
 
+    // Rock-solid tableId decoder — handles composite slugs like "69dcf6d6_s69" from DB
+    const sanitizeTableId = (val: string) => {
+        if (!val) return 'FLOOR';
+        const trimmed = val.trim();
+        if (!trimmed || trimmed === 'N/A' || trimmed === '--' || trimmed === 'General Entry') return 'FLOOR';
+        // Already a clean short value
+        if (trimmed.length <= 10) return trimmed.toUpperCase();
+        // Pattern: {hexId}_s{seatNumber} — extract seat number (e.g. "69dcf6d6_s69" → "SEAT 69")
+        const seatMatch = trimmed.match(/_s(\d+)$/i);
+        if (seatMatch) return `SEAT ${seatMatch[1]}`;
+        // Try splitting and finding readable part
+        const parts = trimmed.split(/[-_]/);
+        const readable = parts.find(p => p.length < 8 && /[A-Za-z0-9]/.test(p) && !/^[a-f0-9]{6,}$/i.test(p));
+        if (readable) return readable.toUpperCase();
+        // Pure garbage (long hex ObjectId with no seat suffix)
+        return 'FLOOR';
+    };
+
+    const sanitizeZone = (val: string) => {
+        if (!val) return 'GENERAL';
+        const trimmed = val.trim().toUpperCase();
+        // If it's a ticket type like 'General Access Zone', shorten it
+        const knownMapping: Record<string, string> = {
+            'GENERAL ACCESS ZONE': 'GENERAL',
+            'GENERAL': 'GENERAL',
+            'MAIN FLOOR': 'FLOOR',
+            'VIP': 'VIP',
+            'VVIP': 'VVIP',
+        };
+        return knownMapping[trimmed] || trimmed.split(' ')[0]; // Take first word if unknown
+    };
+
     const renderIssueCard = ({ item: issue }: { item: any }) => {
         const theme = PRIORITY_CONFIG[issue.type] || PRIORITY_CONFIG.other;
         const isActive = activeTab === 'active';
@@ -214,13 +246,13 @@ export default function SecurityPanel() {
                     <View style={[styles.locationStrip, { backgroundColor: 'rgba(0,0,0,0.4)', borderColor: `${theme.color}20`, borderWidth: 1 }]}>
                         <View style={styles.stripItem}>
                             <Text style={styles.stripLabel}>ZONE</Text>
-                            <Text style={[styles.stripValue, { color: 'white' }]}>{issue.zone?.toUpperCase() || 'VIP'}</Text>
+                            <Text style={[styles.stripValue, { color: 'white' }]}>{sanitizeZone(issue.zone)}</Text>
                         </View>
                         <View style={styles.stripDivider} />
                         <View style={styles.stripItem}>
                             <Text style={styles.stripLabel}>TABLE</Text>
                             <Text style={[styles.stripValue, { color: theme.color }]}>
-                                {issue.tableId && issue.tableId !== 'N/A' && issue.tableId !== '--' ? issue.tableId : 'FLOOR'}
+                                {sanitizeTableId(issue.tableId)}
                             </Text>
                         </View>
                         <View style={styles.stripDivider} />
