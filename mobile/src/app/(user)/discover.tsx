@@ -372,6 +372,15 @@ await new Promise(resolve => setTimeout(resolve, delay));
                 }
                 if (hid) setActiveHostId(String(hid));
                 if (crowd) setLiveCrowd(crowd);
+            } else if (eventRes.data?.success && !eventRes.data.data) {
+                // Backend successfully checked but no active/valid event exists.
+                // Reset state to clear any old params or cached IDs
+                setActiveEventId(null);
+                setActiveHostId(null);
+                setLiveCrowd(0);
+                setVisibility(false);
+                setNearbyUsers([]);
+                setLocationName('No Active Event');
             }
             
             hasInitializedRef.current = true;
@@ -900,39 +909,51 @@ await new Promise(resolve => setTimeout(resolve, delay));
                         )}
                             {activeTab === 'gift' && (
                                 <View style={[styles.tabContent, { backgroundColor: '#050505' }]}>
-                                    <View style={styles.giftSearchContainer}><View style={styles.giftSearchInner}><Ionicons name="search-outline" size={18} color="rgba(255,255,255,0.4)" /><TextInput style={styles.giftSearchInput} placeholder="Search premium items..." placeholderTextColor="rgba(255,255,255,0.3)" value={giftSearch} onChangeText={setGiftSearch} /></View></View>
-                                    <View style={styles.chipContainer}><FlatList horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipScroll} data={GIFT_CATEGORIES} keyExtractor={(cat: {id: string}) => cat.id} renderItem={({ item: cat }) => (
-                                        <TouchableOpacity style={[styles.chip, giftCategory === cat.id && styles.activeChip]} onPress={() => setGiftCategory(cat.id)}><Text style={[styles.chipText, giftCategory === cat.id && styles.activeChipText]}>{cat.label}</Text></TouchableOpacity>
-                                    )} /></View>
-                                    <View style={styles.giftHeader}><View><Text style={styles.giftHeaderTitle}>Event Gifts</Text><Text style={styles.giftHeaderSub}>Secure retail inventory</Text></View><View style={styles.itemCountBadge}><Text style={styles.itemCountText}>{filteredGifts.length} items</Text></View></View>
-                                    <FlashList 
-                                        data={filteredGifts} 
-                                        keyExtractor={(item: GiftItem) => item._id} 
-                                        renderItem={renderGiftItem} 
-                                        numColumns={2} 
-                                        onRefresh={onPullRefresh} 
-                                        refreshing={refreshing} 
-                                        estimatedItemSize={220} 
-                                        contentContainerStyle={styles.giftGridScroll} 
-                                        ListEmptyComponent={queryLoading && !refreshing ? (
-                                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 20, paddingTop: 20 }}>
-                                                {[1, 2, 3, 4, 5, 6].map((i) => (
-                                                    <View key={i} style={{ width: (width - 48) / 2, backgroundColor: '#111118', borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' }}>
-                                                        <View style={{ width: '100%', height: 140, backgroundColor: 'rgba(255,255,255,0.05)' }} />
-                                                        <View style={{ padding: 12 }}>
-                                                            <View style={{ width: 60, height: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 4, marginBottom: 8 }} />
-                                                            <View style={{ width: '80%', height: 16, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 4, marginBottom: 6 }} />
-                                                            <View style={{ width: '100%', height: 10, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 4, marginBottom: 12 }} />
-                                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                                <View style={{ width: 50, height: 18, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 4 }} />
-                                                                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(124,77,255,0.2)' }} />
-                                                            </View>
-                                                        </View>
-                                                    </View>
-                                                ))}
+                                    {!activeEventId ? (
+                                        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 30, paddingTop: 60 }}>
+                                            <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(59,130,246,0.1)', alignItems: 'center', justifyContent: 'center', marginBottom: 20, borderWidth: 1, borderColor: 'rgba(59,130,246,0.25)' }}>
+                                                <Ionicons name="gift-outline" size={30} color="#3B82F6" />
                                             </View>
-                                        ) : null}
-                                    />
+                                            <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800', marginBottom: 8, textAlign: 'center' }}>No Booking Yet</Text>
+                                            <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, textAlign: 'center', lineHeight: 20 }}>Book an event to view and send premium gifts.</Text>
+                                        </View>
+                                    ) : (
+                                        <>
+                                            <View style={styles.giftSearchContainer}><View style={styles.giftSearchInner}><Ionicons name="search-outline" size={18} color="rgba(255,255,255,0.4)" /><TextInput style={styles.giftSearchInput} placeholder="Search premium items..." placeholderTextColor="rgba(255,255,255,0.3)" value={giftSearch} onChangeText={setGiftSearch} /></View></View>
+                                            <View style={styles.chipContainer}><FlatList horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipScroll} data={GIFT_CATEGORIES} keyExtractor={(cat: {id: string}) => cat.id} renderItem={({ item: cat }) => (
+                                                <TouchableOpacity style={[styles.chip, giftCategory === cat.id && styles.activeChip]} onPress={() => setGiftCategory(cat.id)}><Text style={[styles.chipText, giftCategory === cat.id && styles.activeChipText]}>{cat.label}</Text></TouchableOpacity>
+                                            )} /></View>
+                                            <View style={styles.giftHeader}><View><Text style={styles.giftHeaderTitle}>Event Gifts</Text><Text style={styles.giftHeaderSub}>Secure retail inventory</Text></View><View style={styles.itemCountBadge}><Text style={styles.itemCountText}>{filteredGifts.length} items</Text></View></View>
+                                            <FlashList 
+                                                data={filteredGifts} 
+                                                keyExtractor={(item: GiftItem) => item._id} 
+                                                renderItem={renderGiftItem} 
+                                                numColumns={2} 
+                                                onRefresh={onPullRefresh} 
+                                                refreshing={refreshing} 
+                                                estimatedItemSize={220} 
+                                                contentContainerStyle={styles.giftGridScroll} 
+                                                ListEmptyComponent={queryLoading && !refreshing ? (
+                                                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 20, paddingTop: 20 }}>
+                                                        {[1, 2, 3, 4, 5, 6].map((i) => (
+                                                            <View key={i} style={{ width: (width - 48) / 2, backgroundColor: '#111118', borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' }}>
+                                                                <View style={{ width: '100%', height: 140, backgroundColor: 'rgba(255,255,255,0.05)' }} />
+                                                                <View style={{ padding: 12 }}>
+                                                                    <View style={{ width: 60, height: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 4, marginBottom: 8 }} />
+                                                                    <View style={{ width: '80%', height: 16, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 4, marginBottom: 6 }} />
+                                                                    <View style={{ width: '100%', height: 10, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 4, marginBottom: 12 }} />
+                                                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                        <View style={{ width: 50, height: 18, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 4 }} />
+                                                                        <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(124,77,255,0.2)' }} />
+                                                                    </View>
+                                                                </View>
+                                                            </View>
+                                                        ))}
+                                                    </View>
+                                                ) : null}
+                                            />
+                                        </>
+                                    )}
                                 </View>
                             )}
                             {activeTab === 'orders' && (

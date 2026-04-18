@@ -192,6 +192,27 @@ export const userService = {
         return response.data;
     },
 
+    getMyReview: async (eventId: string) => {
+        try {
+            const response = await apiClient.get('/user/reviews/my', { params: { eventId } });
+            return response.data;
+        } catch {
+            return { success: false, data: null };
+        }
+    },
+
+    updateReview: async (data: {
+        reviewId: string;
+        vibe: number;
+        service: number;
+        music: number;
+        feedback: string;
+        isAnonymous: boolean;
+    }) => {
+        const response = await apiClient.put('/user/reviews', data);
+        return response.data;
+    },
+
     clearCache: () => {
         console.log('[UserService] Cache management delegated to TanStack Query & Redis');
     }

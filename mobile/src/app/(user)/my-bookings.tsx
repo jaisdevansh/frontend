@@ -208,42 +208,65 @@ export default function MyBookings() {
         const items: any[] = item.items || [];
         const total = item.totalAmount ?? items.reduce((s: number, i: any) => s + (i.price * i.quantity), 0);
 
+        // Check if this is a gift
+        const isGiftReceived = item.receiverId && item.receiverId._id !== item.userId;
+        const isGiftSent = item.senderId && item.senderId._id === item.userId;
+        const isGift = isGiftReceived || isGiftSent;
+        const giftLabel = isGiftReceived 
+            ? `GIFT FROM ${item.senderId?.name || 'SOMEONE'}` 
+            : isGiftSent 
+            ? `GIFT TO ${item.receiverId?.name || 'SOMEONE'}` 
+            : 'VENUE MENU ORDER';
+
         return (
             <View style={styles.orderCard}>
-                <View style={styles.orderCardHeader}>
-                    <View>
-                        <Text style={styles.orderId}>#{String(item._id).slice(-8).toUpperCase()}</Text>
-                        <Text style={styles.orderTime}>{dayjs(item.createdAt).format('ddd, DD MMM • hh:mm A')}</Text>
+                
+                {/* Premium Banner for Gift - Only show if it's a gift to match clean UI for regular menus */}
+                {isGift && (
+                    <View style={[styles.orderTypeBanner, { backgroundColor: 'rgba(139,92,246,0.1)', borderBottomColor: 'rgba(139,92,246,0.2)' }]}>
+                        <Ionicons name="gift" size={12} color="#C084FC" style={{ marginRight: 6 }} />
+                        <Text style={[styles.orderTypeBannerText, { color: '#C084FC' }]}>
+                            {giftLabel}
+                        </Text>
                     </View>
-                    <View style={[styles.orderStatusBadge, { backgroundColor: cfg.bg, borderColor: cfg.color }]}>
-                        <View style={[styles.orderStatusDot, { backgroundColor: cfg.color }]} />
-                        <Text style={[styles.orderStatusText, { color: cfg.color }]}>{cfg.label}</Text>
-                    </View>
-                </View>
+                )}
 
-                <View style={styles.orderItemsList}>
-                    {items.slice(0, 3).map((i: any, idx: number) => (
-                        <View key={idx} style={styles.orderItemRow}>
-                            <View style={styles.orderItemQtyBox}>
-                                <Text style={styles.orderItemQty}>{i.quantity}×</Text>
-                            </View>
-                            <Text style={styles.orderItemName} numberOfLines={1}>{i.name || i.menuItemId?.name || 'Item'}</Text>
-                            <Text style={styles.orderItemPrice}>₹{(i.price * i.quantity).toLocaleString()}</Text>
+                <View style={styles.orderCardContent}>
+                    <View style={styles.orderCardHeader}>
+                        <View>
+                            <Text style={styles.orderId}>#{String(item._id).slice(-8).toUpperCase()}</Text>
+                            <Text style={styles.orderTime}>{dayjs(item.createdAt).format('ddd, DD MMM • hh:mm A')}</Text>
                         </View>
-                    ))}
-                    {items.length > 3 && (
-                        <Text style={styles.orderMoreItems}>+{items.length - 3} more items</Text>
-                    )}
+                        <View style={[styles.orderStatusBadge, { borderColor: cfg.color }]}>
+                            <View style={[styles.orderStatusDot, { backgroundColor: cfg.color }]} />
+                            <Text style={[styles.orderStatusText, { color: cfg.color }]}>{cfg.label}</Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.orderItemsList}>
+                        {items.slice(0, 3).map((i: any, idx: number) => (
+                            <View key={idx} style={styles.orderItemRow}>
+                                <View style={styles.orderItemQtyBox}>
+                                    <Text style={styles.orderItemQty}>{i.quantity}×</Text>
+                                </View>
+                                <Text style={styles.orderItemName} numberOfLines={1}>{i.name || i.menuItemId?.name || 'Item'}</Text>
+                                <Text style={styles.orderItemPrice}>₹{(i.price * i.quantity).toLocaleString()}</Text>
+                            </View>
+                        ))}
+                        {items.length > 3 && (
+                            <Text style={styles.orderMoreItems}>+{items.length - 3} more items</Text>
+                        )}
+                    </View>
                 </View>
 
                 <View style={styles.orderCardFooter}>
-                    <View>
+                    <View style={{ flex: 1, paddingRight: 10 }}>
                         <Text style={styles.orderEventName} numberOfLines={1}>
                             {item.eventId?.title || item.eventId || 'In-Event Order'}
                         </Text>
                     </View>
                     <View style={styles.orderTotalRow}>
-                        <Text style={styles.orderTotalLabel}>Total</Text>
+                        <Text style={styles.orderTotalLabel}>TOTAL</Text>
                         <Text style={styles.orderTotalAmount}>₹{total.toLocaleString()}</Text>
                     </View>
                 </View>
@@ -605,34 +628,37 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
 
-    // Order card styles
+    // Premium Order Card Styles
     orderCard: {
-        backgroundColor: 'rgba(255,255,255,0.03)',
+        backgroundColor: '#070709',
         borderRadius: 20,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.06)',
-        marginBottom: 12,
+        borderColor: 'rgba(255,255,255,0.05)',
+        marginBottom: 16,
         overflow: 'hidden',
     },
-    orderCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 16, paddingBottom: 12 },
-    orderId: { color: '#FFF', fontSize: 14, fontWeight: '800', letterSpacing: 0.4 },
-    orderTime: { color: 'rgba(255,255,255,0.35)', fontSize: 12, marginTop: 2 },
-    orderStatusBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1 },
+    orderTypeBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, borderBottomWidth: 1 },
+    orderTypeBannerText: { fontSize: 11, fontWeight: '800', letterSpacing: 1.5, textTransform: 'uppercase' },
+    orderCardContent: { paddingHorizontal: 16 },
+    orderCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingTop: 16, paddingBottom: 16 },
+    orderId: { color: '#FFF', fontSize: 16, fontWeight: '800', letterSpacing: 0.5 },
+    orderTime: { color: 'rgba(255,255,255,0.35)', fontSize: 12, marginTop: 4, fontWeight: '500' },
+    orderStatusBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, backgroundColor: 'transparent' },
     orderStatusDot: { width: 6, height: 6, borderRadius: 3 },
-    orderStatusText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+    orderStatusText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
 
-    orderItemsList: { paddingHorizontal: 16, paddingBottom: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.04)', paddingTop: 12, gap: 8 },
-    orderItemRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-    orderItemQtyBox: { width: 28, height: 22, borderRadius: 6, backgroundColor: 'rgba(129,140,248,0.12)', alignItems: 'center', justifyContent: 'center' },
-    orderItemQty: { color: '#818CF8', fontSize: 11, fontWeight: '800' },
-    orderItemName: { flex: 1, color: '#FFF', fontSize: 13, fontWeight: '600' },
-    orderItemPrice: { color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: '600' },
-    orderMoreItems: { color: 'rgba(255,255,255,0.3)', fontSize: 12, fontStyle: 'italic', marginTop: 2 },
+    orderItemsList: { paddingBottom: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingTop: 16, gap: 12 },
+    orderItemRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    orderItemQtyBox: { width: 30, height: 26, borderRadius: 6, backgroundColor: 'rgba(129,140,248,0.1)', alignItems: 'center', justifyContent: 'center' },
+    orderItemQty: { color: '#818CF8', fontSize: 12, fontWeight: '800' },
+    orderItemName: { flex: 1, color: '#FFF', fontSize: 15, fontWeight: '600' },
+    orderItemPrice: { color: 'rgba(255,255,255,0.6)', fontSize: 15, fontWeight: '600' },
+    orderMoreItems: { color: 'rgba(255,255,255,0.3)', fontSize: 12, fontStyle: 'italic', marginTop: 4, fontWeight: '500' },
 
-    orderCardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.02)', paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.04)' },
-    orderEventName: { color: 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: '600', maxWidth: 180 },
+    orderCardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0A0A0F', paddingHorizontal: 20, paddingVertical: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
+    orderEventName: { color: 'rgba(255,255,255,0.3)', fontSize: 13, fontWeight: '600', letterSpacing: 0.5 },
     orderTotalRow: { alignItems: 'flex-end' },
-    orderTotalLabel: { color: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
-    orderTotalAmount: { color: '#818CF8', fontSize: 16, fontWeight: '900' },
+    orderTotalLabel: { color: 'rgba(255,255,255,0.3)', fontSize: 11, fontWeight: '600', letterSpacing: 0.5, marginBottom: 2 },
+    orderTotalAmount: { color: '#818CF8', fontSize: 20, fontWeight: '800' },
 });
 

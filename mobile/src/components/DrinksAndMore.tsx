@@ -47,6 +47,7 @@ export default function DrinksAndMore({ eventId, hostId, zone, tableId }: { even
     const [activeOrders, setActiveOrders] = useState<any[]>([]);
 
     // ⚡ REACT QUERY: Use prefetched data for instant loading
+    const [menuBlockMessage, setMenuBlockMessage] = useState<string>('');
     const { data: menuData = [], isLoading: menuLoading } = useQuery({
         queryKey: hostId ? ['host', 'menu', hostId] : ['event', 'menu', eventId],
         queryFn: async () => {
@@ -61,7 +62,9 @@ export default function DrinksAndMore({ eventId, hostId, zone, tableId }: { even
             console.log('📡 Fetching menu from:', url);
             const res = await apiClient.get(url);
             const data = res.data?.data || [];
-            console.log('✅ Menu response:', data.length, 'items');
+            // Track any block message from backend (e.g. event ended)
+            setMenuBlockMessage(res.data?.message || '');
+            console.log('✅ Menu response:', data.length, 'items', res.data?.message || '');
             
             return data.map((item: any) => ({
                 _id: item._id,
@@ -106,11 +109,11 @@ export default function DrinksAndMore({ eventId, hostId, zone, tableId }: { even
 
     // ⚡ Memoized — only recalc when menuData or category changes
     const dynamicCategories = useMemo(() =>
-        ['All', ...Array.from(new Set(menuData.map(d => d.type)))]
+        ['All', ...Array.from(new Set(menuData.map((d: any) => d.type)))] as string[]
     , [menuData]);
 
     const filteredDrinks = useMemo(() =>
-        category === 'All' ? menuData : menuData.filter(d => d.type === category)
+        category === 'All' ? menuData : menuData.filter((d: any) => d.type === category)
     , [menuData, category]);
 
     const cartItems: CartItem[] = Object.values(cart).filter(i => i.qty > 0);
@@ -267,13 +270,13 @@ setProcessing(false);
                     contentContainerStyle={styles.catScroll}
                     overScrollMode="never"
                 >
-                    {dynamicCategories.map(cat => (
+                    {dynamicCategories.map((cat: string) => (
                         <TouchableOpacity
                             key={cat}
                             style={[styles.catPill, category === cat && styles.catPillActive]}
-                            onPress={() => setCategory(cat)}
+                            onPress={() => setCategory(cat as string)}
                         >
-                            <Text style={[styles.catText, category === cat && styles.catTextActive]}>{cat}</Text>
+                            <Text style={[styles.catText, category === cat && styles.catTextActive]}>{cat as string}</Text>
                         </TouchableOpacity>
                     ))}
                 </ScrollView>
@@ -304,6 +307,24 @@ setProcessing(false);
                                 </View>
                             </View>
                         ))}
+                    </View>
+                ) : menuBlockMessage ? (
+                    // ── EVENT ENDED / ACCESS BLOCKED STATE ──────────────────────
+                    <View style={{ alignItems: 'center', paddingTop: 60, paddingHorizontal: 30 }}>
+                        <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(239,68,68,0.1)', alignItems: 'center', justifyContent: 'center', marginBottom: 20, borderWidth: 1, borderColor: 'rgba(239,68,68,0.25)' }}>
+                            <Ionicons name="lock-closed" size={30} color="#ef4444" />
+                        </View>
+                        <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800', marginBottom: 8, textAlign: 'center' }}>Menu Unavailable</Text>
+                        <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, textAlign: 'center', lineHeight: 20 }}>{menuBlockMessage}</Text>
+                    </View>
+                ) : !(eventId || hostId) ? (
+                    // ── COMPLETELY EJECTED STATE (NO ACTIVE EVENT) ──────────────────────
+                    <View style={{ alignItems: 'center', paddingTop: 60, paddingHorizontal: 30 }}>
+                        <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(59,130,246,0.1)', alignItems: 'center', justifyContent: 'center', marginBottom: 20, borderWidth: 1, borderColor: 'rgba(59,130,246,0.25)' }}>
+                            <Ionicons name="calendar-outline" size={30} color="#3B82F6" />
+                        </View>
+                        <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800', marginBottom: 8, textAlign: 'center' }}>No Active Event</Text>
+                        <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, textAlign: 'center', lineHeight: 20 }}>Book a new event to view the menu and order drinks.</Text>
                     </View>
                 ) : (
                     <View style={{ alignItems: 'center', paddingTop: 60 }}>
