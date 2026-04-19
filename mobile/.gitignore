@@ -50,3 +50,8 @@ build/
 
 # EAS
 .eas-build-pre-install.sh
+
+# Firebase — sensitive credentials (DO NOT COMMIT)
+google-services.json
+google-services*.json
+GoogleService-Info.plist

@@ -18,7 +18,11 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.entryclub.app",
       "buildNumber": "1",
-      "jsEngine": "hermes"
+      "jsEngine": "hermes",
+      "infoPlist": {
+        "UIBackgroundModes": ["remote-notification"],
+        "NSUserNotificationsUsageDescription": "Entry Club sends you real-time updates about your bookings, orders, and events."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -27,12 +31,18 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.entryclub.app",
+      "googleServicesFile": "./google-services.json",
       "versionCode": 1,
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.VIBRATE",
+        "android.permission.USE_FULL_SCREEN_INTENT"
       ],
       "jsEngine": "hermes",
       "enableProguardInReleaseBuilds": true,
@@ -46,7 +56,17 @@
     "plugins": [
       "expo-router",
       "@react-native-community/datetimepicker",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "icon": "./src/assets/images/icon.png",
+          "color": "#7C3AED",
+          "sounds": [],
+          "androidMode": "default",
+          "androidCollapsedTitle": "Entry Club",
+          "iosDisplayInForeground": true
+        }
+      ],
       "expo-web-browser",
       [
         "expo-location",
@@ -67,9 +87,9 @@
           "android": {
             "enableProguardInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true,
-            "compileSdkVersion": 34,
-            "targetSdkVersion": 34,
-            "buildToolsVersion": "34.0.0",
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0",
             "minSdkVersion": 24,
             "usesCleartextTraffic": false,
             "useLegacyPackaging": false
