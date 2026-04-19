@@ -96,7 +96,8 @@ apiClient.interceptors.request.use(
                 'analytics',
                 'api/v1/staff',
                 'api/v1/waiter',
-                'api/v1/security'
+                'api/v1/security',
+                'api/chat',        // 🆕 Production Chat System
             ];
             
             if (adminPrefixes.some(prefix => normalizedUrl.startsWith(prefix))) {

@@ -195,6 +195,10 @@ export default function HostDashboard() {
     ), [handleEventPress]);
 
     const handleToolPress = useCallback((route: string) => {
+        if (route === 'OPEN_PROFILE_SETTINGS') {
+            setShowProfileMenu(true);
+            return;
+        }
         setTimeout(() => {
             InteractionManager.runAfterInteractions(() => {
                 router.push(route as any);
@@ -218,6 +222,8 @@ export default function HostDashboard() {
         { label: 'Gifts', icon: 'gift-outline', route: '/(host)/venue-gifts', color: '#6366F1' },
         { label: 'Staff', icon: 'account-group-outline', route: '/(host)/staff', color: '#06B6D4' },
         { label: 'Incidents', icon: 'alert-box-outline', route: '/(host)/incidents', color: '#EF4444' },
+        { label: 'Billing', icon: 'receipt', route: '/(host)/payments?openUserTotals=true', color: '#8B5CF6' },
+        { label: 'Settings', icon: 'cog-outline', route: 'OPEN_PROFILE_SETTINGS', color: '#9CA3AF' },
     ], []);
 
     const isPending = user?.hostStatus === 'PENDING_VERIFICATION';
@@ -367,9 +373,9 @@ export default function HostDashboard() {
                         <View style={styles.menuHandle} />
                         <Text style={styles.menuTitle}>Host Settings</Text>
 
-                        <TouchableOpacity style={styles.menuItem} onPress={() => { setShowProfileMenu(false); router.push('/(host)/edit-profile' as any); }}>
-                            <Ionicons name="person-outline" size={24} color="white" />
-                            <Text style={styles.menuItemText}>Edit Profile</Text>
+                        <TouchableOpacity style={styles.menuItem} onPress={() => { setShowProfileMenu(false); router.push('/(host)/business-settings' as any); }}>
+                            <Ionicons name="settings-outline" size={24} color="white" />
+                            <Text style={styles.menuItemText}>Host Settings</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity style={styles.menuItem} onPress={() => { setShowProfileMenu(false); router.push('/(host)/payments' as any); }}>

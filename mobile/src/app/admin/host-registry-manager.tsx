@@ -39,11 +39,11 @@ const HostRegistryRow = React.memo(({ item, onToggle, onDelete }: {
     return (
         <View style={styles.hostCard}>
             <Image 
-                source={{ uri: item.profileImage || `https://ui-avatars.com/api/?name=${item.fullName}&background=111&color=fff` }} 
+                source={{ uri: item.profileImage || `https://ui-avatars.com/api/?name=${item.name}&background=111&color=fff` }} 
                 style={styles.avatar} 
             />
             <View style={styles.hostInfo}>
-                <Text style={styles.hostName} numberOfLines={1}>{item.fullName}</Text>
+                <Text style={styles.hostName} numberOfLines={1}>{item.name}</Text>
                 <Text style={styles.hostEmail} numberOfLines={1}>{item.email || item.phone}</Text>
                 <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor()}15` }]}>
                     <Text style={[styles.statusText, { color: getStatusColor() }]}>

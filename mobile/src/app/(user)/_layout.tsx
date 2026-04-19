@@ -79,6 +79,17 @@ export default function UserTabsLayout() {
                 })}
             />
             <Tabs.Screen
+                name="conversations"
+                options={{
+                    title: 'Chats',
+                    href: null,
+                    tabBarStyle: { display: 'none' },
+                    tabBarIcon: ({ color, focused }) => (
+                        <Ionicons name={focused ? "chatbubbles" : "chatbubbles-outline"} size={24} color={color} />
+                    ),
+                }}
+            />
+            <Tabs.Screen
                 name="profile"
                 options={{
                     title: 'Profile',

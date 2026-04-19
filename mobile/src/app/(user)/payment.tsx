@@ -62,11 +62,10 @@ export default function SecureCheckout() {
     // Prefer total from params if available (calculated in previous step), fallback to estimate
     const passedTotal = params.total ? Number(params.total) : 0;
     const basePrice = passedTotal > 0 ? (passedTotal / guests) : (zone.includes('VIP') ? 2500 : zone.includes('Lounge') ? 1500 : 800);
-    const subtotal  = passedTotal > 0 ? passedTotal : (Math.max(1, guests) * basePrice);
-    const taxRate   = 0.08;
-    const tax       = Math.round(subtotal * taxRate);
+    const subtotal      = passedTotal > 0 ? passedTotal : (Math.max(1, guests) * basePrice);
+    const serviceCharge = Math.round(subtotal * 0.10);  // 10% platform service charge
     const totalDiscount = (isApplied ? appliedDiscount : 0) + (isPromoApplied ? promoDiscount : 0);
-    const total     = Math.max(0, subtotal + tax - totalDiscount);
+    const total         = Math.max(0, subtotal + serviceCharge - totalDiscount);
 
     // Razorpay receipt: max 40 chars
     const makeReceipt = (prefix: string) =>
@@ -409,8 +408,13 @@ export default function SecureCheckout() {
                         </View>
                     )}
                     <View style={styles.row}>
-                        <Text style={[styles.rowLbl, { flex: 1 }]}>Luxury Tax (8%)</Text>
-                        <Text style={styles.rowVal}>₹{tax.toFixed(2)}</Text>
+                        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={styles.rowLbl}>Service Charge (10%)</Text>
+                            <View style={{ backgroundColor: 'rgba(251,146,60,0.12)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                                <Text style={{ color: '#F59E0B', fontSize: 8, fontWeight: '900' }}>PLATFORM FEE</Text>
+                            </View>
+                        </View>
+                        <Text style={styles.rowVal}>₹{serviceCharge.toFixed(2)}</Text>
                     </View>
                     {isApplied && (
                         <View style={styles.row}>

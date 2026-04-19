@@ -178,7 +178,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 // Prevent duplicates - check by content and timestamp (not tempId)
                 const isDuplicate = existingMsgs.find(m => 
                     m.content === newMsg.content && 
-                    Math.abs(new Date(m.createdAt).getTime() - new Date(newMsg.createdAt).getTime()) < 2000
+                    Math.abs(new Date(m.createdAt || '').getTime() - new Date(newMsg.createdAt || '').getTime()) < 2000
                 );
                 
                 if (isDuplicate) {

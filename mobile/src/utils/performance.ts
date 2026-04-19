@@ -2,6 +2,7 @@
  * Performance monitoring utilities for production
  * Tracks app performance metrics without impacting user experience
  */
+import React from 'react';
 
 interface PerformanceMetric {
   name: string;

@@ -377,12 +377,24 @@ const TableSelection = () => {
             {/* FOOTER */}
             <View style={[styles.footer, { paddingBottom: insets.bottom > 0 ? insets.bottom + 8 : 20 }]}>
                 <View style={{ flex: 1 }}>
-                    {table?.price && (
-                        <>
-                            <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>Total</Text>
-                            <Text style={{ color: '#fff', fontSize: 20, fontWeight: '900' }}>{'\u20b9'}{(table.price * guests).toLocaleString()}</Text>
-                        </>
-                    )}
+                    {table?.price && (() => {
+                        const base = table.price * guests;
+                        const serviceFee = Math.round(base * 0.10);
+                        const totalWithFee = base + serviceFee;
+                        return (
+                            <>
+                                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>
+                                    Base: {'\u20b9'}{base.toLocaleString()} + 10% fee
+                                </Text>
+                                <Text style={{ color: '#fff', fontSize: 20, fontWeight: '900' }}>
+                                    {'\u20b9'}{totalWithFee.toLocaleString()}
+                                </Text>
+                                <Text style={{ color: '#F59E0B', fontSize: 9, fontWeight: '800', marginTop: 1 }}>
+                                    INCL. ₹{serviceFee.toLocaleString()} SERVICE CHARGE
+                                </Text>
+                            </>
+                        );
+                    })()}
                 </View>
                 <TouchableOpacity 
                     style={[styles.proceedBtn, (!table || table.unavailable || isProceeding) && { opacity: 0.5 }]} 

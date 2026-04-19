@@ -721,12 +721,17 @@ await new Promise(resolve => setTimeout(resolve, delay));
                 <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
                     <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}><Ionicons name="chevron-back" size={24} color="#FFF" /></TouchableOpacity>
                     <View style={styles.headerCent}><Text style={styles.navTitle}>LIVE DISCOVERY</Text><Text style={styles.navSub}>{locationName}</Text></View>
-                    <TouchableOpacity style={[styles.iconBtn, { position: 'relative' }]} onPress={() => setShowFilterModal(true)}>
-                        <Ionicons name="options-outline" size={24} color={genderFilter !== 'All' ? '#3B82F6' : '#FFF'} />
-                        {genderFilter !== 'All' && (
-                            <View style={{ position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: 4, backgroundColor: '#3B82F6', borderWidth: 1.5, borderColor: '#030303' }} />
-                        )}
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <TouchableOpacity style={[styles.iconBtn, { backgroundColor: 'rgba(124, 77, 255, 0.2)', borderWidth: 1, borderColor: 'rgba(124, 77, 255, 0.3)' }]} onPress={() => router.push('/(user)/conversations')}>
+                            <Ionicons name="chatbubble-ellipses" size={20} color="#7c4dff" />
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[styles.iconBtn, { position: 'relative' }]} onPress={() => setShowFilterModal(true)}>
+                            <Ionicons name="options-outline" size={24} color={genderFilter !== 'All' ? '#3B82F6' : '#FFF'} />
+                            {genderFilter !== 'All' && (
+                                <View style={{ position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: 4, backgroundColor: '#3B82F6', borderWidth: 1.5, borderColor: '#030303' }} />
+                            )}
+                        </TouchableOpacity>
+                    </View>
                 </View>
                 <View style={styles.radarVisuals}>
                     {/* Radar Grid Lines */}

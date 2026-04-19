@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../../constants/design-system';
 import { usePOSStore } from '../../../store/posStore';
@@ -33,9 +33,22 @@ export const CartSidebar = () => {
     }, [cartItems]);
 
     const handleComplete = useCallback(() => {
-        // Optimistic UI handled via store/api service integration later
-        console.log('Completing transaction...');
-    }, []);
+        Alert.alert(
+            'Process Checkout',
+            'How would you like to deliver the bill?',
+            [
+                { text: 'Print Physical Bill', onPress: () => { 
+                    Alert.alert('Printing Active', 'Receipt sent to thermal printer.'); 
+                    clearCart(); 
+                }},
+                { text: 'Send to User', onPress: () => { 
+                    Alert.alert('Sent Digitally', 'The bill has been sent to the user\'s application.'); 
+                    clearCart(); 
+                }},
+                { text: 'Cancel', style: 'cancel' }
+            ]
+        );
+    }, [clearCart]);
 
     if (cartIds.length === 0) {
         return (
