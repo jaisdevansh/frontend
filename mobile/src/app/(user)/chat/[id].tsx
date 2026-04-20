@@ -172,34 +172,26 @@ const MessageBubble = React.memo(({
             )}
 
             {/* Bubble */}
-            {isMe ? (
-                <LinearGradient
-                    colors={['#3B82F6', '#1D4ED8']}
-                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                    style={[styles.bubble, styles.myBubble]}
-                >
-                    <Text style={[styles.msgText, styles.myText]}>
-                        {msg.text}
-                    </Text>
-                    <View style={styles.msgFooter}>
-                        <Text style={[styles.timeText, styles.myTime]}>
-                            {fmtTime(msg.createdAt)}
-                        </Text>
-                        <StatusIcon status={msg.status} />
+            <View style={[styles.bubble, isMe ? styles.myBubble : styles.theirBubble]}>
+                {isMe && (
+                    <View style={[StyleSheet.absoluteFill, { borderRadius: 18, overflow: 'hidden' }]}>
+                        <LinearGradient
+                            colors={['#3B82F6', '#1D4ED8']}
+                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                            style={StyleSheet.absoluteFill}
+                        />
                     </View>
-                </LinearGradient>
-            ) : (
-                <View style={[styles.bubble, styles.theirBubble]}>
-                    <Text style={[styles.msgText, styles.theirText]}>
-                        {msg.text}
+                )}
+                <Text style={[styles.msgText, isMe ? styles.myText : styles.theirText, isMe && { position: 'relative', zIndex: 2 }]}>
+                    {msg.text}
+                </Text>
+                <View style={[styles.msgFooter, isMe && { position: 'relative', zIndex: 2 }]}>
+                    <Text style={[styles.timeText, isMe ? styles.myTime : styles.theirTime]}>
+                        {fmtTime(msg.createdAt)}
                     </Text>
-                    <View style={styles.msgFooter}>
-                        <Text style={[styles.timeText, styles.theirTime]}>
-                            {fmtTime(msg.createdAt)}
-                        </Text>
-                    </View>
+                    {isMe && <StatusIcon status={msg.status} />}
                 </View>
-            )}
+            </View>
         </Animated.View>
     );
 });
