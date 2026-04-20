@@ -290,16 +290,21 @@ export const useChatStore = create<ChatState>()(
                 // Backend returns newest first, reverse to get oldest first (for bottom display)
                 const sortedMessages = [...messages].reverse();
                 
-                // Add peer info to messages that don't have senderName
+                // Add peer info to ALL messages from the peer, normalize content field
                 const enrichedMessages = sortedMessages.map(msg => {
                     const enriched = { ...msg };
-                    
-                    // If message is from peer and missing senderName, add it
-                    if (msg.sender === peerId && (!msg.senderName || msg.senderName === undefined)) {
-                        enriched.senderName = peerInfo?.name || 'User';
-                        enriched.senderImage = peerInfo?.profileImage;
+
+                    // Normalize: some messages might use 'text' instead of 'content'
+                    if (!enriched.content && (enriched as any).text) {
+                        enriched.content = (enriched as any).text;
                     }
-                    
+
+                    // If message is from peer, always attach latest peer info
+                    if (msg.sender === peerId) {
+                        enriched.senderName  = peerInfo?.name || msg.senderName || 'User';
+                        enriched.senderImage = peerInfo?.profileImage || msg.senderImage || undefined;
+                    }
+
                     return enriched;
                 });
                 

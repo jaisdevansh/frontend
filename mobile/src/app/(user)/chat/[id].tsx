@@ -333,14 +333,19 @@ export default function ChatScreen() {
         // Only show avatar for last message in a sequence from the same sender
         const showAvatar = !isMe && (!next || next.sender !== item.sender);
 
+        const messageText = item.content || item.text || '';
+        if (!messageText.trim() && item.type !== 'image' && item.type !== 'video') {
+            return null; // Skip rendering empty non-media messages
+        }
+
         return (
             <View>
                 {showDateSep && <DateSep label={fmtDateSep(item.createdAt || '')} />}
                 <MessageBubble
                     msg={{
                         ...item,
-                        text: item.content,
-                        senderId: item.sender,
+                        text:      messageText,
+                        senderId:  item.sender,
                         createdAt: item.createdAt || new Date().toISOString()
                     }}
                     isMe={isMe}
