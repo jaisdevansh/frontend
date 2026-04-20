@@ -12,16 +12,8 @@ import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 
-import { useProductionChatStore, Conversation } from '../../store/productionChatStore';
+import { useProductionChatStore, Conversation, ChatUser } from '../../store/productionChatStore';
 import { useAuth } from '../../context/AuthContext';
-
-interface ChatUser {
-    _id: string;
-    name: string;
-    username?: string;
-    profileImage?: string;
-}
-
 const C = {
     bg:         '#000000',
     surface:    '#0D0D0D',
@@ -201,10 +193,10 @@ export default function ConversationsScreen() {
 
     // ── Init ──────────────────────────────────────────────────────────────────
     useEffect(() => {
-        if (!token) return;
+        if (!token || !user?.id) return;
         initSocket(token);
         fetchConversations();
-    }, [token, initSocket, fetchConversations]);
+    }, [token, user?.id, initSocket, fetchConversations]);
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
