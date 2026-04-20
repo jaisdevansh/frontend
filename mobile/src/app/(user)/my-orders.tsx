@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SafeFlashList from '../../components/SafeFlashList';
 import apiClient from '../../services/apiClient';
 import dayjs from 'dayjs';
+import { useAuth } from '../../context/AuthContext';
 
 const FlashList = SafeFlashList;
 
@@ -23,23 +24,35 @@ const STATUS_CONFIG: Record<string, { color: string; bg: string; label: string }
 export default function MyOrders() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
+    const { user } = useAuth();
+    const myId = user?.id || user?._id;
+    
     const [orders, setOrders] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const fetchOrders = useCallback(async (isRefresh = false) => {
+        try {
+            if (isRefresh) setRefreshing(true);
+            else if (orders.length === 0) setLoading(true);
+            
+            const res = await apiClient.get('/user/orders/my');
+            if (res.data?.success) {
+                const payload = res.data.data;
+                const newOrders = Array.isArray(payload) ? payload : (payload?.orders || []);
+                setOrders(newOrders);
+            }
+        } catch { /* silent */ }
+        finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    }, [orders.length]);
 
     useFocusEffect(
         useCallback(() => {
-            let active = true;
-            const fetch = async () => {
-                try {
-                    setLoading(true);
-                    const res = await apiClient.get('/user/orders/my');
-                    if (res.data?.success && active) setOrders(res.data.data || []);
-                } catch { /* silent */ }
-                finally { if (active) setLoading(false); }
-            };
-            fetch();
-            return () => { active = false; };
-        }, [])
+            fetchOrders();
+        }, [fetchOrders])
     );
 
     const renderOrder = useCallback(({ item }: { item: any }) => {
@@ -48,9 +61,10 @@ export default function MyOrders() {
         const items: any[] = item.items || [];
         const total = item.totalAmount ?? items.reduce((s: number, i: any) => s + (i.price * i.quantity), 0);
         
-        // Check if this is a gift (has senderId or receiverId)
-        const isGiftReceived = item.receiverId && item.receiverId._id !== item.userId;
-        const isGiftSent = item.senderId && item.senderId._id === item.userId;
+        // Check if this is a gift
+        const isGiftReceived = item.type === 'gift' && item.receiverId && item.receiverId._id === myId;
+        const isGiftSent = item.type === 'gift' && (item.userId === myId || (item.senderId && item.senderId._id === myId)) && !isGiftReceived;
+        
         const giftLabel = isGiftReceived 
             ? `🎁 Gift from ${item.senderId?.name || 'Someone'}` 
             : isGiftSent 
@@ -146,6 +160,9 @@ export default function MyOrders() {
                     estimatedItemSize={180}
                     contentContainerStyle={styles.listContent}
                     showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl refreshing={refreshing} onRefresh={() => fetchOrders(true)} tintColor="#818CF8" />
+                    }
                 />
             )}
         </SafeAreaView>
