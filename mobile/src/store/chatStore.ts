@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { io, Socket } from 'socket.io-client';
 import apiClient from '../services/apiClient';
 
@@ -52,7 +54,9 @@ interface ChatState {
     setChatRequestCallback: (callback: (senderId: string, senderName: string, content: string, senderImage?: string) => void) => void;
 }
 
-export const useChatStore = create<ChatState>((set, get) => ({
+export const useChatStore = create<ChatState>()(
+    persist(
+        (set, get) => ({
     socket: null,
     messagesByPeer: {},
     isTyping: {},
@@ -485,4 +489,28 @@ export const useChatStore = create<ChatState>((set, get) => ({
     setChatRequestCallback: (callback: (senderId: string, senderName: string, content: string, senderImage?: string) => void) => {
         set({ onChatRequest: callback });
     }
-}));
+        }),
+        {
+            name: 'entry-club-chat-store',
+            storage: createJSONStorage(() => AsyncStorage),
+            // Only persist data fields, NOT socket/callbacks (they can't be serialized)
+            partialize: (state) => ({
+                messagesByPeer:  state.messagesByPeer,
+                acceptedChats:   [...state.acceptedChats], // Set → Array for JSON
+                unreadCounts:    state.unreadCounts,
+                chatRequests:    state.chatRequests,
+                currentUserId:   state.currentUserId,
+                currentUserName: state.currentUserName,
+                currentUserImage:state.currentUserImage,
+            }),
+            // Restore Set from Array after hydration
+            onRehydrateStorage: () => (state) => {
+                if (state && state.acceptedChats) {
+                    // @ts-ignore — AsyncStorage stores it as array
+                    state.acceptedChats = new Set(state.acceptedChats as unknown as string[]);
+                }
+            },
+            version: 1,
+        }
+    )
+);
