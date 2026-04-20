@@ -266,10 +266,18 @@ export default function ChatScreen() {
         fetchHistory(peerId);
     }, [peerId, token, myId]);
 
+    // ── Auto-scroll helpers ───────────────────────────────────────────────────
+    const scrollToBottom = useCallback((animated = true) => {
+        // FlashList: use scrollToOffset with huge value as reliable "scroll to end"
+        listRef.current?.scrollToOffset?.({ offset: 999999, animated });
+        // Fallback for FlatList/ScrollView
+        listRef.current?.scrollToEnd?.({ animated });
+    }, []);
+
     // ── Auto-scroll on new message ────────────────────────────────────────────
     useEffect(() => {
         if (messages.length > 0) {
-            setTimeout(() => listRef.current?.scrollToEnd?.({ animated: true }), 80);
+            setTimeout(() => scrollToBottom(true), 150);
         }
     }, [messages.length]);
 
@@ -420,6 +428,7 @@ export default function ChatScreen() {
                         renderItem={({ item, index }: { item: any; index: number }) => renderMessage({ item, index })}
                         contentContainerStyle={styles.listInner}
                         showsVerticalScrollIndicator={false}
+                        onContentSizeChange={() => scrollToBottom(false)}
                         ListFooterComponent={
                             isUserTyping ? (
                                 <TypingIndicator name={actualPeerName || 'User'} avatar={actualPeerAvatar} />
