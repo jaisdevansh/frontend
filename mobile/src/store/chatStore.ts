@@ -9,15 +9,16 @@ interface Message {
     sender: string;
     receiver: string;
     content: string;
-    timestamp?: string; // or createdAt
+    timestamp?: string;
     createdAt?: string;
     isRead: boolean;
-    tempId?: string; // for optimistic UI
+    tempId?: string;
     status?: 'sending' | 'sent' | 'failed';
-    senderName?: string; // User name of sender
-    senderImage?: string; // Profile image of sender
-    receiverName?: string; // User name of receiver
-    receiverImage?: string; // Profile image of receiver
+    type?: 'text' | 'image' | 'video';   // ← added
+    senderName?: string;
+    senderImage?: string;
+    receiverName?: string;
+    receiverImage?: string;
 }
 
 interface ChatRequest {
