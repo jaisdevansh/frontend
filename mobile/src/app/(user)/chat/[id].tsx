@@ -219,7 +219,11 @@ export default function ChatScreen() {
 
     const messages = useMemo(() => {
         const msgs = messagesByPeer[peerId || convId] || [];
-        return msgs;
+        // Filter out empty messages (old persisted empty bubbles from AsyncStorage)
+        return msgs.filter(m => {
+            const text = m.content || (m as any).text || '';
+            return text.trim().length > 0 || m.type === 'image' || m.type === 'video';
+        });
     }, [messagesByPeer, peerId, convId]);
     
     // Get user info from messages if not provided in params
