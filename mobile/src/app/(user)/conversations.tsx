@@ -196,64 +196,28 @@ export default function ConversationsScreen() {
 
     const {
         socket,
-        messagesByPeer,
-        unreadCounts,
-        acceptedChats,
+        chatPeers,
+        peersLoading,
         initSocket,
+        fetchPeers,
     } = useChatStore();
 
     const isConnected = socket?.connected || false;
-    const onlineUsers = new Set<string>(); // Legacy doesn't fully track online users yet
 
-    // Convert messagesByPeer to conversations format
-    const conversations = React.useMemo(() => {
-        const convs: any[] = [];
-        
-        // Only show accepted chats
-        acceptedChats.forEach((peerId) => {
-            const messages = messagesByPeer[peerId] || [];
-            if (messages.length === 0) return; // Skip if no messages
-            
-            const lastMsg = messages[messages.length - 1];
-            const unread = unreadCounts[peerId] || 0;
-            
-            // SUPER SIMPLE: Find ANY message from this peer that has senderName
-            let peerName = 'User';
-            let peerImage = undefined;
-            
-            // Look backward through messages to find peer's info efficiently
-            for (let i = messages.length - 1; i >= 0; i--) {
-                if (messages[i].sender === peerId && messages[i].senderName) {
-                    peerName = messages[i].senderName;
-                    peerImage = messages[i].senderImage;
-                    break;
-                }
-            }
-            
-            convs.push({
-                _id: peerId,
-                otherUser: {
-                    _id: peerId,
-                    name: peerName,
-                    profileImage: peerImage,
-                },
-                lastMessage: lastMsg.content,
-                lastMessageAt: lastMsg.createdAt || lastMsg.timestamp || null,
-                unreadCount: unread,
-            });
-        });
-        
-        // Sort by last message time (newest first)
-        convs.sort((a, b) => {
-            const timeA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
-            const timeB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
-            return timeB - timeA;
-        });
-        
-        return convs;
-    }, [messagesByPeer, acceptedChats, unreadCounts]);
+    // Map chatPeers (from backend) to Conversation format
+    const conversations = React.useMemo(() => chatPeers.map(p => ({
+        _id:       p.peerId,
+        otherUser: {
+            _id:          p.peerId,
+            name:         p.peerName,
+            profileImage: p.peerImage,
+        },
+        lastMessage:   p.lastMessage,
+        lastMessageAt: p.lastMessageAt,
+        unreadCount:   p.unreadCount,
+    })), [chatPeers]);
 
-    const [conversationsLoading, setConversationsLoading] = useState(false);
+    const conversationsLoading = peersLoading;
     const [searchQuery, setSearchQuery]   = useState('');
     const [refreshing, setRefreshing]     = useState(false);
 
@@ -263,13 +227,14 @@ export default function ConversationsScreen() {
         const userName = user?.name || user?.firstName || 'You';
         const userImage = user?.profileImage;
         initSocket(token, user.id, userName, userImage);
-    }, [token, user?.id, initSocket]);
+        fetchPeers(); // ← Always fetch fresh list from backend on mount
+    }, [token, user?.id]);
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
-        // Refresh simulation, legacy chatStore syncs automatically via socket
-        setTimeout(() => setRefreshing(false), 1000);
-    }, []);
+        await fetchPeers();
+        setRefreshing(false);
+    }, [fetchPeers]);
 
     // ── Local Search ──────────────────────────────────────────────────────────
     const displayData = React.useMemo(() => {
@@ -277,6 +242,7 @@ export default function ConversationsScreen() {
         const q = searchQuery.toLowerCase();
         return conversations.filter(c => c.otherUser.name.toLowerCase().includes(q));
     }, [conversations, searchQuery]);
+
 
 
 

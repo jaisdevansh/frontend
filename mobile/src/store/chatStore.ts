@@ -28,6 +28,16 @@ interface ChatRequest {
     timestamp: string;
 }
 
+export interface ChatPeer {
+    peerId: string;
+    peerName: string;
+    peerImage?: string;
+    lastMessage: string;
+    lastMessageAt: string | null;
+    lastSenderId: string;
+    unreadCount: number;
+}
+
 interface ChatState {
     socket: Socket | null;
     messagesByPeer: Record<string, Message[]>;
@@ -35,6 +45,8 @@ interface ChatState {
     unreadCounts: Record<string, number>;
     chatRequests: Record<string, ChatRequest>; // Pending chat requests by senderId
     acceptedChats: Set<string>; // Set of accepted peer IDs
+    chatPeers: ChatPeer[];          // ← Fetched from backend: always fresh on load
+    peersLoading: boolean;
     currentUserId: string | null; // Current logged-in user ID
     currentUserName: string | null; // Current user name
     currentUserImage: string | null; // Current user image
@@ -52,6 +64,7 @@ interface ChatState {
     rejectChatRequest: (senderId: string) => void;
     setMessageReceivedCallback: (callback: (senderId: string, senderName: string, content: string) => void) => void;
     setChatRequestCallback: (callback: (senderId: string, senderName: string, content: string, senderImage?: string) => void) => void;
+    fetchPeers: () => Promise<void>; // ← NEW: fetch conversations list from DB
 }
 
 export const useChatStore = create<ChatState>()(
@@ -63,6 +76,8 @@ export const useChatStore = create<ChatState>()(
     unreadCounts: {},
     chatRequests: {},
     acceptedChats: new Set(),
+    chatPeers: [],
+    peersLoading: false,
     currentUserId: null,
     currentUserName: null,
     currentUserImage: null,
@@ -488,7 +503,36 @@ export const useChatStore = create<ChatState>()(
 
     setChatRequestCallback: (callback: (senderId: string, senderName: string, content: string, senderImage?: string) => void) => {
         set({ onChatRequest: callback });
-    }
+    },
+
+    fetchPeers: async () => {
+        set({ peersLoading: true });
+        try {
+            const res = await apiClient.get('/api/v1/chat/peers');
+            if (res.data.success) {
+                const peers: ChatPeer[] = res.data.data.conversations.map((c: any) => ({
+                    peerId:        c.peerId || c._id,
+                    peerName:      c.peerName || 'User',
+                    peerImage:     c.peerImage,
+                    lastMessage:   c.lastMessage || '',
+                    lastMessageAt: c.lastMessageAt || null,
+                    lastSenderId:  c.lastSenderId,
+                    unreadCount:   c.unreadCount || 0,
+                }));
+
+                // Also mark all these peers as accepted so chat screen works
+                set((state) => {
+                    const newAccepted = new Set(state.acceptedChats);
+                    peers.forEach(p => newAccepted.add(p.peerId));
+                    return { chatPeers: peers, acceptedChats: newAccepted };
+                });
+            }
+        } catch (e) {
+            // silently fail — old data from persist still shows
+        } finally {
+            set({ peersLoading: false });
+        }
+    },
         }),
         {
             name: 'entry-club-chat-store',
