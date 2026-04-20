@@ -13,8 +13,9 @@ import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 
 import { useChatStore } from '../../store/chatStore';
+import { useAuth } from '../../context/AuthContext';
 
-// Convert chatStore format to Conversation format
+// Local interfaces
 interface Conversation {
     _id: string;
     otherUser: {
@@ -28,7 +29,14 @@ interface Conversation {
     unreadCount: number;
 }
 
-import { useAuth } from '../../context/AuthContext';
+interface ChatUser {
+    _id: string;
+    name: string;
+    username?: string;
+    profileImage?: string;
+}
+
+
 const C = {
     bg:         '#000000',
     surface:    '#0D0D0D',
@@ -203,6 +211,7 @@ export default function ConversationsScreen() {
     } = useChatStore();
 
     const isConnected = socket?.connected || false;
+    const onlineUsers = new Set<string>(); // socket-based online tracking placeholder
 
     // Map chatPeers (from backend) to Conversation format
     const conversations = React.useMemo(() => chatPeers.map(p => ({
