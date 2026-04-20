@@ -12,7 +12,22 @@ import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 
-import { useProductionChatStore, Conversation, ChatUser } from '../../store/productionChatStore';
+import { useChatStore } from '../../store/chatStore';
+
+// Convert chatStore format to Conversation format
+interface Conversation {
+    _id: string;
+    otherUser: {
+        _id: string;
+        name: string;
+        username?: string;
+        profileImage?: string;
+    };
+    lastMessage: string;
+    lastMessageAt: string | null;
+    unreadCount: number;
+}
+
 import { useAuth } from '../../context/AuthContext';
 const C = {
     bg:         '#000000',
@@ -180,29 +195,81 @@ export default function ConversationsScreen() {
     const { user, token } = useAuth();
 
     const {
-        conversations,
-        conversationsLoading,
-        isConnected,
-        onlineUsers,
+        socket,
+        messagesByPeer,
+        unreadCounts,
+        acceptedChats,
         initSocket,
-        fetchConversations,
-    } = useProductionChatStore();
+    } = useChatStore();
 
+    const isConnected = socket?.connected || false;
+    const onlineUsers = new Set<string>(); // Legacy doesn't fully track online users yet
+
+    // Convert messagesByPeer to conversations format
+    const conversations = React.useMemo(() => {
+        const convs: any[] = [];
+        
+        // Only show accepted chats
+        acceptedChats.forEach((peerId) => {
+            const messages = messagesByPeer[peerId] || [];
+            if (messages.length === 0) return; // Skip if no messages
+            
+            const lastMsg = messages[messages.length - 1];
+            const unread = unreadCounts[peerId] || 0;
+            
+            // SUPER SIMPLE: Find ANY message from this peer that has senderName
+            let peerName = 'User';
+            let peerImage = undefined;
+            
+            // Look backward through messages to find peer's info efficiently
+            for (let i = messages.length - 1; i >= 0; i--) {
+                if (messages[i].sender === peerId && messages[i].senderName) {
+                    peerName = messages[i].senderName;
+                    peerImage = messages[i].senderImage;
+                    break;
+                }
+            }
+            
+            convs.push({
+                _id: peerId,
+                otherUser: {
+                    _id: peerId,
+                    name: peerName,
+                    profileImage: peerImage,
+                },
+                lastMessage: lastMsg.content,
+                lastMessageAt: lastMsg.createdAt || lastMsg.timestamp || null,
+                unreadCount: unread,
+            });
+        });
+        
+        // Sort by last message time (newest first)
+        convs.sort((a, b) => {
+            const timeA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+            const timeB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+            return timeB - timeA;
+        });
+        
+        return convs;
+    }, [messagesByPeer, acceptedChats, unreadCounts]);
+
+    const [conversationsLoading, setConversationsLoading] = useState(false);
     const [searchQuery, setSearchQuery]   = useState('');
     const [refreshing, setRefreshing]     = useState(false);
 
     // ── Init ──────────────────────────────────────────────────────────────────
     useEffect(() => {
         if (!token || !user?.id) return;
-        initSocket(token);
-        fetchConversations();
-    }, [token, user?.id, initSocket, fetchConversations]);
+        const userName = user?.name || user?.firstName || 'You';
+        const userImage = user?.profileImage;
+        initSocket(token, user.id, userName, userImage);
+    }, [token, user?.id, initSocket]);
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
-        await fetchConversations();
-        setRefreshing(false);
-    }, [fetchConversations]);
+        // Refresh simulation, legacy chatStore syncs automatically via socket
+        setTimeout(() => setRefreshing(false), 1000);
+    }, []);
 
     // ── Local Search ──────────────────────────────────────────────────────────
     const displayData = React.useMemo(() => {
