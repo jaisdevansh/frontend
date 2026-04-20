@@ -41,12 +41,12 @@ export const prefetchHostData = async (queryClient: QueryClient, hostId?: string
 };
 
 export const prefetchAdminData = async (queryClient: QueryClient) => {
-    // Prefetch admin dashboard data
+    // Prefetch admin stats (uses /admin/stats — the correct backend endpoint)
     try {
         await queryClient.prefetchQuery({
-            queryKey: ['admin', 'dashboard'],
+            queryKey: ['admin-stats'],
             queryFn: async () => {
-                const res = await apiClient.get('/admin/dashboard');
+                const res = await apiClient.get('/admin/stats');
                 return res.data?.data || null;
             },
             staleTime: 1000 * 60 * 2,

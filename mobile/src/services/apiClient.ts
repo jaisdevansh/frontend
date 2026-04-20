@@ -11,7 +11,7 @@ import { DeviceEventEmitter } from 'react-native';
  */
 const getBaseUrl = () => {
     // 🌍 PRODUCTION: User API on Render (Live)
-    return 'https://entry-user-backend.onrender.com';
+    return 'https://entry-user-backend-mpft.onrender.com';
     
     // 🔧 LOCAL DEV: Point to local machine (TWILIO_BYPASS=true active)
     // return 'http://10.225.202.18:3001';
@@ -20,7 +20,7 @@ const getBaseUrl = () => {
 export const API_BASE_URL = getBaseUrl();
 
 // 🌍 PRODUCTION: Admin backend on Render (Live)
-export const ADMIN_API_BASE_URL = 'https://entry-admin-backend.onrender.com';
+export const ADMIN_API_BASE_URL = 'https://entry-admin-backend-1.onrender.com';
 
 // 🔧 LOCAL DEV: Admin backend on local machine
 // export const ADMIN_API_BASE_URL = 'http://10.225.202.18:3002';
