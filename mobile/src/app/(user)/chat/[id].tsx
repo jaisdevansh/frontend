@@ -443,9 +443,12 @@ export default function ChatScreen() {
 
                 {/* ─── Input Bar ─────────────────────────────────────────── */}
                 <View style={styles.inputBar}>
-                    {/* Attach */}
-                    <TouchableOpacity style={styles.attachBtn}>
-                        <Ionicons name="add-circle-outline" size={26} color={C.sub} />
+                    {/* Send Gift Button */}
+                    <TouchableOpacity 
+                        style={styles.attachBtn}
+                        onPress={() => router.push(`/(user)/menu?hostId=${peerId || convId}&venueName=${encodeURIComponent(actualPeerName || 'User')}`)}
+                    >
+                        <Ionicons name="gift-outline" size={24} color={C.sub} />
                     </TouchableOpacity>
 
                     {/* Text input */}
