@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, Platform, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Platform, TouchableOpacity, Dimensions } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../context/AuthContext';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
-import { COLORS, SPACING, BORDER_RADIUS } from '../../constants/design-system';
+import { COLORS, SPACING } from '../../constants/design-system';
 import { Ionicons } from '@expo/vector-icons';
 import { authService } from '../../services/authService';
 import { useToast } from '../../context/ToastContext';
@@ -73,27 +73,33 @@ export default function VerifyOtpScreen() {
                 style={styles.background}
             />
             <KeyboardAwareScrollView
+                style={{ flex: 1 }}
                 contentContainerStyle={styles.scrollContent}
                 keyboardShouldPersistTaps="handled"
-                keyboardDismissMode="interactive"
                 showsVerticalScrollIndicator={false}
                 enableOnAndroid={true}
-                extraScrollHeight={200}
-                style={styles.keyboardView}
+                enableAutomaticScroll={true}
+                extraHeight={250}
+                extraScrollHeight={250}
+                keyboardOpeningTime={0}
+                viewIsInsideTabBar={false}
+                enableResetScrollToCoords={false}
             >
                 <View style={[styles.innerContent, { paddingTop: insets.top + 20 }]}>
-                    <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                        <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
-                    </TouchableOpacity>
+                    <View>
+                        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+                        </TouchableOpacity>
 
-                    <View style={styles.header}>
-                        <View style={{ marginBottom: 20 }}>
-                            <Logo size={80} showText={false} />
+                        <View style={styles.header}>
+                            <View style={{ marginBottom: 20 }}>
+                                <Logo size={80} showText={false} />
+                            </View>
+                            <Text style={styles.title} adjustsFontSizeToFit numberOfLines={1}>VERIFY ACCESS</Text>
+                            <Text style={styles.subtitle}>Enter the 6-digit code sent to</Text>
+                            <Text style={styles.identifierText}>{identifier}</Text>
+                            {currentHint && <Text style={styles.hintText}>Demo Code: {currentHint}</Text>}
                         </View>
-                        <Text style={styles.title} adjustsFontSizeToFit numberOfLines={1}>VERIFY ACCESS</Text>
-                        <Text style={styles.subtitle}>Enter the 6-digit code sent to</Text>
-                        <Text style={styles.identifierText}>{identifier}</Text>
-                        {currentHint && <Text style={styles.hintText}>Demo Code: {currentHint}</Text>}
                     </View>
 
                     <View style={styles.form}>
@@ -106,7 +112,7 @@ export default function VerifyOtpScreen() {
                             maxLength={6}
                         />
 
-                         <Button
+                        <Button
                             title="Verify & Enter"
                             onPress={handleVerifyOtp}
                             style={styles.verifyButton}
@@ -134,17 +140,15 @@ const styles = StyleSheet.create({
     background: {
         ...StyleSheet.absoluteFillObject,
     },
-    keyboardView: {
-        flex: 1,
-    },
     scrollContent: {
         flexGrow: 1,
+        paddingBottom: 50,
     },
     innerContent: {
         paddingHorizontal: SPACING.xl,
         paddingBottom: 40,
         flex: 1,
-        minHeight: height - 100,
+        justifyContent: 'space-between',
     },
     backBtn: {
         width: 40,
@@ -157,8 +161,7 @@ const styles = StyleSheet.create({
     header: {
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: SPACING.xxl,
-        marginTop: SPACING.md,
+        marginBottom: SPACING.lg,
         width: '100%',
     },
     title: {

@@ -82,19 +82,18 @@ export default function SupportDashboard() {
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 <View style={[styles.card, styles.aiCard]}>
                     <View style={styles.aiIconBox}>
-                        <Ionicons name="logo-whatsapp" size={32} color="white" />
+                        <Ionicons name="logo-whatsapp" size={36} color="#25D366" />
                     </View>
                     <Text style={styles.aiTitle}>Chat With Admin</Text>
                     <Text style={styles.aiDescription}>
                         Tap below to chat directly with Entry Club Admin on WhatsApp. Your name will be sent automatically.
                     </Text>
                     <Button
-                        title="💬  Open WhatsApp Chat"
+                        title="Open WhatsApp Chat"
                         onPress={openWhatsApp}
                         style={styles.chatBtn}
-                        textStyle={{ color: '#000000', fontWeight: '800', fontSize: 15 }}
+                        textStyle={{ color: '#FFFFFF', fontWeight: '800', fontSize: 15 }}
                     />
-                    <Text style={styles.waNumber}>+91 7772828027</Text>
                 </View>
 
                 <View style={styles.menu}>
@@ -206,46 +205,42 @@ const styles = StyleSheet.create({
         marginBottom: 24,
     },
     aiCard: {
-        backgroundColor: COLORS.primary,
+        backgroundColor: '#1e3a8a', // Dark blue
         alignItems: 'center',
     },
     aiIconBox: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        backgroundColor: 'rgba(255,255,255,0.2)',
+        width: 72,
+        height: 72,
+        borderRadius: 36,
+        backgroundColor: 'rgba(255,255,255,0.15)',
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 16,
+        marginBottom: 20,
+        borderWidth: 2,
+        borderColor: 'rgba(255,255,255,0.1)',
     },
     aiTitle: {
         color: 'white',
-        fontSize: 22,
-        fontWeight: '800',
-        marginBottom: 8,
+        fontSize: 24,
+        fontWeight: '900',
+        marginBottom: 10,
     },
     aiDescription: {
-        color: 'rgba(255,255,255,0.8)',
+        color: 'rgba(255,255,255,0.85)',
         fontSize: 14,
         textAlign: 'center',
-        lineHeight: 20,
-        marginBottom: 20,
+        lineHeight: 22,
+        marginBottom: 24,
+        paddingHorizontal: 8,
     },
     chatBtn: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#25D366', // WhatsApp green
         width: '100%',
-        shadowColor: '#FFFFFF',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 10,
-        elevation: 5,
-    },
-    waNumber: {
-        color: 'rgba(255,255,255,0.6)',
-        fontSize: 13,
-        fontWeight: '600',
-        marginTop: 12,
-        letterSpacing: 0.5,
+        shadowColor: '#25D366',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
+        elevation: 8,
     },
     menu: {
         gap: 12,

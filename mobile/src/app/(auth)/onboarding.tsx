@@ -202,7 +202,7 @@ export default function OnboardingScreen() {
                         <View>
                             <Input
                                 label=""
-                                placeholder="Username (e.g. rahul_sharma123)"
+                                placeholder="Username (e.g. john_doe)"
                                 value={username}
                                 onChangeText={(text) => setUsername(text.toLowerCase().replace(/\s/g, ''))}
                                 containerStyle={styles.inputGap}

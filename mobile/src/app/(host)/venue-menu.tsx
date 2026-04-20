@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Modal, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useRouter } from 'expo-router';
 import { useStrictBack } from '../../hooks/useStrictBack';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,6 +30,7 @@ export default function HostVenueMenu() {
     const router = useRouter();
     const goBack = useStrictBack('/(host)/venue-profile');
     const { showToast } = useToast();
+    const scrollViewRef = useRef<KeyboardAwareScrollView>(null);
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -246,7 +248,16 @@ export default function HostVenueMenu() {
                             </TouchableOpacity>
                         </View>
 
-                        <ScrollView showsVerticalScrollIndicator={false}>
+                        <KeyboardAwareScrollView
+                            ref={scrollViewRef}
+                            showsVerticalScrollIndicator={false}
+                            enableOnAndroid={true}
+                            enableAutomaticScroll={true}
+                            extraHeight={250}
+                            extraScrollHeight={250}
+                            keyboardOpeningTime={0}
+                            keyboardShouldPersistTaps="handled"
+                        >
                             <TouchableOpacity style={styles.modalImagePicker} onPress={pickImage}>
                                 {itemImage ? (
                                     <Image source={{ uri: itemImage }} style={styles.modalPreviewImg} />
@@ -297,7 +308,7 @@ export default function HostVenueMenu() {
                             />
 
                             <Button title="Save Item to List" onPress={handleSaveItem} style={{ marginTop: 12 }} />
-                        </ScrollView>
+                        </KeyboardAwareScrollView>
                     </View>
                 </View>
             </Modal>

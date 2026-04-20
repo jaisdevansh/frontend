@@ -133,7 +133,7 @@ function RootLayoutNav() {
   const sessionToastLock = useRef(false);
 
   useEffect(() => {
-    const sub = DeviceEventEmitter.addListener('SESSION_EXPIRED', () => {
+    const sessionSub = DeviceEventEmitter.addListener('SESSION_EXPIRED', () => {
       if (!sessionToastLock.current) {
          sessionToastLock.current = true;
          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -142,7 +142,19 @@ function RootLayoutNav() {
       }
       logout();
     });
-    return () => sub.remove();
+    
+    const manualSub = DeviceEventEmitter.addListener('MANUAL_LOGOUT', () => {
+      if (!sessionToastLock.current) {
+         sessionToastLock.current = true;
+         showToast('Logged out successfully', 'error');
+         setTimeout(() => { sessionToastLock.current = false; }, 5000);
+      }
+    });
+    
+    return () => {
+      sessionSub.remove();
+      manualSub.remove();
+    };
   }, [logout]);
 
 
@@ -150,27 +162,41 @@ function RootLayoutNav() {
   const [showSplashAnim, setShowSplashAnim] = React.useState(true);
 
   useEffect(() => {
+    console.log('[Splash] isLoading:', isLoading, 'showSplashAnim:', showSplashAnim);
     if (!isLoading) {
-        // Orchestrate premium splash reveal: animation + buffer
+        console.log('[Splash] Starting 800ms timer...');
+        // Quick splash with smooth animation
         const timer = setTimeout(() => {
+            console.log('[Splash] Timer complete, hiding splash...');
             setShowSplashAnim(false);
-            SplashScreen.hideAsync();
-        }, 400); // Slashed from 2200ms to 400ms for production speed
+            SplashScreen.hideAsync().catch(() => {});
+        }, 800); // 800ms - smooth but not too long
         return () => clearTimeout(timer);
     }
   }, [isLoading]);
 
   useEffect(() => {
-    if (isLoading || showSplashAnim) return;
+    console.log('[Navigation] isLoading:', isLoading, 'showSplashAnim:', showSplashAnim, 'segments:', segments, 'token:', !!token);
+    if (isLoading || showSplashAnim) {
+      console.log('[Navigation] Blocked - waiting for splash/loading');
+      return;
+    }
 
     const inAuthGroup = segments[0] === '(auth)';
     const isOnboardingPage = segments[1] === 'onboarding';
     const isLoginPage = segments[1] === 'login';
+    const isRoot = !segments[0] || segments[0] === 'index' || segments.length === 0;
 
-    // 1. GUEST GATE - Don't redirect if on login page (user might be logging in)
+    console.log('[Navigation] Analyzing - inAuthGroup:', inAuthGroup, 'isRoot:', isRoot, 'segments:', segments);
+
+    // 1. GUEST GATE - Redirect to welcome if no token
     if (!token) {
-      if (!inAuthGroup) {
-        router.replace('/(auth)/welcome');
+      // If we're at root/index or not in auth group, go to welcome
+      if (isRoot || !inAuthGroup) {
+        console.log('[Navigation] ✅ No token, redirecting to welcome from:', segments);
+        setTimeout(() => router.replace('/(auth)/welcome'), 100);
+      } else {
+        console.log('[Navigation] No token but already in auth group');
       }
       return;
     }
@@ -222,8 +248,13 @@ function RootLayoutNav() {
         // 🔥 PRIMARY: Use API data, FALLBACK: Use user object during transitions
         const hStatus = hostProfile?.hostStatus || user?.hostStatus;
         
-        // If no status available at all, wait
-        if (!hStatus) return;
+        // If no status available at all, wait (don't navigate yet)
+        if (!hStatus) {
+            console.log('[Navigation] Host status not available yet, waiting...');
+            return;
+        }
+        
+        console.log('[Navigation] Host status:', hStatus);
         
         if (hStatus === 'INVITED' || hStatus === 'CREATED') {
             if (segments[1] !== 'onboarding') return navigateTo('/(host)/onboarding');
@@ -235,6 +266,7 @@ function RootLayoutNav() {
             if (segments[1] !== 'suspended') return navigateTo('/(auth)/suspended');
         } else if (hStatus === 'ACTIVE') {
             // Allow navigation to any host screen
+            console.log('[Navigation] Host is ACTIVE, allowing navigation');
         } else {
             if (segments[1] !== 'onboarding') return navigateTo('/(host)/onboarding');
         }
@@ -244,9 +276,11 @@ function RootLayoutNav() {
 
     // 6. REDIRECTION LOGIC
     // If user is logged in but on an Auth or Index page, send them to their home
-    const isRoot = !segments[0] || (segments[0] as string) === 'index';
     if (inAuthGroup || isRoot) {
-        if (!isOnboardingPage) return navigateTo(targetHome);
+        if (!isOnboardingPage) {
+            console.log('[Navigation] Logged in user on auth/root, redirecting to:', targetHome);
+            return navigateTo(targetHome);
+        }
     }
 
     // 7. RBAC (Role-Based Access Control)
@@ -256,7 +290,7 @@ function RootLayoutNav() {
     if (role === 'host' && ['admin', '(staff)'].includes(s0)) return navigateTo(targetHome);
     if (role === 'staff' && ['(host)', 'admin', '(user)'].includes(s0)) return navigateTo(targetHome);
     if (role === 'admin' && ['(host)', '(user)', '(staff)'].includes(s0)) return navigateTo(targetHome);
-  }, [token, role, hostId, user, hostProfile, isLoading, segments, onboardingCompleted, logout, router]);
+  }, [token, role, hostId, user, hostProfile, isLoading, showSplashAnim, segments, onboardingCompleted, logout, router]);
 
   // 🛡️ RENDER BLOCKING (MANDATORY)
   // We keep our custom splash screen visible until BOTH auth and animation are ready.
@@ -270,19 +304,17 @@ function RootLayoutNav() {
     <ThemeProvider value={DarkTheme}>
       <Stack screenOptions={{ 
         headerShown: false,
-        animation: 'fade', // Faster, cleaner transition for role switching
+        animation: 'fade',
         freezeOnBlur: true,
       }}>
-        {!token ? (
-           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        ) : (
-           <>
-             <Stack.Screen name="(user)" options={{ headerShown: false }} />
-             <Stack.Screen name="(host)" options={{ headerShown: false }} />
-             <Stack.Screen name="admin" options={{ headerShown: false }} />
-             <Stack.Screen name="(staff)" options={{ headerShown: false }} />
-           </>
-        )}
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(user)" options={{ headerShown: false }} />
+        <Stack.Screen name="(host)" options={{ headerShown: false }} />
+        <Stack.Screen name="(staff)" options={{ headerShown: false }} />
+        <Stack.Screen name="(settings)" options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen name="admin" options={{ headerShown: false }} />
+        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
     </ThemeProvider>
   );

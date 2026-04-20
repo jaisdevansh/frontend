@@ -12,6 +12,10 @@
       "resizeMode": "contain",
       "backgroundColor": "#0A0B10"
     },
+    "androidStatusBar": {
+      "barStyle": "light-content",
+      "backgroundColor": "#0A0B10"
+    },
     "primaryColor": "#0A0B10",
     "jsEngine": "hermes",
     "ios": {
@@ -28,6 +32,16 @@
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/images/adaptive-icon.png",
         "backgroundColor": "#0A0B10"
+      },
+      "splash": {
+        "image": "./src/assets/images/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#0A0B10",
+        "mdpi": "./src/assets/images/splash-icon.png",
+        "hdpi": "./src/assets/images/splash-icon.png",
+        "xhdpi": "./src/assets/images/splash-icon.png",
+        "xxhdpi": "./src/assets/images/splash-icon.png",
+        "xxxhdpi": "./src/assets/images/splash-icon.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.entryclub.app",

@@ -72,6 +72,15 @@ setInterval(() => {
     }
 }, 8 * 60 * 1000);
 
+// 🛡️ INITIAL LOAD PROTECTION: Prevent SESSION_EXPIRED during app startup
+// This flag is set to true for the first 5 seconds after app loads
+// to prevent race conditions where API calls happen before token is fully loaded
+let _isInitialLoad = true;
+setTimeout(() => {
+    _isInitialLoad = false;
+    console.log('[API] Initial load grace period ended');
+}, 5000);
+
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
     headers: {
@@ -86,6 +95,11 @@ const apiClient = axios.create({
 // No per-request AsyncStorage lookup needed — it's already in the Axios instance.
 apiClient.interceptors.request.use(
     (config) => {
+        // Debug: Log if token is missing
+        if (!config.headers.Authorization) {
+            console.warn('[API] Request without token:', config.url);
+        }
+        
         // Smart Routing: Route admin, host, and staff modules to the Admin Backend
         if (config.url) {
             const normalizedUrl = config.url.replace(/^\//, '');
@@ -182,7 +196,12 @@ apiClient.interceptors.response.use(
 
                     if (!refreshToken) {
                         processQueue({ message: 'No refresh token', isSilent: true }, null);
-                        DeviceEventEmitter.emit('SESSION_EXPIRED');
+                        // Don't emit SESSION_EXPIRED during initial load
+                        if (!_isInitialLoad) {
+                            DeviceEventEmitter.emit('SESSION_EXPIRED');
+                        } else {
+                            console.log('[API] Suppressing SESSION_EXPIRED during initial load');
+                        }
                         return Promise.reject({ message: 'No refresh token', isSilent: true });
                     }
 
@@ -213,7 +232,12 @@ apiClient.interceptors.response.use(
                     }
                 } catch (refreshError) {
                     processQueue(refreshError, null);
-                    DeviceEventEmitter.emit('SESSION_EXPIRED');
+                    // Don't emit SESSION_EXPIRED during initial load
+                    if (!_isInitialLoad) {
+                        DeviceEventEmitter.emit('SESSION_EXPIRED');
+                    } else {
+                        console.log('[API] Suppressing SESSION_EXPIRED during initial load');
+                    }
                     return Promise.reject(refreshError);
                 } finally {
                     isRefreshing = false;
@@ -221,14 +245,33 @@ apiClient.interceptors.response.use(
             } else if (error.response?.status === 404 && apiMessage === 'User not found') {
                 // 🚨 CRITICAL: Stale session detected (ID no longer exists in DB)
                 // Force logout immediately to clear invalid local state and prevent loops
+                // Don't emit SESSION_EXPIRED during initial load
+                if (!_isInitialLoad) {
+                    DeviceEventEmitter.emit('SESSION_EXPIRED');
+                } else {
+                    console.log('[API] Suppressing SESSION_EXPIRED during initial load');
+                }
+            } else if (apiMessage && (
+                apiMessage.toLowerCase().includes('not authorized') ||
+                apiMessage.toLowerCase().includes('invalid token') ||
+                apiMessage.toLowerCase().includes('session expired')
+            )) {
+                // Only emit SESSION_EXPIRED for explicit auth failures
+                // Don't emit SESSION_EXPIRED during initial load
+                if (!_isInitialLoad) {
+                    DeviceEventEmitter.emit('SESSION_EXPIRED');
+                } else {
+                    console.log('[API] Suppressing SESSION_EXPIRED during initial load');
+                }
+            }
+            // For other 401s (like permission issues), just reject without logging out
+        } else if (error.response?.status === 401 && originalRequest._retry) {
+            // Don't emit SESSION_EXPIRED during initial load
+            if (!_isInitialLoad) {
                 DeviceEventEmitter.emit('SESSION_EXPIRED');
             } else {
-                // If it's a 401 but NOT explicitly 'Token expired', emit SESSION_EXPIRED
-                // to force logout and cleanup stale credentials (like 'Not authorized to access this route')
-                DeviceEventEmitter.emit('SESSION_EXPIRED');
+                console.log('[API] Suppressing SESSION_EXPIRED during initial load');
             }
-        } else if (error.response?.status === 401 && originalRequest._retry) {
-            DeviceEventEmitter.emit('SESSION_EXPIRED');
         }
 
         return Promise.reject(error);

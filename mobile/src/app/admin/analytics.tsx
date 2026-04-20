@@ -365,7 +365,10 @@ export default function AnalyticsScreen() {
     const { data: trend, isLoading: trendLoading } = useQuery({
         queryKey: ['admin-revenue-trend'],
         queryFn: adminService.getRevenueTrend,
-        staleTime: 5 * 60 * 1000,
+        staleTime: 0, // Real-time - always fetch fresh data
+        refetchInterval: 30000, // Auto-refresh every 30 seconds
+        refetchOnMount: true,
+        refetchOnWindowFocus: true,
     });
     const { data: topUsers, isLoading: usersLoading } = useQuery({
         queryKey: ['admin-top-users'],
@@ -394,11 +397,8 @@ export default function AnalyticsScreen() {
     // ── Trend data ──
     const trendData = useMemo(() => {
         if (!trend || trend.length === 0) {
-            // Test data with 2 points for debugging
-            return [
-                { value: 8100, label: '1/4', date: '2025-04-01' },
-                { value: 16200, label: '2/4', date: '2025-04-02' }
-            ];
+            // No data - return empty array
+            return [];
         }
         
         // Create array from April 1st to today
@@ -497,7 +497,7 @@ export default function AnalyticsScreen() {
                 {/* ── Revenue Trend ── */}
                 <View style={styles.card}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <SectionTitle title="Revenue Trend" badge="30-DAY" />
+                        <SectionTitle title="Revenue Trend" badge="LIVE" />
                     </View>
                     <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 16 }}>
                         <View style={styles.toggleRow}>

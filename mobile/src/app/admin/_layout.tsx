@@ -33,7 +33,7 @@ export default function AdminRootLayout() {
     ];
 
     const handleLogout = async () => {
-        await logout();
+        await logout(true);
         router.replace('/(auth)/login');
     };
 

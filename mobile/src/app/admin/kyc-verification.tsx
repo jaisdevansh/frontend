@@ -115,7 +115,7 @@ export default function KYCVerification() {
 
             <Modal visible={!!selectedHost && !isRejectModalVisible} animationType="slide" presentationStyle="pageSheet">
                 <View style={styles.modalContainer}>
-                    <View style={styles.modalHeader}>
+                    <View style={[styles.modalHeader, { paddingTop: insets.top + 32 }]}>
                         <Text style={styles.modalTitle}>Examine Credentials</Text>
                         <TouchableOpacity onPress={() => setSelectedHost(null)}><Ionicons name="close" size={26} color="#FFF" /></TouchableOpacity>
                     </View>
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
     emptyText: { color: '#FFF', fontSize: 20, fontWeight: '900', marginTop: 16 },
     emptySubtext: { color: COLORS.textDim, fontSize: 14, marginTop: 8 },
     modalContainer: { flex: 1, backgroundColor: COLORS.bg },
-    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 24, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingBottom: 24, borderBottomWidth: 1, borderBottomColor: COLORS.border },
     modalTitle: { color: '#FFF', fontSize: 18, fontWeight: '900' },
     modalScroll: { flex: 1 },
     modalContent: { padding: 24, alignItems: 'center' },

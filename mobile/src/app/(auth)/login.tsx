@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, Platform, TouchableOpacity, Dimensions, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Platform, TouchableOpacity, Dimensions, TextInput } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/Button';
-import { COLORS, SPACING, BORDER_RADIUS } from '../../constants/design-system';
+import { COLORS, SPACING } from '../../constants/design-system';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { authService } from '../../services/authService';
 import { useToast } from '../../context/ToastContext';
@@ -168,15 +168,19 @@ export default function LoginScreen() {
                 style={styles.background}
             />
             <KeyboardAwareScrollView
+                style={{ flex: 1 }}
                 contentContainerStyle={styles.scrollContent}
                 keyboardShouldPersistTaps="handled"
-                keyboardDismissMode="interactive"
                 showsVerticalScrollIndicator={false}
                 enableOnAndroid={true}
-                extraScrollHeight={100}
-                style={styles.keyboardView}
+                enableAutomaticScroll={true}
+                extraHeight={250}
+                extraScrollHeight={250}
+                keyboardOpeningTime={0}
+                viewIsInsideTabBar={false}
+                enableResetScrollToCoords={false}
             >
-                <View style={[styles.innerContent, { paddingTop: insets.top + 10 }]}>
+                <View style={[styles.innerContent, { paddingTop: insets.top + 20 }]}>
                         
                         <View style={styles.topSection}>
                             <TouchableOpacity onPress={() => goBack()} style={styles.backBtn}>
@@ -240,7 +244,6 @@ export default function LoginScreen() {
                                         onBlur={() => setIsFocused(false)}
                                     />
                                 </View>
-
                             </View>
 
                             <Button
@@ -279,17 +282,16 @@ const styles = StyleSheet.create({
     background: {
         ...StyleSheet.absoluteFillObject,
     },
-    keyboardView: {
-        flex: 1,
-    },
     scrollContent: {
         flexGrow: 1,
+        paddingBottom: 50,
     },
     innerContent: {
         paddingHorizontal: SPACING.xl,
-        paddingBottom: Platform.OS === 'ios' ? 40 : 20,
-        flex: 1,
-        minHeight: height - 100,
+        paddingBottom: 20,
+        flexGrow: 1,
+        minHeight: Platform.OS === 'ios' ? height : height * 0.8,
+        flexDirection: 'column',
     },
     topSection: {
         marginBottom: 20,

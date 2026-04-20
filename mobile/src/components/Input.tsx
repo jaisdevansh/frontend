@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, forwardRef } from 'react';
 import { TextInput, StyleSheet, View, Text, ViewStyle, TextInputProps, TouchableOpacity } from 'react-native';
 import { COLORS, BORDER_RADIUS, SPACING } from '../constants/design-system';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,7 +10,7 @@ interface InputProps extends TextInputProps {
     isPassword?: boolean;
 }
 
-export const Input: React.FC<InputProps> = ({
+export const Input = forwardRef<TextInput, InputProps>(({
     label,
     containerStyle,
     wrapperStyle,
@@ -18,7 +18,7 @@ export const Input: React.FC<InputProps> = ({
     isPassword,
     secureTextEntry,
     ...props
-}) => {
+}, ref) => {
     const [isObscured, setIsObscured] = useState(secureTextEntry || isPassword);
 
     return (
@@ -34,6 +34,7 @@ export const Input: React.FC<InputProps> = ({
                     placeholderTextColor="rgba(255, 255, 255, 0.5)"
                     autoCapitalize="none"
                     secureTextEntry={isObscured}
+                    ref={ref}
                     {...props}
                 />
                 {(isPassword || secureTextEntry) && (
@@ -52,7 +53,7 @@ export const Input: React.FC<InputProps> = ({
             </View>
         </View>
     );
-};
+});
 
 const styles = StyleSheet.create({
     container: {

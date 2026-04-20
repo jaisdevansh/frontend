@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback, memo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, TextInput } from 'react-native';
+import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -37,6 +38,7 @@ export default function EditProfileScreen() {
     const { showToast } = useToast();
     const queryClient = useQueryClient();
     const { updateUser } = useAuth();
+    const scrollViewRef = useRef<KeyboardAwareScrollView>(null);
 
     // Use SAME queryKey as useHostProfile hook → data is already cached, no extra network call
     const { data: profileData, isLoading: isFetching } = useQuery({
@@ -182,8 +184,17 @@ export default function EditProfileScreen() {
                 </TouchableOpacity>
             </View>
 
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <KeyboardAwareScrollView
+                ref={scrollViewRef}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+                enableOnAndroid={true}
+                enableAutomaticScroll={true}
+                extraHeight={250}
+                extraScrollHeight={250}
+                keyboardOpeningTime={0}
+                keyboardShouldPersistTaps="handled"
+            >
                     
                     {/* Image Section */}
                     <View style={styles.imageSection}>
@@ -214,8 +225,7 @@ export default function EditProfileScreen() {
                     <ProfileInput label="Email Address" value={form.email} onChangeText={(t: string) => handleChange('email', t)} placeholder="hello@company.com" keyboardType="email-address" autoCapitalize="none" />
 
                     <View style={{ height: 40 }} />
-                </ScrollView>
-            </KeyboardAvoidingView>
+                </KeyboardAwareScrollView>
         </SafeAreaView>
     );
 }

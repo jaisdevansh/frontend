@@ -312,7 +312,23 @@ export default function HostMediaUpload() {
                 {loading ? (
                     <View style={styles.loadingBox}>
                         <ActivityIndicator color={currentTab.color} size="large" />
-                        <Text style={styles.loadingText}>Fetching high-res media...</Text>
+                        <Text style={styles.loadingText}>Loading gallery...</Text>
+                    </View>
+                ) : currentMedia.length === 0 && !uploading ? (
+                    <View style={styles.emptyState}>
+                        <View style={[styles.emptyIconBox, { borderColor: currentTab.color + '20', backgroundColor: currentTab.color + '05' }]}>
+                            <Ionicons name={activeTab === 'interior' ? 'camera-outline' : 'albums-outline'} size={46} color={currentTab.color + '80'} />
+                        </View>
+                        <Text style={styles.emptyTitle}>Your Gallery is Empty</Text>
+                        <Text style={styles.emptyHint}>Showcase your {activeTab === 'interior' ? 'venue vibe' : 'best nights'} to attract more bookings.</Text>
+                        <TouchableOpacity
+                            style={[styles.emptyUploadBtn, { backgroundColor: currentTab.color + '15', borderColor: currentTab.color + '30' }]}
+                            onPress={handlePickAndUpload}
+                            activeOpacity={0.8}
+                        >
+                            <Ionicons name="cloud-upload-outline" size={20} color={currentTab.color} />
+                            <Text style={[styles.emptyUploadText, { color: currentTab.color }]}>Upload First Photo</Text>
+                        </TouchableOpacity>
                     </View>
                 ) : (
                     <View style={styles.grid}>
@@ -326,16 +342,6 @@ export default function HostMediaUpload() {
                         {currentMedia.map(item => (
                             <MediaThumb key={item._id} item={item} onRemove={handleRemove} />
                         ))}
-
-                        {currentMedia.length === 0 && !uploading && (
-                            <View style={styles.emptyState}>
-                                <View style={[styles.emptyIconBox, { borderColor: currentTab.color + '20', backgroundColor: currentTab.color + '05' }]}>
-                                    <Ionicons name={activeTab === 'interior' ? 'camera-outline' : 'albums-outline'} size={46} color={currentTab.color + '80'} />
-                                </View>
-                                <Text style={styles.emptyTitle}>Your Gallery is Empty</Text>
-                                <Text style={styles.emptyHint}>Showcase your {activeTab === 'interior' ? 'venue vibe' : 'best nights'} to attract more bookings.</Text>
-                            </View>
-                        )}
                     </View>
                 )}
 
@@ -485,6 +491,13 @@ const styles = StyleSheet.create({
         color: 'rgba(255,255,255,0.4)', fontSize: 14,
         fontWeight: '500', textAlign: 'center', lineHeight: 20,
     },
+    emptyUploadBtn: {
+        flexDirection: 'row', alignItems: 'center', gap: 10,
+        paddingHorizontal: 24, paddingVertical: 14,
+        borderRadius: 16, borderWidth: 1,
+        marginTop: 8,
+    },
+    emptyUploadText: { fontSize: 15, fontWeight: '700', letterSpacing: 0.2 },
 
     loadingBox: { width: '100%', alignItems: 'center', paddingVertical: 80, gap: 16 },
     loadingText: { color: 'rgba(255,255,255,0.4)', fontSize: 14, fontWeight: '600' },

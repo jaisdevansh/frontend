@@ -19,6 +19,7 @@ interface AuthState {
 
 interface AuthContextType extends AuthState {
     isLoading: boolean;
+    isInitialLoad: boolean;
     login: (authData: { token: string; role: string; refreshToken?: string; hostId?: string | null; user?: any; onboardingCompleted?: boolean }) => Promise<void>;
     updateUser: (userData: Partial<any>) => Promise<void>;
     setOnboardingStatus: (status: boolean) => Promise<void>;
@@ -37,6 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user: null
     });
     const [isLoading, setIsLoading] = useState(true);
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
     const queryClient = useQueryClient();
 
     useEffect(() => {
@@ -44,10 +46,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         // Listen to explicit force-logout/expiry events
         const roleSub = DeviceEventEmitter.addListener('SESSION_EXPIRED', () => {
+            // Ignore SESSION_EXPIRED during initial load (first 5 seconds after app opens)
+            if (isInitialLoad) {
+                console.log('[Auth] Ignoring SESSION_EXPIRED during initial load');
+                return;
+            }
             logout();
         });
         return () => roleSub.remove();
-    }, []);
+    }, [isInitialLoad]);
 
     const loadAuth = async () => {
         try {
@@ -77,6 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     }
                     
                     apiClient.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+                    console.log('[Auth] Token loaded and set on app reopen');
                 }
                 
                 setAuthState({ ...data, ...userData });
@@ -85,6 +93,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // Silent fail - app continues with no auth
         } finally {
             setIsLoading(false);
+            // After 5 seconds, allow SESSION_EXPIRED events to trigger logout
+            setTimeout(() => {
+                setIsInitialLoad(false);
+                console.log('[Auth] Initial load grace period ended');
+            }, 5000);
         }
     };
 
@@ -237,11 +250,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             throw new Error('Failed to save session. Please try again.');
         }
 
-        // ── STEP 3: Attach token to API client ──
+        // ── STEP 3: Attach token to API client (SYNCHRONOUS - must happen before navigation) ──
         apiClient.defaults.headers.common['Authorization'] = `Bearer ${authData.token}`;
+        console.log('[Auth] Token set in apiClient:', authData.token ? 'YES' : 'NO');
 
-        // ── STEP 4: Update React state ──
+        // ── STEP 4: Update React state (this triggers navigation) ──
+        // Wait a tick to ensure token is propagated to all axios instances
+        await new Promise(resolve => setTimeout(resolve, 50));
         setAuthState(payload);
+        
+        // Reset initial load flag on new login
+        setIsInitialLoad(false);
 
         // ── STEP 5: Prefetch data after navigation settles ──
         setTimeout(() => {
@@ -273,7 +292,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('[AuthContext] ✅ User updated. New user object:', { ...authState.user, ...userData });
     };
 
-    const logout = async () => {
+    const logout = async (isManual: boolean = false) => {
         try {
             // ── MANDATORY RESET ──
             await AsyncStorage.removeItem('auth');
@@ -300,10 +319,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             user: null,
             onboardingCompleted: false,
         });
+        
+        // Show appropriate toast for manual logout
+        if (isManual) {
+            // Emit a different event for manual logout
+            DeviceEventEmitter.emit('MANUAL_LOGOUT');
+        }
     };
 
     return (
-        <AuthContext.Provider value={{ ...authState, isLoading, login, updateUser, setOnboardingStatus, logout }}>
+        <AuthContext.Provider value={{ ...authState, isLoading, isInitialLoad, login, updateUser, setOnboardingStatus, logout }}>
             {children}
         </AuthContext.Provider>
     );

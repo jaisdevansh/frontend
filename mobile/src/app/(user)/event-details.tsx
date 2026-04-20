@@ -471,9 +471,21 @@ const EventDetails = () => {
                             activeOpacity={0.8}
                             onPress={() => {
                                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                // Get venue hero image from host's venue profile
+                                const venueImg = event.hostId?.venueProfile?.heroImage || 
+                                                event.hostId?.heroImage || 
+                                                event.venueId?.heroImage ||
+                                                event.venueId?.venueProfile?.heroImage ||
+                                                'https://images.unsplash.com/photo-1514525253361-bee8a197c0c1?auto=format&fit=crop&q=80&w=800';
+                                
                                 router.push({
-                                    pathname: '/(user)/host-media' as any,
-                                    params: { hostId: event.hostId?._id || event.hostId || event.host?._id || event.host || '' }
+                                    pathname: '/(user)/venue-details' as any,
+                                    params: { 
+                                        id: event.hostId?._id || event.hostId || event.venueId?._id || event.venueId,
+                                        name: venueName,
+                                        image: venueImg,
+                                        type: 'Exclusive Venue'
+                                    }
                                 });
                             }}
                         >

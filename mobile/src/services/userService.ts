@@ -86,6 +86,11 @@ export const userService = {
         return response.data;
     },
     
+    getVenueByHostId: async (hostId: string) => {
+        const response = await apiClient.get(`/user/venues/host/${hostId}`);
+        return response.data;
+    },
+    
     // Notifications logic
     getNotifications: async () => {
         const response = await apiClient.get('/api/v1/notifications');

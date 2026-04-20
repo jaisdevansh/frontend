@@ -253,7 +253,7 @@ export default function HostDashboard() {
             <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
             
             <View style={styles.topBar}>
-                <TouchableOpacity onPress={logout} style={styles.powerBtn}>
+                <TouchableOpacity onPress={() => logout(true)} style={styles.powerBtn}>
                     <Ionicons name="power" size={18} color="#ef4444" />
                 </TouchableOpacity>
             </View>
@@ -388,7 +388,7 @@ export default function HostDashboard() {
                             <Text style={styles.menuItemText}>Support (Chat to Admin)</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={[styles.menuItem, { borderBottomWidth: 0 }]} onPress={() => { setShowProfileMenu(false); logout(); }}>
+                        <TouchableOpacity style={[styles.menuItem, { borderBottomWidth: 0 }]} onPress={() => { setShowProfileMenu(false); logout(true); }}>
                             <Ionicons name="log-out-outline" size={24} color="#EF4444" />
                             <Text style={[styles.menuItemText, { color: '#EF4444' }]}>Logout</Text>
                         </TouchableOpacity>

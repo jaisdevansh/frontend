@@ -12,27 +12,22 @@ export default function Index() {
     const router = useRouter();
 
     useEffect(() => {
-        // High-end cinematic fade-in and scale
+        // Smooth animation matching splash duration
         Animated.parallel([
             Animated.timing(fadeAnim, {
                 toValue: 1,
-                duration: 1800,
+                duration: 800, // Match splash duration
                 useNativeDriver: true,
             }),
             Animated.spring(scaleAnim, {
                 toValue: 1,
-                tension: 8,
-                friction: 12,
+                tension: 10,
+                friction: 9,
                 useNativeDriver: true,
             })
         ]).start();
 
-        // Redirect to welcome screen after the cinematic intro finishes
-        const timer = setTimeout(() => {
-            router.replace('/(auth)/welcome');
-        }, 2800);
-
-        return () => clearTimeout(timer);
+        // Note: Navigation is handled by _layout.tsx, not here
     }, []);
 
     return (

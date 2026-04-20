@@ -55,7 +55,7 @@ export default function AdminSettings() {
     const handleLogout = useCallback(async () => {
         toastRef.current?.show({ title: 'Signing Out', message: 'Securing session...', type: 'info' });
         setTimeout(async () => {
-            await logout();
+            await logout(true);
             router.replace('/(auth)/login');
         }, 800);
     }, [logout, router]);

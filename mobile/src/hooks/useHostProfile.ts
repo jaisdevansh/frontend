@@ -5,13 +5,20 @@ import { useAuth } from '../context/AuthContext';
 export const useHostProfile = () => {
     const { token, role } = useAuth();
     
-    // Only fetch if user is a host
+    // Only fetch if user is a host AND token is available
     const isHost = role === 'host';
+    const shouldFetch = !!token && isHost;
     
     return useQuery({
         queryKey: ['hostProfile'],
-        enabled: !!token && isHost, // Only fetch for hosts
+        enabled: shouldFetch, // Only fetch when token AND role are ready
         queryFn: async () => {
+            // Double-check token exists before making request
+            if (!token) {
+                console.warn('[useHostProfile] No token available, skipping fetch');
+                return null;
+            }
+            
             try {
                 const res = await hostService.getProfile();
                 if (!res) {
@@ -20,6 +27,7 @@ export const useHostProfile = () => {
                 const profile = res.data || res.host || res;
                 return profile;
             } catch (error: any) {
+                console.warn('[useHostProfile] Fetch failed:', error.message);
                 return null;
             }
         },

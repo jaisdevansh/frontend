@@ -341,7 +341,7 @@ export default function WaiterPanel() {
                                 )}
                             </View>
                         </View>
-                        <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
+                        <TouchableOpacity style={styles.logoutBtn} onPress={() => logout(true)}>
                             <LinearGradient colors={['rgba(255,59,48,0.15)', 'rgba(255,59,48,0.05)']} style={styles.logoutInner}>
                                 <Ionicons name="power" size={18} color="#FF4D4D" />
                             </LinearGradient>

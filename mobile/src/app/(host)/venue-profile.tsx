@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Image, Platform as RNPlatform } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -51,6 +51,7 @@ export default function HostVenueProfile() {
     const [pickerVisible, setPickerVisible] = useState(false);
     const [pickerType, setPickerType] = useState<'opening' | 'closing'>('opening');
     const [pickerInitialDate, setPickerInitialDate] = useState(new Date());
+    const scrollViewRef = useRef<KeyboardAwareScrollView>(null);
 
     const openPicker = (type: 'opening' | 'closing') => {
         setPickerType(type);
@@ -206,12 +207,16 @@ export default function HostVenueProfile() {
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
             <KeyboardAwareScrollView
+                ref={scrollViewRef}
                 contentContainerStyle={styles.scrollContent}
                 keyboardShouldPersistTaps="handled"
                 keyboardDismissMode="interactive"
                 showsVerticalScrollIndicator={false}
                 enableOnAndroid={true}
-                extraScrollHeight={100}
+                enableAutomaticScroll={true}
+                extraHeight={250}
+                extraScrollHeight={250}
+                keyboardOpeningTime={0}
             >
                 <TouchableOpacity style={styles.backBtn} onPress={() => goBack()}>
                     <Ionicons name="arrow-back" size={24} color="white" />

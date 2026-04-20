@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator, Image, Switch, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ActivityIndicator, Image, Switch, FlatList, Platform, Keyboard, ScrollView } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useStrictBack } from '../../hooks/useStrictBack';
@@ -27,6 +28,7 @@ export default function HostCreateEvent() {
     const { showToast } = useToast();
     const insets = useSafeAreaInsets();
     const queryClient = useQueryClient();
+    const scrollViewRef = useRef<any>(null);
 
     // Form State
     const [title, setTitle] = useState('');
@@ -235,14 +237,19 @@ export default function HostCreateEvent() {
         try {
             const result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ['images'],
-                allowsEditing: true,
-                aspect: [16, 9],
+                allowsMultipleSelection: true,
+                selectionLimit: 10,
                 quality: 0.5,
                 base64: true,
             });
 
-            if (!result.canceled && result.assets[0].base64) {
-                setImages(prev => [...prev, `data:image/jpeg;base64,${result.assets[0].base64}`]);
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+                const newImages = result.assets
+                    .filter(asset => asset.base64)
+                    .map(asset => `data:image/jpeg;base64,${asset.base64}`);
+                
+                setImages(prev => [...prev, ...newImages]);
+                showToast(`${newImages.length} image${newImages.length > 1 ? 's' : ''} added`, 'success');
             }
         } catch (error) {
             showToast('Failed to pick additional image', 'error');
@@ -251,11 +258,18 @@ export default function HostCreateEvent() {
 
     const eventMutation = useMutation({
         mutationFn: async ({ eventData, targetStatus }: any) => {
-            return id
+            console.log('[MUTATION] Starting mutation, id:', id);
+            console.log('[MUTATION] Event data:', eventData);
+            
+            const result = id
                 ? await hostService.updateEvent(id as string, eventData)
                 : await hostService.createEvent(eventData);
+            
+            console.log('[MUTATION] Result:', result);
+            return result;
         },
         onSuccess: (response, variables) => {
+            console.log('[MUTATION SUCCESS] Response:', response);
             if (response.success) {
                 showToast(variables.targetStatus === 'DRAFT' ? 'Experience saved as Draft' : (id ? 'Experience Updated!' : 'Experience Launched!'), 'success');
                 queryClient.invalidateQueries({ queryKey: ['events'] });
@@ -266,6 +280,8 @@ export default function HostCreateEvent() {
             }
         },
         onError: (error: any) => {
+            console.log('[MUTATION ERROR]', error);
+            console.log('[MUTATION ERROR] Response:', error?.response?.data);
             showToast(error?.response?.data?.message || 'Something went wrong', 'error');
         }
     });
@@ -307,7 +323,7 @@ export default function HostCreateEvent() {
             revealTime: (locationVisibility === 'delayed' && revealTime) ? dayjs(revealTime, ['DD/MM/YYYY hh:mm A', 'DD/MM/YYYY HH:mm', 'YYYY-MM-DD HH:mm']).toISOString() : undefined,
             bookingOpenDate: bookingOpenDate ? dayjs(bookingOpenDate, ['DD/MM/YYYY hh:mm A', 'DD/MM/YYYY HH:mm', 'YYYY-MM-DD HH:mm']).toISOString() : undefined,
             tickets: tickets.map(t => ({
-                _id: t.id,
+                ...(t.id && t.id !== 'temp' ? { _id: t.id } : {}), // Only include _id if it's a real ID
                 type: t.type,
                 price: parseFloat(t.price) || 0,
                 capacity: parseInt(t.capacity) || 0
@@ -316,6 +332,10 @@ export default function HostCreateEvent() {
             locationData: finalLocation,
             status: targetStatus
         };
+
+        console.log('[UPDATE EVENT] Event ID:', id);
+        console.log('[UPDATE EVENT] Event Data:', JSON.stringify(eventData, null, 2));
+        console.log('[UPDATE EVENT] Target Status:', targetStatus);
 
         eventMutation.mutate({ eventData, targetStatus });
     };
@@ -329,17 +349,18 @@ export default function HostCreateEvent() {
     }
 
     return (
-        <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
-        >
         <SafeAreaView style={styles.container}>
-            <ScrollView
+            <KeyboardAwareScrollView
+                ref={scrollViewRef}
                 style={{ flex: 1 }}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
+                enableOnAndroid={true}
+                enableAutomaticScroll={true}
+                extraHeight={250}
+                extraScrollHeight={250}
+                keyboardOpeningTime={0}
             >
                 <TouchableOpacity style={styles.backBtn} onPress={() => goBack()}>
                     <Ionicons name="arrow-back" size={24} color="white" />
@@ -751,7 +772,7 @@ export default function HostCreateEvent() {
                         <Text style={styles.addTicketText}>Add Ticket Type</Text>
                     </TouchableOpacity>
                 </View>
-            </ScrollView>
+            </KeyboardAwareScrollView>
 
             <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
                 <View style={styles.footerRow}>
@@ -783,7 +804,6 @@ export default function HostCreateEvent() {
                 minDate={new Date()}
             />
         </SafeAreaView>
-        </KeyboardAvoidingView>
     );
 }
 

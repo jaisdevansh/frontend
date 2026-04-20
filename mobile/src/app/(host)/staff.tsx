@@ -1,11 +1,12 @@
-import React, { useCallback, useState, useMemo, memo } from 'react';
+import React, { useCallback, useState, useMemo, memo, useRef } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
-    TextInput, StatusBar, Modal, ScrollView, KeyboardAvoidingView,
+    TextInput, StatusBar, Modal,
     Platform, Switch, Pressable
 } from 'react-native';
 import SafeFlashList from '../../components/SafeFlashList';
 const FlashList = SafeFlashList;
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -72,6 +73,7 @@ export default function StaffManagement() {
     const router = useRouter();
     const { showToast } = useToast();
     const qc = useQueryClient();
+    const scrollViewRef = useRef<KeyboardAwareScrollView>(null);
 
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState<FilterType>('ALL');
@@ -301,19 +303,28 @@ export default function StaffManagement() {
 
             {/* Add Staff Modal */}
             <Modal visible={showAddModal} animationType="slide" transparent onRequestClose={() => setShowAddModal(false)}>
-                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-                    <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setShowAddModal(false)} />
-                    <View style={styles.sheet}>
-                        {/* Sheet handle */}
-                        <View style={styles.handle} />
-                        <View style={styles.sheetHeader}>
-                            <Text style={styles.sheetTitle}>Add Staff Member</Text>
-                            <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                                <Ionicons name="close" size={24} color="rgba(255,255,255,0.6)" />
-                            </TouchableOpacity>
-                        </View>
+                <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setShowAddModal(false)} />
+                <View style={styles.sheet}>
+                    {/* Sheet handle */}
+                    <View style={styles.handle} />
+                    <View style={styles.sheetHeader}>
+                        <Text style={styles.sheetTitle}>Add Staff Member</Text>
+                        <TouchableOpacity onPress={() => setShowAddModal(false)}>
+                            <Ionicons name="close" size={24} color="rgba(255,255,255,0.6)" />
+                        </TouchableOpacity>
+                    </View>
 
-                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+                    <KeyboardAwareScrollView
+                        ref={scrollViewRef}
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={{ paddingBottom: 40 }}
+                        enableOnAndroid={true}
+                        enableAutomaticScroll={true}
+                        extraHeight={250}
+                        extraScrollHeight={250}
+                        keyboardOpeningTime={0}
+                        keyboardShouldPersistTaps="handled"
+                    >
                             {/* Role Picker */}
                             <Text style={styles.sectionLabel}>ASSIGN ROLE</Text>
                             <RolePicker value={form.staffType} onChange={(r) => setField('staffType', r)} />
@@ -377,9 +388,8 @@ export default function StaffManagement() {
                                     <Text style={styles.saveBtnText}>Add {ROLE_CONFIG[form.staffType].label}</Text>
                                 )}
                             </TouchableOpacity>
-                        </ScrollView>
+                        </KeyboardAwareScrollView>
                     </View>
-                </KeyboardAvoidingView>
             </Modal>
         </View>
     );

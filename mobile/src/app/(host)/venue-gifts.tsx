@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View, Text, StyleSheet, Dimensions, Platform,
     ScrollView, TouchableOpacity, Modal, TextInput,
     ActivityIndicator, FlatList, Switch
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -47,6 +48,7 @@ export default function VenueGiftsScreen() {
     const [saving, setSaving] = useState(false);
     const [isModalVisible, setModalVisible] = useState(false);
     const [formData, setFormData] = useState(EMPTY_FORM);
+    const scrollViewRef = useRef<KeyboardAwareScrollView>(null);
     // STAGE 4: PRODUCTION-GRADE ASSET CACHE (Prevents media disappearance during sync)
     const localAssetCache = React.useRef<Record<string, string>>({});
 
@@ -261,7 +263,17 @@ export default function VenueGiftsScreen() {
                             </TouchableOpacity>
                         </View>
 
-                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+                        <KeyboardAwareScrollView
+                            ref={scrollViewRef}
+                            showsVerticalScrollIndicator={false}
+                            contentContainerStyle={{ paddingBottom: 40 }}
+                            enableOnAndroid={true}
+                            enableAutomaticScroll={true}
+                            extraHeight={250}
+                            extraScrollHeight={250}
+                            keyboardOpeningTime={0}
+                            keyboardShouldPersistTaps="handled"
+                        >
                             {/* Image Picker */}
                             <TouchableOpacity style={styles.imagePicker} onPress={pickImage} activeOpacity={0.8}>
                                 {formData.image ? (
@@ -354,7 +366,7 @@ export default function VenueGiftsScreen() {
                                     <Text style={styles.saveBtnText}>{formData._id ? 'Update Offering' : 'Add Offering'}</Text>
                                 )}
                             </TouchableOpacity>
-                        </ScrollView>
+                        </KeyboardAwareScrollView>
                     </View>
                 </View>
             </Modal>
