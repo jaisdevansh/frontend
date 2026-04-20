@@ -12,6 +12,10 @@ interface Message {
     isRead: boolean;
     tempId?: string; // for optimistic UI
     status?: 'sending' | 'sent' | 'failed';
+    senderName?: string; // User name of sender
+    senderImage?: string; // Profile image of sender
+    receiverName?: string; // User name of receiver
+    receiverImage?: string; // Profile image of receiver
 }
 
 interface ChatRequest {
@@ -77,21 +81,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
         });
 
         socket.on('connect', () => {
-            false && console.log('🔌 [ChatStore] Socket connected:', socket.id);
-            false && console.log('🔌 [ChatStore] Socket URL:', socketUrl);
-            false && console.log('🔌 [ChatStore] Socket transport:', socket.io.engine.transport.name);
+            console.log('🔌 [ChatStore] Socket connected:', socket.id);
+            console.log('🔌 [ChatStore] Socket URL:', socketUrl);
+            console.log('🔌 [ChatStore] Socket transport:', socket.io.engine.transport.name);
         });
 
         socket.on('connect_error', (error) => {
-            false && console.error('❌ [ChatStore] Socket connection error:', error.message);
+            console.error('❌ [ChatStore] Socket connection error:', error.message);
         });
 
         socket.on('disconnect', (reason) => {
-            false && console.warn('⚠️ [ChatStore] Socket disconnected:', reason);
+            console.warn('⚠️ [ChatStore] Socket disconnected:', reason);
         });
 
         socket.on('receive_message', (msg) => {
-            false && console.log('📨 [ChatStore] receive_message event:', { 
+            console.log('📨 [ChatStore] receive_message event:', { 
                 senderId: msg.senderId, 
                 receiverId: msg.receiverId,
                 content: msg.content?.substring(0, 50),
@@ -99,7 +103,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             });
             
             set((state) => {
-                false && console.log('🔍 [ChatStore] Echo check:', {
+                console.log('🔍 [ChatStore] Echo check:', {
                     msgSenderId: msg.senderId,
                     currentUserId: state.currentUserId,
                     isMatch: msg.senderId === state.currentUserId
@@ -107,7 +111,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 
                 // CRITICAL: Ignore messages sent by current user (echo prevention)
                 if (msg.senderId === state.currentUserId) {
-                    false && console.log('⏭️ [ChatStore] Ignoring own message echo');
+                    console.log('⏭️ [ChatStore] Ignoring own message echo');
                     return state;
                 }
                 
@@ -118,7 +122,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 // Check if this is a chat request (first message from this user)
                 const isChatAccepted = state.acceptedChats.has(peerId);
                 
-                false && console.log('🔍 [ChatStore] Message check:', { 
+                console.log('🔍 [ChatStore] Message check:', { 
                     peerId, 
                     isChatAccepted, 
                     existingMsgCount: existingMsgs.length,
@@ -127,13 +131,44 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 
                 // If chat request already exists, don't create another one
                 if (state.chatRequests[peerId]) {
-                    false && console.log('⏭️ [ChatStore] Chat request already pending, ignoring duplicate');
+                    console.log('⏭️ [ChatStore] Chat request already pending, ignoring duplicate');
                     return state;
+                }
+                
+                // Auto-accept if we already have messages with this peer (we initiated the chat)
+                if (!isChatAccepted && existingMsgs.length > 0) {
+                    console.log('✅ [ChatStore] Auto-accepting chat (we initiated):', peerId);
+                    const newAcceptedChats = new Set(state.acceptedChats);
+                    newAcceptedChats.add(peerId);
+                    
+                    const newMsg: Message = {
+                        _id: msg.tempId || `msg_${Date.now()}_${Math.random()}`,
+                        sender: peerId,
+                        receiver: msg.receiverId,
+                        content: msg.content,
+                        createdAt: msg.timestamp || new Date().toISOString(),
+                        isRead: false,
+                        status: 'sent',
+                        senderName: msg.senderName,
+                        senderImage: msg.senderImage
+                    };
+                    
+                    return {
+                        messagesByPeer: {
+                            ...state.messagesByPeer,
+                            [peerId]: [...existingMsgs, newMsg]
+                        },
+                        acceptedChats: newAcceptedChats,
+                        unreadCounts: {
+                            ...state.unreadCounts,
+                            [peerId]: (state.unreadCounts[peerId] || 0) + 1
+                        }
+                    };
                 }
                 
                 if (!isChatAccepted && existingMsgs.length === 0) {
                     // This is a NEW chat request
-                    false && console.log('🔔 [ChatStore] New chat request from:', peerId);
+                    console.log('🔔 [ChatStore] New chat request from:', peerId);
                     
                     // Store as pending chat request
                     const newRequest: ChatRequest = {
@@ -146,7 +181,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
                     
                     // Trigger chat request callback ONCE
                     if (state.onChatRequest) {
-                        false && console.log('🔔 [ChatStore] Triggering chat request callback');
+                        console.log('🔔 [ChatStore] Triggering chat request callback');
                         // Use setTimeout to prevent multiple rapid calls
                         setTimeout(() => {
                             const callback = get().onChatRequest;
@@ -172,7 +207,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
                     content: msg.content,
                     createdAt: msg.timestamp || new Date().toISOString(),
                     isRead: false,
-                    status: 'sent'
+                    status: 'sent',
+                    senderName: msg.senderName,
+                    senderImage: msg.senderImage
                 };
 
                 // Prevent duplicates - check by content and timestamp (not tempId)
@@ -182,15 +219,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 );
                 
                 if (isDuplicate) {
-                    false && console.log('⚠️ [ChatStore] Duplicate message detected (same content + time), skipping');
+                    console.log('⚠️ [ChatStore] Duplicate message detected (same content + time), skipping');
                     return state; 
                 }
 
-                false && console.log('✅ [ChatStore] Adding message to store:', { peerId, messageCount: existingMsgs.length + 1 });
+                console.log('✅ [ChatStore] Adding message to store:', { peerId, messageCount: existingMsgs.length + 1 });
 
                 // Trigger notification callback for accepted chats
                 if (state.onMessageReceived && isChatAccepted) {
-                    false && console.log('🔔 [ChatStore] Triggering notification callback');
+                    console.log('🔔 [ChatStore] Triggering notification callback');
                     state.onMessageReceived(peerId, msg.senderName || 'Someone', msg.content);
                 }
 
@@ -272,11 +309,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     sendMessage: (receiverId: string, content: string, currentUserId: string) => {
         const { socket } = get();
         if (!socket) {
-            false && console.error('❌ [ChatStore] Cannot send message: Socket not connected');
+            console.error('❌ [ChatStore] Cannot send message: Socket not connected');
             return;
         }
 
-        false && console.log('📤 [ChatStore] Sending message:', { receiverId, content: content.substring(0, 50), currentUserId });
+        console.log('📤 [ChatStore] Sending message:', { receiverId, content: content.substring(0, 50), currentUserId });
 
         const tempId = `temp_${Date.now()}`;
         const optimisticMsg: Message = {
@@ -293,11 +330,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // Optimistic UI Update - append to the end of the array (latest at bottom)
         set((state) => {
             const existingMsgs = state.messagesByPeer[receiverId] || [];
+            const newAcceptedChats = new Set(state.acceptedChats);
+            
+            // Auto-accept chat when sending first message
+            if (!newAcceptedChats.has(receiverId)) {
+                console.log('✅ [ChatStore] Auto-accepting chat with:', receiverId);
+                newAcceptedChats.add(receiverId);
+            }
+            
             return {
                 messagesByPeer: {
                     ...state.messagesByPeer,
                     [receiverId]: [...existingMsgs, optimisticMsg]
-                }
+                },
+                acceptedChats: newAcceptedChats
             };
         });
 
@@ -373,15 +419,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
     },
 
     acceptChatRequest: (senderId: string) => {
-        false && console.log('✅ [ChatStore] Accepting chat request from:', senderId);
+        console.log('✅ [ChatStore] Accepting chat request from:', senderId);
         set((state) => {
             const request = state.chatRequests[senderId];
             if (!request) {
-                false && console.warn('⚠️ [ChatStore] No pending request found for:', senderId);
+                console.warn('⚠️ [ChatStore] No pending request found for:', senderId);
                 return state;
             }
             
-            false && console.log('📝 [ChatStore] Current acceptedChats before:', Array.from(state.acceptedChats));
+            console.log('📝 [ChatStore] Current acceptedChats before:', Array.from(state.acceptedChats));
             
             // Move request message to messagesByPeer (append to end)
             const firstMessage: Message = {
@@ -391,7 +437,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 content: request.content,
                 createdAt: request.timestamp,
                 isRead: false,
-                status: 'sent'
+                status: 'sent',
+                senderName: request.senderName,
+                senderImage: request.senderImage
             };
             
             // Remove from requests, add to accepted chats
@@ -401,7 +449,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const newAcceptedChats = new Set(state.acceptedChats);
             newAcceptedChats.add(senderId);
             
-            false && console.log('📝 [ChatStore] New acceptedChats after:', Array.from(newAcceptedChats));
+            console.log('📝 [ChatStore] New acceptedChats after:', Array.from(newAcceptedChats));
             
             // Get existing messages (if any) and append first message
             const existingMessages = state.messagesByPeer[senderId] || [];
@@ -423,11 +471,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
             socket.emit('chat_request_accepted', { senderId });
         }
         
-        false && console.log('✅ [ChatStore] Chat request accepted successfully');
+        console.log('✅ [ChatStore] Chat request accepted successfully');
     },
 
     rejectChatRequest: (senderId: string) => {
-        false && console.log('❌ [ChatStore] Rejecting chat request from:', senderId);
+        console.log('❌ [ChatStore] Rejecting chat request from:', senderId);
         set((state) => {
             const newRequests = { ...state.chatRequests };
             delete newRequests[senderId];

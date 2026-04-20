@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, Image, TouchableOpacity, ActivityIndicator, Linking, Platform, Dimensions } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, Image, TouchableOpacity, ActivityIndicator, Linking, Platform, Dimensions, Modal } from 'react-native';
 import { useRouter, useNavigation, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,7 +8,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../constants/design-system';
 import { Button } from '../../components/Button';
 import { userService } from '../../services/userService';
-import { log } from '../../utils/logger';
 
 const GEOAPIFY_KEY = process.env.EXPO_PUBLIC_GEOAPIFY_KEY || 'e6f13848c19246eab1bef2662e18ebd0';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -20,8 +19,9 @@ export default function VenueDetails() {
     const insets = useSafeAreaInsets();
 
     useEffect(() => {
-        log(`STEP 3: SCREEN OPEN (Venue Details)`);
-        log(`STEP 4: PARAM venueId: ${params.id}`);
+        if (!venueId) {
+            return;
+        }
     }, [params.id]);
 
     const fallbackImage = params.image && params.image !== 'undefined' ? String(params.image) : 'https://images.unsplash.com/photo-1514525253361-bee8a197c0c1?auto=format&fit=crop&q=80&w=800';
@@ -35,9 +35,17 @@ export default function VenueDetails() {
     const [loading, setLoading] = useState(true);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const scrollViewRef = useRef<ScrollView>(null);
+    const autoScrollTimer = useRef<any>(null);
+    const isUserScrolling = useRef(false);
+    
+    // Image viewer modal states
+    const [imageViewerVisible, setImageViewerVisible] = useState(false);
+    const [viewerImages, setViewerImages] = useState<string[]>([]);
+    const [viewerStartIndex, setViewerStartIndex] = useState(0);
+    const [viewerCurrentIndex, setViewerCurrentIndex] = useState(0);
+    const viewerScrollRef = useRef<ScrollView>(null);
 
     if (!venueId) {
-        log("ERROR: ID MISSING (Venue details)");
         return (
             <SafeAreaView style={{ flex: 1, backgroundColor: '#050505', justifyContent: 'center', alignItems: 'center' }}>
                 <Text style={{ color: '#FFF' }}>Error: Venue ID Missing.</Text>
@@ -50,38 +58,23 @@ export default function VenueDetails() {
 
     useEffect(() => {
         const fetchAll = async () => {
-            log(`STEP 5: API CALL START (Venue): ${venueId}`);
             try {
-                // Fetch venue by hostId (new endpoint)
                 const vRes = await userService.getVenueByHostId(venueId);
                 
                 if (vRes.success && vRes.data) {
-                    log(`STEP 6: API SUCCESS (Venue)`);
                     const venueInfo = vRes.data;
-                    
-                    // Log only keys, not full data (to avoid huge image data in logs)
-                    console.log('[VENUE DEBUG] ✓ Venue data received');
-                    console.log('[VENUE DEBUG] Venue name:', venueInfo.name);
-                    console.log('[VENUE DEBUG] Venue type:', venueInfo.venueType);
-                    console.log('[VENUE DEBUG] Description:', venueInfo.description?.substring(0, 50) + '...');
-                    console.log('[VENUE DEBUG] Media count:', venueInfo.media?.length || 0);
-                    
                     setVenueData(venueInfo);
                     if (Array.isArray(venueInfo.media) && venueInfo.media.length > 0) {
                         setVenueMedia(venueInfo.media);
                     }
-                } else {
-                    console.error('[VENUE DEBUG] ✗ API call failed or no data');
                 }
                 
-                // Fetch events separately
                 const eRes = await userService.getEvents();
                 if (eRes.success) {
                     setEvents(eRes.data);
                 }
             } catch (err: any) {
-                log(`STEP 6: API ERROR (Venue): ${err.message || 'Unknown'}`);
-                console.error('[VENUE DEBUG] Exception:', err.message);
+                console.error('[VENUE] Error fetching venue:', err.message);
             } finally {
                 setLoading(false);
             }
@@ -111,10 +104,6 @@ export default function VenueDetails() {
         venueData?.long ||
         venueData?.longitude as any
     );
-    
-    console.log('[VENUE COORDS] venueData.coordinates:', venueData?.coordinates);
-    console.log('[VENUE COORDS] venueData.location:', venueData?.location);
-    console.log('[VENUE COORDS] realLat:', realLat, 'realLng:', realLng);
     
     const safeLat = realLat || 28.6139;
     const safeLng = realLng || 77.2090;
@@ -155,35 +144,136 @@ export default function VenueDetails() {
     const displayDesc = venueData?.description || venueData?.about || venueData?.bio || "Experience the pinnacle of nightlife. Monochromatic luxury interior with architectural lighting and world-class acoustics.";
     const displayAddress = venueData?.address || venueData?.location?.address || venueData?.fullAddress || 'Premium Lounge & Nightclub';
 
-    console.log('[VENUE DISPLAY] Name:', displayName, '| Type:', displayType);
-    console.log('[VENUE DISPLAY] Description:', displayDesc?.substring(0, 60) + '...');
-    console.log('[VENUE DISPLAY] Has custom image:', !!venueData?.heroImage);
-
     // Collect all images for carousel
     const allImages: string[] = [];
     
-    // Add hero image first
     if (displayImage) {
         allImages.push(displayImage);
     }
     
-    // Add media images from venueMedia state (interior category)
     if (venueMedia && venueMedia.length > 0) {
         const interiorImages = venueMedia
             .filter((m: any) => (m.category === 'interior' || !m.category) && m.type !== 'video')
             .map((m: any) => m.url);
         allImages.push(...interiorImages);
-        console.log('[CAROUSEL] Total images:', allImages.length, '(hero + interior)');
     }
     
-    // If no images at all, use fallback
     const carouselImages = allImages.length > 0 ? allImages : [fallbackImage];
 
-    const handleScroll = (event: any) => {
+    const handleScroll = useCallback((event: any) => {
         const scrollPosition = event.nativeEvent.contentOffset.x;
         const index = Math.round(scrollPosition / SCREEN_WIDTH);
-        setCurrentImageIndex(index);
-    };
+        if (index !== currentImageIndex) {
+            setCurrentImageIndex(index);
+        }
+    }, [currentImageIndex]);
+
+    const handleViewerScroll = useCallback((event: any) => {
+        const scrollPosition = event.nativeEvent.contentOffset.x;
+        const index = Math.round(scrollPosition / SCREEN_WIDTH);
+        if (index !== viewerCurrentIndex) {
+            setViewerCurrentIndex(index);
+        }
+    }, [viewerCurrentIndex]);
+
+    const openImageViewer = useCallback((images: string[], startIndex: number) => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        setViewerImages(images);
+        setViewerStartIndex(startIndex);
+        setViewerCurrentIndex(startIndex);
+        setImageViewerVisible(true);
+        
+        // Scroll to selected image after modal opens
+        setTimeout(() => {
+            viewerScrollRef.current?.scrollTo({
+                x: startIndex * SCREEN_WIDTH,
+                animated: false
+            });
+        }, 100);
+    }, []);
+
+    const closeImageViewer = useCallback(() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setImageViewerVisible(false);
+        setViewerImages([]);
+        setViewerCurrentIndex(0);
+    }, []);
+
+    const handleScrollBeginDrag = useCallback(() => {
+        isUserScrolling.current = true;
+        if (autoScrollTimer.current) {
+            clearInterval(autoScrollTimer.current);
+            autoScrollTimer.current = null;
+        }
+    }, []);
+
+    const handleScrollEndDrag = useCallback(() => {
+        isUserScrolling.current = false;
+        if (carouselImages.length > 1) {
+            const timer = setTimeout(() => {
+                startAutoScroll();
+            }, 2000);
+            return () => clearTimeout(timer);
+        }
+    }, [carouselImages.length]);
+
+    const startAutoScroll = useCallback(() => {
+        if (autoScrollTimer.current) {
+            clearInterval(autoScrollTimer.current);
+            autoScrollTimer.current = null;
+        }
+
+        if (carouselImages.length <= 1) return;
+
+        autoScrollTimer.current = setInterval(() => {
+            if (!isUserScrolling.current && scrollViewRef.current) {
+                setCurrentImageIndex((prevIndex) => {
+                    const nextIndex = (prevIndex + 1) % carouselImages.length;
+                    try {
+                        scrollViewRef.current?.scrollTo({
+                            x: nextIndex * SCREEN_WIDTH,
+                            animated: true
+                        });
+                    } catch (error) {
+                        console.error('[CAROUSEL] Scroll error:', error);
+                    }
+                    return nextIndex;
+                });
+            }
+        }, 3500);
+    }, [carouselImages.length]);
+
+    // Auto-scroll carousel with proper cleanup and error handling
+    useEffect(() => {
+        if (carouselImages.length <= 1 || loading) {
+            return;
+        }
+
+        const initTimer = setTimeout(() => {
+            if (!isUserScrolling.current) {
+                startAutoScroll();
+            }
+        }, 1000);
+
+        return () => {
+            clearTimeout(initTimer);
+            if (autoScrollTimer.current) {
+                clearInterval(autoScrollTimer.current);
+                autoScrollTimer.current = null;
+            }
+        };
+    }, [carouselImages.length, loading, startAutoScroll]);
+
+    // Cleanup on unmount - critical for memory management
+    useEffect(() => {
+        return () => {
+            if (autoScrollTimer.current) {
+                clearInterval(autoScrollTimer.current);
+                autoScrollTimer.current = null;
+            }
+            isUserScrolling.current = false;
+        };
+    }, []);
 
     return (
         <View style={styles.container}>
@@ -196,13 +286,20 @@ export default function VenueDetails() {
                         pagingEnabled
                         showsHorizontalScrollIndicator={false}
                         onScroll={handleScroll}
+                        onScrollBeginDrag={handleScrollBeginDrag}
+                        onScrollEndDrag={handleScrollEndDrag}
                         scrollEventThrottle={16}
+                        decelerationRate="fast"
+                        snapToInterval={SCREEN_WIDTH}
+                        snapToAlignment="center"
+                        bounces={false}
                     >
                         {carouselImages.map((imageUrl, index) => (
                             <Image
-                                key={index}
+                                key={`carousel-${index}`}
                                 source={{ uri: imageUrl }}
                                 style={styles.heroImage}
+                                resizeMode="cover"
                             />
                         ))}
                     </ScrollView>
@@ -222,7 +319,7 @@ export default function VenueDetails() {
                         <View style={styles.paginationDots}>
                             {carouselImages.map((_, index) => (
                                 <View
-                                    key={index}
+                                    key={`dot-${index}`}
                                     style={[
                                         styles.dot,
                                         index === currentImageIndex && styles.activeDot
@@ -275,21 +372,6 @@ export default function VenueDetails() {
                     <Text style={styles.description}>
                         {displayDesc}
                     </Text>
-
-                    <TouchableOpacity 
-                        style={styles.reviewPromptBtn}
-                        activeOpacity={0.7}
-                        onPress={() => router.push({
-                            pathname: '/(user)/write-review' as any,
-                            params: { id: venueId, name: displayName, image: displayImage, type: displayType }
-                        })}
-                    >
-                        <View style={styles.reviewPromptLeft}>
-                            <Ionicons name="create-outline" size={20} color={COLORS.primary} />
-                            <Text style={styles.reviewPromptText}>Write a Review</Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={16} color="rgba(255, 255, 255, 0.3)" />
-                    </TouchableOpacity>
 
                     {/* LOCATION SECTION */}
                     <Text style={styles.sectionTitle}>Location</Text>
@@ -350,9 +432,17 @@ export default function VenueDetails() {
                                         </View>
                                         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
                                             {interior.map((m: any, idx: number) => (
-                                                <View key={m._id || idx} style={{ width: 160, height: 110, borderRadius: 14, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(108,99,255,0.2)' }}>
+                                                <TouchableOpacity 
+                                                    key={m._id || idx} 
+                                                    style={{ width: 160, height: 110, borderRadius: 14, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(108,99,255,0.2)' }}
+                                                    activeOpacity={0.8}
+                                                    onPress={() => openImageViewer(interior.map((img: any) => img.url), idx)}
+                                                >
                                                     <Image source={{ uri: m.url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                                                </View>
+                                                    <View style={{ position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
+                                                        <Ionicons name="expand-outline" size={12} color="white" />
+                                                    </View>
+                                                </TouchableOpacity>
                                             ))}
                                         </ScrollView>
                                     </View>
@@ -370,14 +460,23 @@ export default function VenueDetails() {
                                         </View>
                                         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
                                             {events.map((m: any, idx: number) => (
-                                                <View key={m._id || idx} style={{ width: 160, height: 110, borderRadius: 14, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(245,158,11,0.2)' }}>
+                                                <TouchableOpacity 
+                                                    key={m._id || idx} 
+                                                    style={{ width: 160, height: 110, borderRadius: 14, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(245,158,11,0.2)' }}
+                                                    activeOpacity={0.8}
+                                                    onPress={() => openImageViewer(events.filter((e: any) => e.type !== 'video').map((img: any) => img.url), idx)}
+                                                >
                                                     <Image source={{ uri: m.url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                                                    {m.type === 'video' && (
+                                                    {m.type === 'video' ? (
                                                         <View style={{ ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.35)' }}>
                                                             <Ionicons name="play-circle" size={32} color="#fff" />
                                                         </View>
+                                                    ) : (
+                                                        <View style={{ position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
+                                                            <Ionicons name="expand-outline" size={12} color="white" />
+                                                        </View>
                                                     )}
-                                                </View>
+                                                </TouchableOpacity>
                                             ))}
                                         </ScrollView>
                                     </View>
@@ -416,7 +515,6 @@ export default function VenueDetails() {
                                                     image: event.coverImage || displayImage
                                                 }
                                             });
-                                            console.log(`[PERF] VenueEvent Navigation took ${Date.now() - startTime}ms`);
                                             setTimeout(() => setLoading(false), 500);
                                         }, 150);
                                     }}
@@ -447,10 +545,8 @@ export default function VenueDetails() {
                     onPress={() => {
                         setLoading(true);
                         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                        const footStartTime = Date.now();
                         setTimeout(() => {
                             router.push('/(user)/event-details');
-                            console.log(`[PERF] VenueFooter Navigation took ${Date.now() - footStartTime}ms`);
                             setTimeout(() => setLoading(false), 500);
                         }, 150);
                     }}
@@ -465,6 +561,71 @@ export default function VenueDetails() {
                     </LinearGradient>
                 </TouchableOpacity>
             </View>
+
+            {/* Full-Screen Image Viewer Modal */}
+            <Modal
+                visible={imageViewerVisible}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={closeImageViewer}
+                statusBarTranslucent
+            >
+                <View style={styles.modalContainer}>
+                    {/* Header */}
+                    <View style={[styles.modalHeader, { paddingTop: insets.top + 10 }]}>
+                        <TouchableOpacity 
+                            style={styles.modalCloseBtn} 
+                            onPress={closeImageViewer}
+                            activeOpacity={0.8}
+                        >
+                            <Ionicons name="close" size={28} color="#FFF" />
+                        </TouchableOpacity>
+                        <Text style={styles.modalCounter}>
+                            {viewerCurrentIndex + 1} / {viewerImages.length}
+                        </Text>
+                        <View style={{ width: 40 }} />
+                    </View>
+
+                    {/* Image Carousel */}
+                    <ScrollView
+                        ref={viewerScrollRef}
+                        horizontal
+                        pagingEnabled
+                        showsHorizontalScrollIndicator={false}
+                        onScroll={handleViewerScroll}
+                        scrollEventThrottle={16}
+                        decelerationRate="fast"
+                        snapToInterval={SCREEN_WIDTH}
+                        snapToAlignment="center"
+                        bounces={false}
+                    >
+                        {viewerImages.map((imageUrl, index) => (
+                            <View key={`viewer-${index}`} style={styles.modalImageContainer}>
+                                <Image
+                                    source={{ uri: imageUrl }}
+                                    style={styles.modalImage}
+                                    resizeMode="contain"
+                                />
+                            </View>
+                        ))}
+                    </ScrollView>
+
+                    {/* Pagination Dots */}
+                    {viewerImages.length > 1 && (
+                        <View style={styles.modalPaginationDots}>
+                            {viewerImages.map((_, index) => (
+                                <View
+                                    key={`modal-dot-${index}`}
+                                    style={[
+                                        styles.modalDot,
+                                        index === viewerCurrentIndex && styles.modalActiveDot
+                                    ]}
+                                />
+                            ))}
+                        </View>
+                    )}
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -586,27 +747,6 @@ const styles = StyleSheet.create({
         lineHeight: 22,
         marginBottom: SPACING.lg,
     },
-    reviewPromptBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-        padding: 16,
-        borderRadius: BORDER_RADIUS.lg,
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-        marginBottom: SPACING.xxl,
-    },
-    reviewPromptLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    reviewPromptText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: '600',
-    },
     sectionHeader: {
         marginBottom: SPACING.md,
     },
@@ -701,5 +841,60 @@ const styles = StyleSheet.create({
     },
     mapOverlay: {
         ...StyleSheet.absoluteFillObject,
+    },
+    modalContainer: {
+        flex: 1,
+        backgroundColor: '#000000',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        paddingBottom: 10,
+        backgroundColor: 'rgba(0,0,0,0.8)',
+    },
+    modalCloseBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    modalCounter: {
+        color: '#FFF',
+        fontSize: 16,
+        fontWeight: '700',
+    },
+    modalImageContainer: {
+        width: SCREEN_WIDTH,
+        height: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    modalImage: {
+        width: SCREEN_WIDTH,
+        height: '100%',
+    },
+    modalPaginationDots: {
+        position: 'absolute',
+        bottom: 40,
+        left: 0,
+        right: 0,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 8,
+    },
+    modalDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: 'rgba(255,255,255,0.3)',
+    },
+    modalActiveDot: {
+        width: 24,
+        backgroundColor: '#FFF',
     },
 });

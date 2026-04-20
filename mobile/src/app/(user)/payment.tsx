@@ -61,7 +61,7 @@ export default function SecureCheckout() {
     // Price calcs
     // Prefer total from params if available (calculated in previous step), fallback to estimate
     const passedTotal = params.total ? Number(params.total) : 0;
-    const basePrice = passedTotal > 0 ? (passedTotal / guests) : (zone.includes('VIP') ? 2500 : zone.includes('Lounge') ? 1500 : 800);
+    const basePrice = passedTotal > 0 ? (passedTotal / guests) : (zone.includes('VIP') ? 3500 : zone.includes('Lounge') ? 2000 : 1200);
     const subtotal      = passedTotal > 0 ? passedTotal : (Math.max(1, guests) * basePrice);
     const serviceCharge = Math.round(subtotal * 0.10);  // 10% platform service charge
     const totalDiscount = (isApplied ? appliedDiscount : 0) + (isPromoApplied ? promoDiscount : 0);
@@ -403,7 +403,9 @@ export default function SecureCheckout() {
                     </View>
                     {seatIds.length > 0 && (
                         <View style={styles.row}>
-                            <Text style={[styles.rowLbl, { flex: 1 }]} numberOfLines={1}>Seats: {seatIds.join(', ')}</Text>
+                            <Text style={[styles.rowLbl, { flex: 1 }]} numberOfLines={1}>
+                                Seats: {seatIds.map(id => id.includes('_s') ? id.split('_s')[1] : id).join(', ')}
+                            </Text>
                             <Text style={styles.rowVal}>Reserved</Text>
                         </View>
                     )}
