@@ -2,13 +2,12 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
     View, Text, StyleSheet, TextInput, TouchableOpacity,
     KeyboardAvoidingView, Platform, Animated,
-    ActivityIndicator,
+    ActivityIndicator, ScrollView,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import SafeFlashList from '../../../components/SafeFlashList';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
@@ -173,26 +172,34 @@ const MessageBubble = React.memo(({
             )}
 
             {/* Bubble */}
-            <View style={[styles.bubble, isMe ? styles.myBubble : styles.theirBubble]}>
-                {isMe && (
-                    <View style={[StyleSheet.absoluteFill, { borderRadius: 18, overflow: 'hidden' }]}>
-                        <LinearGradient
-                            colors={['#3B82F6', '#1D4ED8']}
-                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                            style={StyleSheet.absoluteFill}
-                        />
-                    </View>
-                )}
-                <Text style={[styles.msgText, isMe ? styles.myText : styles.theirText]}>
-                    {msg.text}
-                </Text>
-                <View style={styles.msgFooter}>
-                    <Text style={[styles.timeText, isMe ? styles.myTime : styles.theirTime]}>
-                        {fmtTime(msg.createdAt)}
+            {isMe ? (
+                <LinearGradient
+                    colors={['#3B82F6', '#1D4ED8']}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                    style={[styles.bubble, styles.myBubble]}
+                >
+                    <Text style={[styles.msgText, styles.myText]}>
+                        {msg.text}
                     </Text>
-                    {isMe && <StatusIcon status={msg.status} />}
+                    <View style={styles.msgFooter}>
+                        <Text style={[styles.timeText, styles.myTime]}>
+                            {fmtTime(msg.createdAt)}
+                        </Text>
+                        <StatusIcon status={msg.status} />
+                    </View>
+                </LinearGradient>
+            ) : (
+                <View style={[styles.bubble, styles.theirBubble]}>
+                    <Text style={[styles.msgText, styles.theirText]}>
+                        {msg.text}
+                    </Text>
+                    <View style={styles.msgFooter}>
+                        <Text style={[styles.timeText, styles.theirTime]}>
+                            {fmtTime(msg.createdAt)}
+                        </Text>
+                    </View>
                 </View>
-            </View>
+            )}
         </Animated.View>
     );
 });
@@ -253,7 +260,7 @@ export default function ChatScreen() {
     const isUserTyping = isTyping[peerId || convId] || false;
 
     const [inputText, setInputText]   = useState('');
-    const listRef                     = useRef<any>(null);
+    const listRef                     = useRef<ScrollView>(null);
     const typingTimer                 = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const isTypingLocal               = useRef(false);
     const headerScale                 = useRef(new Animated.Value(1)).current;
@@ -270,18 +277,15 @@ export default function ChatScreen() {
         fetchHistory(peerId);
     }, [peerId, token, myId]);
 
-    // ── Auto-scroll helpers ───────────────────────────────────────────────────
+    // ── Auto-scroll ──────────────────────────────────────────────────────────
     const scrollToBottom = useCallback((animated = true) => {
-        // FlashList: use scrollToOffset with huge value as reliable "scroll to end"
-        listRef.current?.scrollToOffset?.({ offset: 999999, animated });
-        // Fallback for FlatList/ScrollView
-        listRef.current?.scrollToEnd?.({ animated });
+        listRef.current?.scrollToEnd({ animated });
     }, []);
 
-    // ── Auto-scroll on new message ────────────────────────────────────────────
+    // Scroll when new messages arrive
     useEffect(() => {
         if (messages.length > 0) {
-            setTimeout(() => scrollToBottom(true), 150);
+            setTimeout(() => scrollToBottom(true), 100);
         }
     }, [messages.length]);
 
@@ -424,21 +428,22 @@ export default function ChatScreen() {
                         <Text style={styles.emptyChatTxt}>Send a message to start chatting</Text>
                     </View>
                 ) : (
-                    <SafeFlashList
+                    <ScrollView
                         ref={listRef}
-                        data={messages}
-                        keyExtractor={(m: any) => m._id || m.tempId || `${m.sender}_${m.createdAt}`}
-                        estimatedItemSize={72}
-                        renderItem={({ item, index }: { item: any; index: number }) => renderMessage({ item, index })}
                         contentContainerStyle={styles.listInner}
                         showsVerticalScrollIndicator={false}
                         onContentSizeChange={() => scrollToBottom(false)}
-                        ListFooterComponent={
-                            isUserTyping ? (
-                                <TypingIndicator name={actualPeerName || 'User'} avatar={actualPeerAvatar} />
-                            ) : null
-                        }
-                    />
+                        keyboardShouldPersistTaps="handled"
+                    >
+                        {messages.map((item, index) => (
+                            <React.Fragment key={item._id || item.tempId || `${item.sender}_${item.createdAt}_${index}`}>
+                                {renderMessage({ item, index })}
+                            </React.Fragment>
+                        ))}
+                        {isUserTyping && (
+                            <TypingIndicator name={actualPeerName || 'User'} avatar={actualPeerAvatar} />
+                        )}
+                    </ScrollView>
                 )}
 
                 {/* ─── Input Bar ─────────────────────────────────────────── */}
