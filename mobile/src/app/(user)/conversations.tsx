@@ -206,37 +206,81 @@ export default function ConversationsScreen() {
         socket,
         chatPeers,
         peersLoading,
+        messagesByPeer,
+        unreadCounts,
+        acceptedChats,
         initSocket,
         fetchPeers,
     } = useChatStore();
 
     const isConnected = socket?.connected || false;
-    const onlineUsers = new Set<string>(); // socket-based online tracking placeholder
+    const onlineUsers = new Set<string>();
 
-    // Map chatPeers (from backend) to Conversation format
-    const conversations = React.useMemo(() => chatPeers.map(p => ({
-        _id:       p.peerId,
-        otherUser: {
-            _id:          p.peerId,
-            name:         p.peerName,
-            profileImage: p.peerImage,
-        },
-        lastMessage:   p.lastMessage,
-        lastMessageAt: p.lastMessageAt,
-        unreadCount:   p.unreadCount,
-    })), [chatPeers]);
+    // Conversations: prefer backend chatPeers, fallback to local messagesByPeer
+    const conversations = React.useMemo(() => {
+        // ── Primary: data from backend API ────────────────────────────────────
+        if (chatPeers.length > 0) {
+            return chatPeers.map(p => ({
+                _id:       p.peerId,
+                otherUser: {
+                    _id:          p.peerId,
+                    name:         p.peerName,
+                    profileImage: p.peerImage || undefined,
+                },
+                lastMessage:   p.lastMessage,
+                lastMessageAt: p.lastMessageAt,
+                unreadCount:   p.unreadCount,
+            }));
+        }
+
+        // ── Fallback: derive from local socket store ───────────────────────────
+        const convs: any[] = [];
+        acceptedChats.forEach((peerId) => {
+            const messages = messagesByPeer[peerId] || [];
+            if (messages.length === 0) return;
+
+            const lastMsg = messages[messages.length - 1];
+            const unread  = unreadCounts[peerId] || 0;
+
+            let peerName  = 'User';
+            let peerImage: string | undefined;
+            for (let i = messages.length - 1; i >= 0; i--) {
+                if (messages[i].sender === peerId && messages[i].senderName) {
+                    peerName  = messages[i].senderName!;
+                    peerImage = messages[i].senderImage;
+                    break;
+                }
+            }
+
+            convs.push({
+                _id:       peerId,
+                otherUser: { _id: peerId, name: peerName, profileImage: peerImage },
+                lastMessage:   lastMsg.content,
+                lastMessageAt: lastMsg.createdAt || lastMsg.timestamp || null,
+                unreadCount:   unread,
+            });
+        });
+
+        convs.sort((a, b) => {
+            const ta = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+            const tb = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+            return tb - ta;
+        });
+
+        return convs;
+    }, [chatPeers, messagesByPeer, acceptedChats, unreadCounts]);
 
     const conversationsLoading = peersLoading;
-    const [searchQuery, setSearchQuery]   = useState('');
-    const [refreshing, setRefreshing]     = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [refreshing, setRefreshing]   = useState(false);
 
     // ── Init ──────────────────────────────────────────────────────────────────
     useEffect(() => {
         if (!token || !user?.id) return;
-        const userName = user?.name || user?.firstName || 'You';
+        const userName  = user?.name || user?.firstName || 'You';
         const userImage = user?.profileImage;
         initSocket(token, user.id, userName, userImage);
-        fetchPeers(); // ← Always fetch fresh list from backend on mount
+        fetchPeers(); // Try to get fresh data from backend
     }, [token, user?.id]);
 
     const onRefresh = useCallback(async () => {
@@ -244,6 +288,7 @@ export default function ConversationsScreen() {
         await fetchPeers();
         setRefreshing(false);
     }, [fetchPeers]);
+
 
     // ── Local Search ──────────────────────────────────────────────────────────
     const displayData = React.useMemo(() => {
