@@ -1123,40 +1123,70 @@ await new Promise(resolve => setTimeout(resolve, delay));
                                         }
 
                                         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                        setGiftModal(p => ({ ...p, processing: true }));
                                         
-                                        // Create gift request (not direct payment)
-                                        const requestId = `gift_req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-                                        const giftRequest = {
-                                            requestId,
-                                            senderId: currentUser?.id || '',
-                                            senderName: currentUser?.name || 'Someone',
-                                            senderImage: currentUser?.profileImage,
-                                            receiverId: giftModal.user.id || giftModal.user._id,
-                                            item: {
-                                                _id: giftModal.item._id || giftModal.item.id,
-                                                name: giftModal.item.name,
-                                                price: giftModal.item.price,
-                                                image: giftModal.item.image
-                                            },
-                                            message: giftModal.msg || `${currentUser?.name} wants to send you a gift!`,
-                                            timestamp: new Date().toISOString(),
-                                            eventId: activeEventId
-                                        };
-                                        
-                                        // Send gift request via socket
-                                        const currentSocket = useChatStore.getState().socket;
-                                        if (currentSocket) {
-                                            console.log('🎁 [Discover] Sending gift request:', giftRequest);
-                                            currentSocket.emit('send_gift_request', giftRequest);
+                                        try {
+                                            // 1. Create native DrinkRequest in Backend DB
+                                            const payload = {
+                                                receiverId: giftModal.user.id || giftModal.user._id,
+                                                eventId: activeEventId,
+                                                items: [{ 
+                                                    menuItemId: giftModal.item._id || giftModal.item.id,
+                                                    name: giftModal.item.name,
+                                                    price: giftModal.item.price,
+                                                    quantity: 1
+                                                }],
+                                                message: giftModal.msg || `${currentUser?.name} wants to send you a gift!`,
+                                                totalAmount: giftModal.item.price
+                                            };
                                             
-                                            showToast('Gift request sent! 🎁', 'success');
-                                            setGiftModal({ visible: false, user: null, item: null, msg: '', processing: false });
-                                        } else {
+                                            const res = await apiClient.post('/api/v1/drink-requests/send', payload);
+                                            
+                                            if (res.data.success && res.data.data) {
+                                                const nativeRequest = res.data.data;
+                                                
+                                                // Create socket payload including the real DB _id as requestId
+                                                const giftRequest = {
+                                                    requestId: nativeRequest._id,
+                                                    senderId: currentUser?.id || '',
+                                                    senderName: currentUser?.name || 'Someone',
+                                                    senderImage: currentUser?.profileImage,
+                                                    receiverId: giftModal.user.id || giftModal.user._id,
+                                                    item: {
+                                                        _id: giftModal.item._id || giftModal.item.id,
+                                                        name: giftModal.item.name,
+                                                        price: giftModal.item.price,
+                                                        image: giftModal.item.image
+                                                    },
+                                                    message: payload.message,
+                                                    timestamp: new Date().toISOString(),
+                                                    eventId: activeEventId
+                                                };
+                                                
+                                                // 2. Send gift request via socket
+                                                const currentSocket = useChatStore.getState().socket;
+                                                if (currentSocket) {
+                                                    console.log('🎁 [Discover] Sending gift request:', giftRequest);
+                                                    currentSocket.emit('send_gift_request', giftRequest);
+                                                }
+                                                
+                                                showToast('Gift request sent! 🎁', 'success');
+                                            } else {
+                                                setCustomAlert({ 
+                                                    visible: true, 
+                                                    title: 'Failed', 
+                                                    message: 'Unable to send gift request.' 
+                                                });
+                                            }
+                                        } catch (error: any) {
+                                            console.error('Gift send err:', error);
                                             setCustomAlert({ 
                                                 visible: true, 
-                                                title: 'Connection Error', 
-                                                message: 'Unable to send gift request. Please check your connection.' 
+                                                title: 'Error', 
+                                                message: error.response?.data?.message || 'Failed to send gift request.' 
                                             });
+                                        } finally {
+                                            setGiftModal({ visible: false, user: null, item: null, msg: '', processing: false });
                                         }
                                     }}
                                 >
@@ -1457,26 +1487,16 @@ await new Promise(resolve => setTimeout(resolve, delay));
                                     if (!giftRequestModal.request) return;
                                     
                                     try {
-                                        // Process payment and create order
+                                        // Respond to the native DrinkRequest
                                         const payload = {
-                                            senderId: giftRequestModal.request.senderId,
-                                            receiverId: currentUser?.id,
-                                            eventId: giftRequestModal.request.eventId || activeEventId,
-                                            items: [{
-                                                menuItemId: giftRequestModal.request.item._id,
-                                                quantity: 1,
-                                                price: giftRequestModal.request.item.price,
-                                                name: giftRequestModal.request.item.name
-                                            }],
-                                            message: giftRequestModal.request.message,
-                                            totalAmount: giftRequestModal.request.item.price,
-                                            requestId: giftRequestModal.request.requestId
+                                            requestId: giftRequestModal.request.requestId,
+                                            action: 'accept'
                                         };
                                         
-                                        const res = await apiClient.post('/api/v1/drink-requests/send', payload);
+                                        const res = await apiClient.post('/api/v1/drink-requests/respond', payload);
                                         
                                         if (res.data.success) {
-                                            showToast('Gift accepted! 🎉 Payment processed.', 'success');
+                                            showToast('Gift accepted! 🎉', 'success');
                                             
                                             // Notify sender via socket
                                             const currentSocket = useChatStore.getState().socket;
@@ -1496,8 +1516,8 @@ await new Promise(resolve => setTimeout(resolve, delay));
                                         console.error('Gift accept error:', error);
                                         setCustomAlert({ 
                                             visible: true, 
-                                            title: 'Payment Failed', 
-                                            message: error.response?.data?.message || 'Failed to process payment. Please try again.' 
+                                            title: 'Failed to Accept', 
+                                            message: error.response?.data?.message || 'Failed to accept gift. Please try again.' 
                                         });
                                     }
                                 }}
