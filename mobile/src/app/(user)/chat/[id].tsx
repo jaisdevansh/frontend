@@ -271,15 +271,19 @@ export default function ChatScreen() {
 
     // ── Auto-scroll ──────────────────────────────────────────────────────────
     const scrollToBottom = useCallback((animated = true) => {
-        listRef.current?.scrollToEnd({ animated });
+        if (!listRef.current) return;
+        // Wrapping in timeout ensures layout is fully complete before scrolling
+        setTimeout(() => {
+            listRef.current?.scrollToEnd({ animated });
+        }, 50);
     }, []);
 
-    // Scroll when new messages arrive
+    // Scroll when new messages arrive (animated)
     useEffect(() => {
         if (messages.length > 0) {
-            setTimeout(() => scrollToBottom(true), 100);
+            scrollToBottom(true);
         }
-    }, [messages.length]);
+    }, [messages.length, scrollToBottom]);
 
     // ── Mark read when messages load ─────────────────────────────────────────
     useEffect(() => {
@@ -425,6 +429,7 @@ export default function ChatScreen() {
                         contentContainerStyle={styles.listInner}
                         showsVerticalScrollIndicator={false}
                         onContentSizeChange={() => scrollToBottom(false)}
+                        onLayout={() => scrollToBottom(false)}
                         keyboardShouldPersistTaps="handled"
                     >
                         {messages.map((item, index) => (
