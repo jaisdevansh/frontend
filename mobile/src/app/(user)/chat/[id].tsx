@@ -11,6 +11,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
+import { FlatList } from 'react-native';
 
 import { useChatStore } from '../../../store/chatStore';
 import { useAuth } from '../../../context/AuthContext';
@@ -224,6 +225,12 @@ export default function ChatScreen() {
             return text.trim().length > 0 || m.type === 'image' || m.type === 'video';
         });
     }, [messagesByPeer, peerId, convId]);
+
+    // For inverted FlatList, index 0 must be the NEWEST message.
+    const invertedMessages = useMemo(() => {
+        return [...messages].reverse();
+    }, [messages]);
+
     
     // Get user info from messages if not provided in params
     const actualPeerName = useMemo(() => {
@@ -252,7 +259,7 @@ export default function ChatScreen() {
     const isUserTyping = isTyping[peerId || convId] || false;
 
     const [inputText, setInputText]   = useState('');
-    const listRef                     = useRef<ScrollView>(null);
+    const listRef                     = useRef<FlatList>(null);
     const typingTimer                 = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const isTypingLocal               = useRef(false);
     const headerScale                 = useRef(new Animated.Value(1)).current;
@@ -269,21 +276,9 @@ export default function ChatScreen() {
         fetchHistory(peerId);
     }, [peerId, token, myId]);
 
-    // ── Auto-scroll ──────────────────────────────────────────────────────────
-    const scrollToBottom = useCallback((animated = true) => {
-        if (!listRef.current) return;
-        // Wrapping in timeout ensures layout is fully complete before scrolling
-        setTimeout(() => {
-            listRef.current?.scrollToEnd({ animated });
-        }, 50);
-    }, []);
+    // ── Keyboard / Scroll Helpers ──────────────────────────────────────────────
+    // With inverted={true}, we no longer need scrollToEnd! FlatList organically rests at the bottom.
 
-    // Scroll when new messages arrive (animated)
-    useEffect(() => {
-        if (messages.length > 0) {
-            scrollToBottom(true);
-        }
-    }, [messages.length, scrollToBottom]);
 
     // ── Mark read when messages load ─────────────────────────────────────────
     useEffect(() => {
@@ -334,21 +329,26 @@ export default function ChatScreen() {
 
     // ── Render message ────────────────────────────────────────────────────────
     const renderMessage = useCallback(({ item, index }: { item: any; index: number }) => {
-        const isMe = item.sender === myId;
-        const prev = messages[index - 1];
-        const next = messages[index + 1];
-
-        // Date separator
-        const showDateSep = !prev ||
-            new Date(prev.createdAt || '').toDateString() !== new Date(item.createdAt || '').toDateString();
-
-        // Only show avatar for last message in a sequence from the same sender
-        const showAvatar = !isMe && (!next || next.sender !== item.sender);
+        if (!item) return null;
 
         const messageText = item.content || item.text || '';
         if (!messageText.trim() && item.type !== 'image' && item.type !== 'video') {
             return null; // Skip rendering empty non-media messages
         }
+
+        const isMe = item.sender === myId;
+        // In an inverted list, index + 1 is the physically higher (older) message
+        // index - 1 is the physically lower (newer) message
+        const prev = invertedMessages[index + 1]; 
+        const next = invertedMessages[index - 1];
+
+        // Show separator if there is no older message (oldest in chat) or if dates differ
+        const showDateSep = !prev ||
+            new Date(prev.createdAt || '').toDateString() !== new Date(item.createdAt || '').toDateString();
+
+        // Show avatar if this is the newest message in a sequence from them
+        // Meaning the newer message (next) is from someone else or doesn't exist
+        const showAvatar = !isMe && (!next || next.sender !== item.sender);
 
         return (
             <View>
@@ -367,7 +367,7 @@ export default function ChatScreen() {
                 />
             </View>
         );
-    }, [messages, myId, peerName, peerAvatar]);
+    }, [invertedMessages, myId, actualPeerName, actualPeerAvatar]);
 
     return (
         <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
@@ -413,8 +413,8 @@ export default function ChatScreen() {
             {/* ─── Messages ──────────────────────────────────────────────── */}
             <KeyboardAvoidingView
                 style={{ flex: 1 }}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={0}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
             >
                 {messages.length === 0 ? (
                     <View style={styles.emptyChat}>
@@ -424,23 +424,21 @@ export default function ChatScreen() {
                         <Text style={styles.emptyChatTxt}>Send a message to start chatting</Text>
                     </View>
                 ) : (
-                    <ScrollView
+                    <FlatList
                         ref={listRef}
+                        data={invertedMessages}
+                        inverted={true}
+                        keyExtractor={(item) => item._id || item.tempId || `${item.sender}_${item.createdAt}`}
                         contentContainerStyle={styles.listInner}
                         showsVerticalScrollIndicator={false}
-                        onContentSizeChange={() => scrollToBottom(false)}
-                        onLayout={() => scrollToBottom(false)}
                         keyboardShouldPersistTaps="handled"
-                    >
-                        {messages.map((item, index) => (
-                            <React.Fragment key={item._id || item.tempId || `${item.sender}_${item.createdAt}_${index}`}>
-                                {renderMessage({ item, index })}
-                            </React.Fragment>
-                        ))}
-                        {isUserTyping && (
-                            <TypingIndicator name={actualPeerName || 'User'} avatar={actualPeerAvatar} />
-                        )}
-                    </ScrollView>
+                        renderItem={renderMessage}
+                        ListHeaderComponent={
+                            isUserTyping ? (
+                                <TypingIndicator name={actualPeerName || 'User'} avatar={actualPeerAvatar} />
+                            ) : null
+                        }
+                    />
                 )}
 
                 {/* ─── Input Bar ─────────────────────────────────────────── */}
