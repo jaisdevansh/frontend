@@ -145,7 +145,7 @@ const EventCardItem = React.memo(({ item, isLoading, onBodyPress, onDetailsPress
                             <View style={styles.statsRowLeft}>
                                 <View style={styles.statChip}>
                                     <Text style={styles.statChipTxt}>
-                                        ₹{item.tickets?.[0]?.price?.toLocaleString() || item.price?.toLocaleString() || '2,500'}
+                                        {item.displayPrice ? `₹${item.displayPrice.toLocaleString()}` : 'Free'}
                                     </Text>
                                 </View>
                                 <View style={styles.statChip}><MaterialCommunityIcons name="account-group" size={14} color="#22c55e" /><Text style={styles.statChipTxt}>{item.occupancy || '0%'}</Text></View>
@@ -573,7 +573,7 @@ export default function HomeScreen() {
                                     </View>
                                     <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
                                         <Text style={{ color: '#A78BFA', fontWeight: '800', fontSize: 13 }}>
-                                            ₹{item.tickets?.[0]?.price?.toLocaleString() || item.price?.toLocaleString() || '2,500'}
+                                            {item.displayPrice ? `₹${item.displayPrice.toLocaleString()}` : 'Free'}
                                         </Text>
                                         <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.3)" style={{ marginTop: 4 }} />
                                     </View>

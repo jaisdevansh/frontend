@@ -563,7 +563,7 @@ await new Promise(resolve => setTimeout(resolve, delay));
     const sendRealtimeMessage = () => {
         if (!msgInput.trim() || !chatModal.chatId || !currentUser) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        sendSocketMessage(chatModal.chatId, msgInput.trim(), currentUser.id);
+        sendSocketMessage(chatModal.chatId, msgInput.trim(), currentUser.id, currentUser.name, currentUser.profileImage);
         setMsgInput('');
     };
 

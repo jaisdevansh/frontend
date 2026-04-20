@@ -13,8 +13,17 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 
-import { useProductionChatStore, ChatMessage } from '../../../store/productionChatStore';
+import { useChatStore } from '../../../store/chatStore';
 import { useAuth } from '../../../context/AuthContext';
+
+// Define ChatMessage type for compatibility
+interface ChatMessage {
+    _id: string;
+    text: string;
+    senderId: string;
+    createdAt: string;
+    status?: string;
+}
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
 const C = {
@@ -198,17 +207,46 @@ export default function ChatScreen() {
     const myId = me?._id || me?.id || (me as any)?.userId;
 
     const {
-        socket, isConnected,
-        messagesByConv, typingByConv, onlineUsers,
-        messagesLoading, hasMoreMessages,
-        initSocket, fetchMessages, sendMessage,
-        joinConversation, leaveConversation,
-        markRead, sendTypingStart, sendTypingStop,
-    } = useProductionChatStore();
+        socket,
+        messagesByPeer,
+        isTyping,
+        initSocket,
+        fetchHistory,
+        sendMessage,
+        sendTyping,
+        markRead,
+    } = useChatStore();
 
-    const messages   = useMemo(() => messagesByConv[convId] || [], [messagesByConv, convId]);
-    const isTyping   = typingByConv[convId] || false;
-    const peerOnline = peerId ? onlineUsers.has(peerId) : false;
+    const messages = useMemo(() => {
+        const msgs = messagesByPeer[peerId || convId] || [];
+        return msgs;
+    }, [messagesByPeer, peerId, convId]);
+    
+    // Get user info from messages if not provided in params
+    const actualPeerName = useMemo(() => {
+        if (peerName && peerName !== 'undefined') return peerName;
+        
+        // Try to get name from messages
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage) {
+            const isMyMessage = lastMessage.sender === myId;
+            return isMyMessage ? lastMessage.receiverName : lastMessage.senderName;
+        }
+        return 'User';
+    }, [peerName, messages, myId]);
+    
+    const actualPeerAvatar = useMemo(() => {
+        if (peerAvatar && peerAvatar !== 'undefined' && peerAvatar !== '') return peerAvatar;
+        
+        // Try to get avatar from messages
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage) {
+            const isMyMessage = lastMessage.sender === myId;
+            return isMyMessage ? lastMessage.receiverImage : lastMessage.senderImage;
+        }
+        return undefined;
+    }, [peerAvatar, messages, myId]);
+    const isUserTyping = isTyping[peerId || convId] || false;
 
     const [inputText, setInputText]   = useState('');
     const listRef                     = useRef<any>(null);
@@ -218,18 +256,15 @@ export default function ChatScreen() {
 
     // ── Init ──────────────────────────────────────────────────────────────────
     useEffect(() => {
-        if (!token || !convId) return;
-        initSocket(token);
-        joinConversation(convId);
-        fetchMessages(convId);
-
-        return () => {
-            leaveConversation(convId);
-            const msgs = useProductionChatStore.getState().messagesByConv[convId] || [];
-            const last = msgs[msgs.length - 1];
-            if (last) markRead(convId, last._id);
-        };
-    }, [convId, token]);
+        if (!token || !myId || !peerId) {
+            return;
+        }
+        
+        const userName = me?.name || me?.firstName || 'You';
+        const userImage = me?.profileImage;
+        initSocket(token, myId, userName, userImage);
+        fetchHistory(peerId);
+    }, [peerId, token, myId]);
 
     // ── Auto-scroll on new message ────────────────────────────────────────────
     useEffect(() => {
@@ -240,44 +275,44 @@ export default function ChatScreen() {
 
     // ── Mark read when messages load ─────────────────────────────────────────
     useEffect(() => {
-        if (messages.length > 0) {
-            const last = messages[messages.length - 1];
-            if (last && last.senderId !== myId) {
-                markRead(convId, last._id);
-            }
+        if (messages.length > 0 && peerId) {
+            markRead(peerId);
         }
-    }, [messages.length]);
+    }, [messages.length, peerId]);
 
     // ── Send ──────────────────────────────────────────────────────────────────
     const handleSend = useCallback(() => {
-        if (!inputText.trim() || !convId || !myId) return;
+        if (!inputText.trim() || !peerId || !myId) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-        const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-        sendMessage(convId, inputText.trim(), myId, tempId);
+        // Get current user info
+        const currentUserName = me?.name || me?.firstName || 'You';
+        const currentUserImage = me?.profileImage;
+
+        sendMessage(peerId, inputText.trim(), myId, currentUserName, currentUserImage);
         setInputText('');
 
         // Stop typing indicator
         handleTypingStop();
-    }, [inputText, convId, myId, sendMessage]);
+    }, [inputText, peerId, myId, sendMessage, me]);
 
     // ── Typing ────────────────────────────────────────────────────────────────
     const handleTypingStart = useCallback(() => {
-        if (!isTypingLocal.current) {
+        if (!isTypingLocal.current && peerId) {
             isTypingLocal.current = true;
-            sendTypingStart(convId);
+            sendTyping(peerId);
         }
         clearTimeout(typingTimer.current);
         typingTimer.current = setTimeout(handleTypingStop, 3000);
-    }, [convId, sendTypingStart]);
+    }, [peerId, sendTyping]);
 
     const handleTypingStop = useCallback(() => {
         if (isTypingLocal.current) {
             isTypingLocal.current = false;
-            sendTypingStop(convId);
+            // Note: useChatStore doesn't have sendTypingStop, typing auto-expires
         }
         clearTimeout(typingTimer.current);
-    }, [convId, sendTypingStop]);
+    }, []);
 
     const handleTextChange = useCallback((text: string) => {
         setInputText(text);
@@ -285,34 +320,32 @@ export default function ChatScreen() {
         else handleTypingStop();
     }, [handleTypingStart, handleTypingStop]);
 
-    // ── Load more (scroll to top) ─────────────────────────────────────────────
-    const handleLoadMore = useCallback(() => {
-        if (hasMoreMessages[convId] && !messagesLoading[convId]) {
-            fetchMessages(convId, true);
-        }
-    }, [convId, hasMoreMessages, messagesLoading, fetchMessages]);
-
     // ── Render message ────────────────────────────────────────────────────────
-    const renderMessage = useCallback(({ item, index }: { item: ChatMessage; index: number }) => {
-        const isMe       = item.senderId === myId;
-        const prev       = messages[index - 1];
-        const next       = messages[index + 1];
+    const renderMessage = useCallback(({ item, index }: { item: any; index: number }) => {
+        const isMe = item.sender === myId;
+        const prev = messages[index - 1];
+        const next = messages[index + 1];
 
         // Date separator
         const showDateSep = !prev ||
-            new Date(prev.createdAt).toDateString() !== new Date(item.createdAt).toDateString();
+            new Date(prev.createdAt || '').toDateString() !== new Date(item.createdAt || '').toDateString();
 
         // Only show avatar for last message in a sequence from the same sender
-        const showAvatar = !isMe && (!next || next.senderId !== item.senderId);
+        const showAvatar = !isMe && (!next || next.sender !== item.sender);
 
         return (
             <View>
-                {showDateSep && <DateSep label={fmtDateSep(item.createdAt)} />}
+                {showDateSep && <DateSep label={fmtDateSep(item.createdAt || '')} />}
                 <MessageBubble
-                    msg={item}
+                    msg={{
+                        ...item,
+                        text: item.content,
+                        senderId: item.sender,
+                        createdAt: item.createdAt || new Date().toISOString()
+                    }}
                     isMe={isMe}
-                    peerName={peerName || 'User'}
-                    peerAvatar={peerAvatar}
+                    peerName={actualPeerName || item.senderName || 'User'}
+                    peerAvatar={actualPeerAvatar || item.senderImage}
                     showAvatar={showAvatar}
                 />
             </View>
@@ -331,24 +364,23 @@ export default function ChatScreen() {
                 {/* Avatar + name */}
                 <TouchableOpacity style={styles.headerCenter} activeOpacity={0.8}>
                     <View style={styles.headerAvatarWrap}>
-                        {peerAvatar ? (
-                            <Image source={{ uri: peerAvatar }} style={styles.headerAvatar} contentFit="cover" />
+                        {actualPeerAvatar ? (
+                            <Image source={{ uri: actualPeerAvatar }} style={styles.headerAvatar} contentFit="cover" />
                         ) : (
                             <View style={[styles.headerAvatar, {
-                                backgroundColor: avatarColor(peerName || 'U'),
+                                backgroundColor: avatarColor(actualPeerName || 'U'),
                                 alignItems: 'center', justifyContent: 'center',
                             }]}>
                                 <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>
-                                    {initials(peerName || 'U')}
+                                    {initials(actualPeerName || 'U')}
                                 </Text>
                             </View>
                         )}
-                        {peerOnline && <View style={styles.headerOnlineDot} />}
                     </View>
                     <View>
-                        <Text style={styles.headerName} numberOfLines={1}>{peerName || 'Chat'}</Text>
-                        <Text style={[styles.headerStatus, peerOnline && { color: C.online }]}>
-                            {isTyping ? 'typing…' : peerOnline ? 'Online' : 'Offline'}
+                        <Text style={styles.headerName} numberOfLines={1}>{actualPeerName || 'Chat'}</Text>
+                        <Text style={[styles.headerStatus]}>
+                            {isUserTyping ? 'typing…' : 'Online'}
                         </Text>
                     </View>
                 </TouchableOpacity>
@@ -367,40 +399,26 @@ export default function ChatScreen() {
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 keyboardVerticalOffset={0}
             >
-                {messagesLoading[convId] && messages.length === 0 ? (
-                    <View style={styles.loadingState}>
-                        <ActivityIndicator size="large" color={C.accent} />
+                {messages.length === 0 ? (
+                    <View style={styles.emptyChat}>
+                        <View style={styles.emptyChatIcon}>
+                            <Ionicons name="chatbubbles-outline" size={40} color={C.muted} />
+                        </View>
+                        <Text style={styles.emptyChatTxt}>Send a message to start chatting</Text>
                     </View>
                 ) : (
                     <SafeFlashList
                         ref={listRef}
                         data={messages}
-                        keyExtractor={(m: ChatMessage) => m._id}
+                        keyExtractor={(m: any) => m._id || m.tempId || `${m.sender}_${m.createdAt}`}
                         estimatedItemSize={72}
-                        renderItem={({ item, index }: { item: ChatMessage; index: number }) => renderMessage({ item, index })}
+                        renderItem={({ item, index }: { item: any; index: number }) => renderMessage({ item, index })}
                         contentContainerStyle={styles.listInner}
                         showsVerticalScrollIndicator={false}
-                        onStartReached={handleLoadMore}
-                        onStartReachedThreshold={0.2}
-                        ListHeaderComponent={
-                            messagesLoading[convId] && messages.length > 0 ? (
-                                <View style={{ padding: 16, alignItems: 'center' }}>
-                                    <ActivityIndicator size="small" color={C.accent} />
-                                </View>
-                            ) : null
-                        }
                         ListFooterComponent={
-                            isTyping ? (
-                                <TypingIndicator name={peerName || 'User'} avatar={peerAvatar} />
+                            isUserTyping ? (
+                                <TypingIndicator name={actualPeerName || 'User'} avatar={actualPeerAvatar} />
                             ) : null
-                        }
-                        ListEmptyComponent={
-                            <View style={styles.emptyChat}>
-                                <View style={styles.emptyChatIcon}>
-                                    <Ionicons name="chatbubbles-outline" size={40} color={C.muted} />
-                                </View>
-                                <Text style={styles.emptyChatTxt}>Send a message to start chatting</Text>
-                            </View>
                         }
                     />
                 )}

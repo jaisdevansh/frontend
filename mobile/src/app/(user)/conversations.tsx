@@ -12,22 +12,8 @@ import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 
-import { useChatStore } from '../../store/chatStore';
+import { useProductionChatStore, Conversation } from '../../store/productionChatStore';
 import { useAuth } from '../../context/AuthContext';
-
-// Convert chatStore format to Conversation format
-interface Conversation {
-    _id: string;
-    otherUser: {
-        _id: string;
-        name: string;
-        username?: string;
-        profileImage?: string;
-    };
-    lastMessage: string;
-    lastMessageAt: string | null;
-    unreadCount: number;
-}
 
 interface ChatUser {
     _id: string;
@@ -202,77 +188,29 @@ export default function ConversationsScreen() {
     const { user, token } = useAuth();
 
     const {
-        socket,
-        messagesByPeer,
-        unreadCounts,
-        acceptedChats,
+        conversations,
+        conversationsLoading,
+        isConnected,
+        onlineUsers,
         initSocket,
-    } = useChatStore();
+        fetchConversations,
+    } = useProductionChatStore();
 
     const [searchQuery, setSearchQuery]   = useState('');
     const [refreshing, setRefreshing]     = useState(false);
-    const [conversationsLoading, setConversationsLoading] = useState(false);
-
-    // Convert messagesByPeer to conversations format
-    const conversations: Conversation[] = React.useMemo(() => {
-        const convs: Conversation[] = [];
-        
-        // Only show accepted chats
-        acceptedChats.forEach((peerId) => {
-            const messages = messagesByPeer[peerId] || [];
-            if (messages.length === 0) return; // Skip if no messages
-            
-            const lastMsg = messages[messages.length - 1];
-            const unread = unreadCounts[peerId] || 0;
-            
-            // Extract user info from the last message
-            // If current user sent the message, get receiver info, otherwise get sender info
-            const isMyMessage = lastMsg.sender === user?.id;
-            const otherUserId = isMyMessage ? lastMsg.receiver : lastMsg.sender;
-            const otherUserName = isMyMessage 
-                ? (lastMsg.receiverName || 'User')
-                : (lastMsg.senderName || 'User');
-            const otherUserImage = isMyMessage
-                ? (lastMsg.receiverImage)
-                : (lastMsg.senderImage);
-            
-            convs.push({
-                _id: peerId,
-                otherUser: {
-                    _id: otherUserId,
-                    name: otherUserName,
-                    profileImage: otherUserImage,
-                },
-                lastMessage: lastMsg.content,
-                lastMessageAt: lastMsg.createdAt || null,
-                unreadCount: unread,
-            });
-        });
-        
-        // Sort by last message time (newest first)
-        convs.sort((a, b) => {
-            const timeA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
-            const timeB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
-            return timeB - timeA;
-        });
-        
-        return convs;
-    }, [messagesByPeer, acceptedChats, unreadCounts, user?.id]);
-
-    const isConnected = socket?.connected || false;
-    const onlineUsers = new Set<string>(); // TODO: Track online users
 
     // ── Init ──────────────────────────────────────────────────────────────────
     useEffect(() => {
-        if (!token || !user?.id) return;
-        initSocket(token, user.id);
-    }, [token, user?.id]);
+        if (!token) return;
+        initSocket(token);
+        fetchConversations();
+    }, [token, initSocket, fetchConversations]);
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
-        // Refresh logic here if needed
-        setTimeout(() => setRefreshing(false), 1000);
-    }, []);
+        await fetchConversations();
+        setRefreshing(false);
+    }, [fetchConversations]);
 
     // ── Local Search ──────────────────────────────────────────────────────────
     const displayData = React.useMemo(() => {
