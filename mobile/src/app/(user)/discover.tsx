@@ -679,12 +679,10 @@ await new Promise(resolve => setTimeout(resolve, delay));
                                     style={{ backgroundColor: 'rgba(139,92,246,0.2)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: '#8B5CF6' }}
                                     onPress={() => {
                                         Haptics.selectionAsync();
-                                        // Switch to gift tab
+                                        // Switch to gift tab and pre-select user silently
                                         setActiveTab('gift');
-                                        // Open gift modal with selected user
-                                        setTimeout(() => {
-                                            setGiftModal(p => ({ ...p, visible: true, user: u }));
-                                        }, 300);
+                                        setGiftModal(p => ({ ...p, user: u, item: null, visible: false }));
+                                        showToast(`Select a gift for ${(u.name || 'User').split(' ')[0]}`, 'success');
                                     }}
                                 >
                                     <Ionicons name="gift" size={14} color="#8B5CF6" />
@@ -1278,13 +1276,17 @@ await new Promise(resolve => setTimeout(resolve, delay));
                                 style={{ backgroundColor: 'rgba(139,92,246,0.2)', paddingVertical: 16, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderWidth: 1.5, borderColor: '#8B5CF6' }}
                                 onPress={() => {
                                     Haptics.selectionAsync();
+                                    const safeName = (userDetailModal.user?.name || 'User').split(' ')[0];
+                                    
+                                    // 1. Close detail modal
                                     setUserDetailModal({ visible: false, user: null });
-                                    // Switch to gift tab
+                                    
+                                    // 2. Pre-select user for future gift silently
+                                    setGiftModal(p => ({ ...p, user: userDetailModal.user, item: null, visible: false }));
+                                    
+                                    // 3. Switch to gift tab and prompt them
                                     setActiveTab('gift');
-                                    // Open gift modal with selected user
-                                    setTimeout(() => {
-                                        setGiftModal(p => ({ ...p, visible: true, user: userDetailModal.user }));
-                                    }, 300);
+                                    showToast(`Select a premium gift for ${safeName}`, 'success');
                                 }}
                             >
                                 <Ionicons name="gift" size={20} color="#8B5CF6" />

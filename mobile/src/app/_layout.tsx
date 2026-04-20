@@ -90,11 +90,16 @@ export default function RootLayout() {
     }
   }, [fontError]);
 
-  // Handle splash completion: if fonts are loaded OR if there's an error (graceful fallback)
+  // Handle splash completion: robust timeout to ensure native splash stays until JS app assumes control
   useEffect(() => {
-    if (loaded || fontError) {
-      SplashScreen.hideAsync().catch(() => {});
+    async function prepare() {
+      if (loaded || fontError) {
+        // Wait exactly like user requested to prevent APK white flash
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        await SplashScreen.hideAsync().catch(() => {});
+      }
     }
+    prepare();
   }, [loaded, fontError]);
 
   // If loading and no error yet, wait. If error, continue to prevent blocking.
