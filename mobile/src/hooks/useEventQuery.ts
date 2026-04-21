@@ -145,10 +145,19 @@ export const useFloorPlanQuery = (eventId: string) =>
         queryKey: eventKeys.floorPlan(eventId),
         queryFn: () => fetchFloorPlan(eventId),
         enabled: !!eventId,
-        staleTime: 5 * 60 * 1000,
+        // ⚠️  staleTime MUST be 0 for the floor plan.
+        // The floor-plan screen listens to the socket 'inventory_update' event and
+        // calls refetch() when another user books a seat. With any staleTime > 0,
+        // TanStack Query considers the data "fresh" and refetch() is a no-op —
+        // the booked seat never appears for other users.
+        // The backend already caches with a 30s Redis TTL for speed.
+        staleTime: 0,
+        gcTime: 2 * 60 * 1000, // keep in memory 2 min
         retry: 2,
         retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
+        refetchOnWindowFocus: true, // also refresh when user comes back to the screen
     });
+
 
 // ─── Prefetch Helper ──────────────────────────────────────────────────────────
 export const usePrefetchEvent = () => {
