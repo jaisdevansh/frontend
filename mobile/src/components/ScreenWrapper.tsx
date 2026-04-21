@@ -2,37 +2,41 @@ import React from "react";
 import {
     KeyboardAvoidingView,
     Platform,
-    View,
-    StyleSheet
+    ScrollView,
+    StyleSheet,
 } from "react-native";
-import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ScreenWrapper({ children }: { children: React.ReactNode }) {
     return (
-        <KeyboardAvoidingView
-            style={styles.flex}
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
-            keyboardVerticalOffset={0}
-        >
-            <KeyboardAwareScrollView
-                contentContainerStyle={styles.scrollGrow}
-                keyboardShouldPersistTaps="handled"
-                enableOnAndroid={true}
-                extraScrollHeight={140}
-                showsVerticalScrollIndicator={false}
-                bounces={false}
+        <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+            <KeyboardAvoidingView
+                style={styles.flex}
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
             >
-                {children}
-            </KeyboardAwareScrollView>
-        </KeyboardAvoidingView>
+                <ScrollView
+                    contentContainerStyle={styles.scrollGrow}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                    bounces={false}
+                >
+                    {children}
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
+    safe: {
+        flex: 1,
+        backgroundColor: "#000000",
+    },
     flex: {
-        flex: 1
+        flex: 1,
     },
     scrollGrow: {
-        flexGrow: 1
-    }
+        flexGrow: 1,
+    },
 });

@@ -5,7 +5,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useStrictBack } from '../../hooks/useStrictBack';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/Button';
@@ -33,7 +33,7 @@ export default function LoginScreen() {
     // Phone mode based on manual toggle
     const isPhoneMode = inputType === 'phone';
 
-    const insets = useSafeAreaInsets();
+
     const { login, logout } = useAuth();
     const router = useRouter();
     const goBack = useStrictBack('/(auth)/welcome');
@@ -169,7 +169,7 @@ export default function LoginScreen() {
                     style={styles.background}
                 />
                 
-                <View style={[styles.innerContent, { paddingTop: insets.top + 20 }]}>
+                <View style={styles.innerContent}>
                     <View style={styles.topSection}>
                         <TouchableOpacity onPress={() => goBack()} style={styles.backBtn}>
                             <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
@@ -258,7 +258,8 @@ const styles = StyleSheet.create({
     },
     innerContent: {
         paddingHorizontal: SPACING.xl,
-        paddingBottom: Platform.OS === 'ios' ? 40 : 80,
+        paddingTop: 20,
+        paddingBottom: 40,
         flex: 1,
         justifyContent: 'flex-start',
     },
