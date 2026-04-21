@@ -15,10 +15,9 @@ export default function ScreenWrapper({
         <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
             <KeyboardAvoidingView
                 style={styles.flex}
-                // On iOS, we MUST use padding behavior otherwise it ignores keyboard
-                // On Android, we MUST use undefined so that native adjustResize takes over physically
-                behavior={Platform.OS === "ios" ? "padding" : undefined}
-                keyboardVerticalOffset={0}
+                // METHOD 2: Using padding behavior on BOTH OS for explicit JS-controlled spacing in app.json "pan" mode.
+                behavior={Platform.OS === "ios" ? "padding" : "padding"}
+                keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
             >
                 <ScrollView
                     style={styles.flex}
@@ -29,10 +28,8 @@ export default function ScreenWrapper({
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                     bounces={false}
-                    // Auto inset adjustments required for iOS, mostly ignored/unnecessary on Android
                     automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
                 >
-                    {/* Wrap children in a static view that never squishes itself via flex, enabling robust ScrollView overflow */}
                     <View style={styles.contentWrap}>
                         {children}
                     </View>
@@ -56,7 +53,5 @@ const styles = StyleSheet.create({
     },
     contentWrap: {
         flexGrow: 1,
-        // No explicit height or flex:1 here! 
-        // This ensures children maintain natural heights and overspill natively.
     }
 });
