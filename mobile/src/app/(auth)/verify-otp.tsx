@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Platform, TouchableOpacity, Dimensions, KeyboardAvoidingView } from 'react-native';
+import { View, Text, StyleSheet, Platform, TouchableOpacity, Dimensions } from 'react-native';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../context/AuthContext';
 import { Input } from '../../components/Input';
@@ -20,7 +20,7 @@ export default function VerifyOtpScreen() {
     const [otp, setOtp] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const insets = useSafeAreaInsets();
+
     const { login } = useAuth();
     const router = useRouter();
     const { showToast } = useToast();
@@ -73,7 +73,7 @@ export default function VerifyOtpScreen() {
                     end={{ x: 1, y: 1 }}
                     style={styles.background}
                 />
-                <View style={[styles.innerContent, { paddingTop: insets.top + 20 }]}>
+                <View style={styles.innerContent}>
                     <View>
                         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
                             <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
@@ -123,8 +123,9 @@ export default function VerifyOtpScreen() {
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
+        // NO flex:1 — inside ScrollView, flex:1 blocks keyboard scroll
         backgroundColor: COLORS.background.dark,
+        minHeight: '100%',
     },
     background: {
         ...StyleSheet.absoluteFillObject,
@@ -135,8 +136,9 @@ const styles = StyleSheet.create({
     },
     innerContent: {
         paddingHorizontal: SPACING.xl,
-        paddingBottom: Platform.OS === 'ios' ? 40 : 80,
-        flex: 1,
+        paddingTop: 20,
+        paddingBottom: 40,
+        // NO flex:1 — let natural height enable scroll
         justifyContent: 'flex-start',
     },
     backBtn: {

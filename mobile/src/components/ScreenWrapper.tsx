@@ -7,19 +7,38 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-export default function ScreenWrapper({ children }: { children: React.ReactNode }) {
+interface ScreenWrapperProps {
+    children: React.ReactNode;
+    /** Extra bottom padding for screens with CTAs near the bottom */
+    extraBottomPadding?: number;
+}
+
+export default function ScreenWrapper({
+    children,
+    extraBottomPadding = 0,
+}: ScreenWrapperProps) {
     return (
         <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
             <KeyboardAvoidingView
                 style={styles.flex}
+                /**
+                 * iOS  → "padding": grows the bottom inset so content shifts up
+                 * Android → "height": shrinks the KAV height so content scrolls up
+                 * "resize" in app.json is set to "pan" so this has full control
+                 */
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
-                keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+                keyboardVerticalOffset={0}
             >
                 <ScrollView
-                    contentContainerStyle={styles.scrollGrow}
+                    contentContainerStyle={[
+                        styles.scrollContent,
+                        extraBottomPadding > 0 && { paddingBottom: extraBottomPadding },
+                    ]}
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                     bounces={false}
+                    // Automatically adjusts scroll position when keyboard appears (iOS 15+ / RN 0.68+)
+                    automaticallyAdjustKeyboardInsets={true}
                 >
                     {children}
                 </ScrollView>
@@ -36,7 +55,11 @@ const styles = StyleSheet.create({
     flex: {
         flex: 1,
     },
-    scrollGrow: {
+    scrollContent: {
+        // flexGrow:1 lets content expand to fill screen,
+        // but does NOT force it to stay at full height —
+        // so keyboard push actually works
         flexGrow: 1,
+        paddingBottom: 40,
     },
 });

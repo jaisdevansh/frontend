@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Platform, TouchableOpacity, Dimensions, TextInput, KeyboardAvoidingView } from 'react-native';
+import { View, Text, StyleSheet, Platform, TouchableOpacity, Dimensions, TextInput } from 'react-native';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
@@ -246,8 +246,9 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
+        // NO flex:1 here — inside a ScrollView, flex:1 prevents keyboard scroll
         backgroundColor: COLORS.background.dark,
+        minHeight: '100%',
     },
     background: {
         ...StyleSheet.absoluteFillObject,
@@ -260,7 +261,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: SPACING.xl,
         paddingTop: 20,
         paddingBottom: 40,
-        flex: 1,
+        // NO flex:1 — let content be natural height so scroll works
         justifyContent: 'flex-start',
     },
     topSection: {
