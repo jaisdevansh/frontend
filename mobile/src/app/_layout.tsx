@@ -3,6 +3,7 @@ import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useEffect, useRef } from 'react';
+import SplashIndex from './index';
 import { Platform, LogBox, DeviceEventEmitter } from 'react-native';
 import { enableScreens } from 'react-native-screens';
 import * as Haptics from 'expo-haptics';
@@ -90,16 +91,11 @@ export default function RootLayout() {
     }
   }, [fontError]);
 
-  // Handle splash completion: robust timeout to ensure native splash stays until JS app assumes control
+  // Hide native splash as soon as fonts are ready — custom JS splash (index.tsx) takes over visually.
   useEffect(() => {
-    async function prepare() {
-      if (loaded || fontError) {
-        // Wait exactly like user requested to prevent APK white flash
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        await SplashScreen.hideAsync().catch(() => {});
-      }
+    if (loaded || fontError) {
+      SplashScreen.hideAsync().catch(() => {});
     }
-    prepare();
   }, [loaded, fontError]);
 
   // If loading and no error yet, wait. If error, continue to prevent blocking.
@@ -170,12 +166,11 @@ function RootLayoutNav() {
     console.log('[Splash] isLoading:', isLoading, 'showSplashAnim:', showSplashAnim);
     if (!isLoading) {
         console.log('[Splash] Starting 800ms timer...');
-        // Quick splash with smooth animation
+        // Show custom "Entry Club" splash for exactly 800ms
         const timer = setTimeout(() => {
             console.log('[Splash] Timer complete, hiding splash...');
             setShowSplashAnim(false);
-            SplashScreen.hideAsync().catch(() => {});
-        }, 800); // 800ms - smooth but not too long
+        }, 800); // 800ms - as requested
         return () => clearTimeout(timer);
     }
   }, [isLoading]);
@@ -300,9 +295,9 @@ function RootLayoutNav() {
   // 🛡️ RENDER BLOCKING (MANDATORY)
   // We keep our custom splash screen visible until BOTH auth and animation are ready.
   // This ensures a seamless "Entry Club" experience from the first millisecond.
+  // NOTE: Static import required — dynamic require() fails in Hermes/release APK builds.
   if (isLoading || showSplashAnim) {
-    const Index = require('./index').default;
-    return <Index />;
+    return <SplashIndex />;
   }
 
   return (
