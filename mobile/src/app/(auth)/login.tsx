@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
     View, 
     Text, 
@@ -7,7 +7,9 @@ import {
     TouchableOpacity, 
     TextInput,
     Keyboard,
-    TouchableWithoutFeedback
+    TouchableWithoutFeedback,
+    ScrollView,
+    KeyboardAvoidingView
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
@@ -22,7 +24,7 @@ import { authService } from '../../services/authService';
 import { useToast } from '../../context/ToastContext';
 import { Logo } from '../../components/Logo';
 import { API_BASE_URL } from '../../services/apiClient';
-import ScreenWrapper from '../../components/ScreenWrapper';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 WebBrowser.maybeCompleteAuthSession();
 const GOOGLE_AUTH_URL = `${API_BASE_URL}/api/auth/google`;
@@ -32,12 +34,18 @@ export default function LoginScreen() {
     const [loading, setLoading] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
     const [inputType, setInputType] = useState<'phone' | 'email'>('phone');
+    
+    // 🔥 PLAN C: Absolute Keyboard Height Tracking hook
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
 
     const isPhoneMode = inputType === 'phone';
     const { login, logout } = useAuth();
     const router = useRouter();
     const goBack = useStrictBack('/(auth)/welcome');
     const { showToast } = useToast();
+
+    // Removed the complex Plan C JS height listeners. 
+    // Android "resize" + React Native Flex is enough.
 
     const handleGoogleLogin = async () => {
         try {
@@ -127,94 +135,117 @@ export default function LoginScreen() {
     };
 
     return (
-        <ScreenWrapper extraBottomPadding={40}>
+        <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
             <LinearGradient
                 colors={['#000000', '#1a1a2e', '#000000']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={StyleSheet.absoluteFillObject}
             />
-            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                <View style={styles.container}>
-                    <View style={styles.topSection}>
-                        <TouchableOpacity onPress={() => goBack()} style={styles.backBtn}>
-                            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
-                        </TouchableOpacity>
+            <KeyboardAvoidingView 
+                style={styles.flex} 
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            >
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                    <View style={styles.flex}>
+                        {/* SCROLLABLE TOP SECTION */}
+                        <ScrollView 
+                            contentContainerStyle={styles.scrollContent}
+                            keyboardShouldPersistTaps="handled"
+                            showsVerticalScrollIndicator={false}
+                        >
+                            <View style={styles.topSection}>
+                                <TouchableOpacity onPress={() => goBack()} style={styles.backBtn}>
+                                    <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+                                </TouchableOpacity>
 
-                        <View style={styles.header}>
-                            <Logo size={90} />
-                        </View>
-                    </View>
-
-                    {/* Smooth spacing container, no strict flex:1 so it overflows gracefully when keyboard opens */}
-                    <View style={styles.formContainer}>
-                        <Text style={styles.inputLabel}>Phone Number or Email</Text>
-                        <View style={styles.inputRow}>
-                            <TouchableOpacity 
-                                style={styles.dialCodePill}
-                                onPress={() => setInputType(prev => prev === 'phone' ? 'email' : 'phone')}
-                                activeOpacity={0.7}
-                            >
-                                {isPhoneMode ? <Text style={styles.flagEmoji}>🇮🇳</Text> : <Ionicons name="mail" size={20} color="rgba(255, 255, 255, 0.7)" />}
-                            </TouchableOpacity>
-
-                            <View style={[styles.inputBox, isFocused && styles.inputBoxFocused]}>
-                                {isPhoneMode && (
-                                    <>
-                                        <Text style={styles.dialPrefix}>+91</Text>
-                                        <View style={styles.prefixDivider} />
-                                    </>
-                                )}
-                                <TextInput
-                                    style={styles.textField}
-                                    placeholder={isPhoneMode ? '98765 43210' : 'phone or email'}
-                                    placeholderTextColor="rgba(255,255,255,0.25)"
-                                    value={identifier}
-                                    onChangeText={(text) => {
-                                        setIdentifier(text);
-                                        if (text.includes('@') && inputType === 'phone') setInputType('email');
-                                    }}
-                                    keyboardType={isPhoneMode ? 'phone-pad' : 'email-address'}
-                                    autoCapitalize="none"
-                                    autoCorrect={false}
-                                    onFocus={() => setIsFocused(true)}
-                                    onBlur={() => setIsFocused(false)}
-                                />
+                                <View style={styles.header}>
+                                    <Logo size={90} />
+                                </View>
                             </View>
+
+                            <View style={styles.formContainer}>
+                                <Text style={styles.inputLabel}>Phone Number or Email</Text>
+                                <View style={styles.inputRow}>
+                                    <TouchableOpacity 
+                                        style={styles.dialCodePill}
+                                        onPress={() => setInputType(prev => prev === 'phone' ? 'email' : 'phone')}
+                                        activeOpacity={0.7}
+                                    >
+                                        {isPhoneMode ? <Text style={styles.flagEmoji}>🇮🇳</Text> : <Ionicons name="mail" size={20} color="rgba(255, 255, 255, 0.7)" />}
+                                    </TouchableOpacity>
+
+                                    <View style={[styles.inputBox, isFocused && styles.inputBoxFocused]}>
+                                        {isPhoneMode && (
+                                            <>
+                                                <Text style={styles.dialPrefix}>+91</Text>
+                                                <View style={styles.prefixDivider} />
+                                            </>
+                                        )}
+                                        <TextInput
+                                            style={styles.textField}
+                                            placeholder={isPhoneMode ? '98765 43210' : 'phone or email'}
+                                            placeholderTextColor="rgba(255,255,255,0.25)"
+                                            value={identifier}
+                                            onChangeText={(text) => {
+                                                setIdentifier(text);
+                                                if (text.includes('@') && inputType === 'phone') setInputType('email');
+                                            }}
+                                            keyboardType={isPhoneMode ? 'phone-pad' : 'email-address'}
+                                            autoCapitalize="none"
+                                            autoCorrect={false}
+                                            onFocus={() => setIsFocused(true)}
+                                            onBlur={() => setIsFocused(false)}
+                                        />
+                                    </View>
+                                </View>
+                            </View>
+                        </ScrollView>
+
+                        {/* STICKY FOOTER ACTION BUTTONS */}
+                        {/* Stays seamlessly at the bottom. Android 'resize' shrinks the whole window so this naturally floats up. */}
+                        <View style={styles.stickyFooter}>
+                            <Button
+                                title="Send OTP"
+                                onPress={handleSendOtp}
+                                style={styles.loginButton}
+                                loading={loading}
+                            />
+
+                            <View style={styles.divider}>
+                                <View style={styles.dividerLine} />
+                                <Text style={styles.dividerText}>OR</Text>
+                                <View style={styles.dividerLine} />
+                            </View>
+
+                            <Button
+                                title="Continue with Google"
+                                onPress={handleGoogleLogin}
+                                variant="glass"
+                                icon={<FontAwesome name="google" size={20} color="#FFFFFF" />}
+                                style={styles.googleButton}
+                            />
                         </View>
-
-                        <Button
-                            title="Send OTP"
-                            onPress={handleSendOtp}
-                            style={styles.loginButton}
-                            loading={loading}
-                        />
-
-                        <View style={styles.divider}>
-                            <View style={styles.dividerLine} />
-                            <Text style={styles.dividerText}>OR</Text>
-                            <View style={styles.dividerLine} />
-                        </View>
-
-                        <Button
-                            title="Continue with Google"
-                            onPress={handleGoogleLogin}
-                            variant="glass"
-                            icon={<FontAwesome name="google" size={20} color="#FFFFFF" />}
-                            style={styles.googleButton}
-                        />
                     </View>
-                </View>
-            </TouchableWithoutFeedback>
-        </ScreenWrapper>
+                </TouchableWithoutFeedback>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
+    root: {
+        flex: 1,
+        backgroundColor: '#000000',
+    },
+    flex: {
+        flex: 1,
+    },
+    scrollContent: {
+        flexGrow: 1,
         paddingHorizontal: SPACING.xl,
         paddingTop: 10,
-        // No fixed height or minHeight
+        paddingBottom: 20,
     },
     topSection: {
         marginBottom: 8,
@@ -233,18 +264,29 @@ const styles = StyleSheet.create({
     },
     formContainer: {
         marginTop: 16,
-        paddingBottom: 40,
+    },
+    // 🔥 Pure Sticky Footer Styles
+    stickyFooter: {
+        paddingHorizontal: SPACING.xl,
+        paddingBottom: Platform.OS === 'ios' ? 20 : 30, // Safe distance below
+        paddingTop: 10,
+        backgroundColor: 'transparent',
     },
     loginButton: {
-        marginTop: SPACING.xl,
+        // Shadow to pop over content as it scrolls
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        elevation: 5,
     },
     googleButton: {
-        marginTop: SPACING.md,
+        marginTop: SPACING.sm,
     },
     divider: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginVertical: SPACING.xl,
+        marginVertical: SPACING.lg,
     },
     dividerLine: {
         flex: 1,
