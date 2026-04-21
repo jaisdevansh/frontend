@@ -246,9 +246,7 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
     container: {
-        // NO flex:1 here — inside a ScrollView, flex:1 prevents keyboard scroll
-        backgroundColor: COLORS.background.dark,
-        minHeight: '100%',
+        backgroundColor: 'transparent',
     },
     background: {
         ...StyleSheet.absoluteFillObject,

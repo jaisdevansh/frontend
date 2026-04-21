@@ -123,9 +123,7 @@ export default function VerifyOtpScreen() {
 
 const styles = StyleSheet.create({
     container: {
-        // NO flex:1 — inside ScrollView, flex:1 blocks keyboard scroll
-        backgroundColor: COLORS.background.dark,
-        minHeight: '100%',
+        backgroundColor: 'transparent',
     },
     background: {
         ...StyleSheet.absoluteFillObject,
