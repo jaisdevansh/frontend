@@ -1,15 +1,10 @@
 import React from "react";
-import {
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-} from "react-native";
+import { StyleSheet, Platform, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 
 interface ScreenWrapperProps {
     children: React.ReactNode;
-    /** Extra bottom padding for screens with CTAs near the bottom */
     extraBottomPadding?: number;
 }
 
@@ -19,29 +14,24 @@ export default function ScreenWrapper({
 }: ScreenWrapperProps) {
     return (
         <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
-            <KeyboardAvoidingView
+            <KeyboardAwareScrollView
                 style={styles.flex}
-                /**
-                 * iOS  → "padding": grows the bottom offset so content shifts up
-                 * Android → undefined: let native 'resize' mode physically squish the view
-                 */
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                keyboardVerticalOffset={0}
+                contentContainerStyle={[
+                    styles.scrollContent,
+                    extraBottomPadding > 0 && { paddingBottom: extraBottomPadding },
+                ]}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                bounces={false}
+                // Automatically scrolls to focused input, PLUS an extra 80px to show buttons
+                enableOnAndroid={true}
+                extraHeight={Platform.OS === "android" ? 120 : 80}
+                extraScrollHeight={Platform.OS === "android" ? 120 : 80}
+                enableAutomaticScroll={true}
+                keyboardOpeningTime={Number.MAX_SAFE_INTEGER} // Prevent jarring scroll jumps on Android
             >
-                <ScrollView
-                    contentContainerStyle={[
-                        styles.scrollContent,
-                        extraBottomPadding > 0 && { paddingBottom: extraBottomPadding },
-                    ]}
-                    keyboardShouldPersistTaps="handled"
-                    showsVerticalScrollIndicator={false}
-                    bounces={false}
-                    // Only iOS needs this inset auto-adjustment
-                    automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-                >
-                    {children}
-                </ScrollView>
-            </KeyboardAvoidingView>
+                {children}
+            </KeyboardAwareScrollView>
         </SafeAreaView>
     );
 }
@@ -55,9 +45,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     scrollContent: {
-        // flexGrow:1 lets content expand to fill screen,
-        // but does NOT force it to stay at full height —
-        // so keyboard push actually works
+        // Allows content to fill the screen but also expand if keyboard pushes it
         flexGrow: 1,
         paddingBottom: 40,
     },
