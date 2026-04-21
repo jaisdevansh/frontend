@@ -16,6 +16,20 @@ import { COLORS } from '../../constants/design-system';
 
 const { width } = Dimensions.get('window');
 
+// ─── Format internal seatId to human-readable label ──────────────────────────
+// Backend uses:  "<mongoId>_s<n>"  or  "<zoneName>_s<n>"
+// e.g. "69E60B7E799FEE57770F1877_s1" → "Seat 1"
+//      "vip_s3"                       → "Seat 3"
+//      "TABLE-01" (already clean)     → "TABLE-01"
+const formatSeatId = (raw: string): string => {
+    if (!raw) return 'N/A';
+    // Pattern: anything_s<number>  (case-insensitive)
+    const match = raw.match(/_s(\d+)$/i);
+    if (match) return `Seat ${match[1]}`;
+    return raw; // already human-readable
+};
+
+
 export default function TablePass() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
@@ -170,7 +184,12 @@ export default function TablePass() {
                 <Text style={styles.confirmedTitle}>
                     {displayStatus === 'cancelled' ? 'Booking Cancelled' : displayStatus === 'expired' ? 'Booking Expired' : 'Reservation Confirmed'}
                 </Text>
-                <Text style={styles.tableIdLabel}>TABLE: {tableId.toUpperCase()}</Text>
+                <Text style={styles.tableIdLabel}>
+                    {seatIds.length > 1
+                        ? `SEATS: ${seatIds.map(formatSeatId).join(' · ')}`
+                        : `TABLE: ${formatSeatId(tableId)}`
+                    }
+                </Text>
 
                 {/* Status badge */}
                 <View style={[styles.statusPill, { backgroundColor: statusColor + '20', borderColor: statusColor + '50' }]}>
@@ -336,7 +355,7 @@ const styles = StyleSheet.create({
 
     // Titles
     confirmedTitle:     { color: '#fff', fontSize: 26, fontWeight: '900', textAlign: 'center', marginBottom: 6 },
-    tableIdLabel:       { color: 'rgba(255,255,255,0.35)', fontSize: 12, fontWeight: '700', letterSpacing: 2, marginBottom: 10 },
+    tableIdLabel:       { color: 'rgba(255,255,255,0.9)', fontSize: 14, fontWeight: '800', letterSpacing: 2, marginBottom: 10 },
 
     // Status pill
     statusPill:         { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, borderWidth: 1, marginBottom: 24 },

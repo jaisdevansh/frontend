@@ -97,9 +97,9 @@ const styles = StyleSheet.create({
         borderColor: '#111' 
     },
     seatNum: { 
-        color: 'rgba(255,255,255,0.4)', 
+        color: 'rgba(255,255,255,0.85)', 
         fontSize: 14, 
-        fontWeight: '800' 
+        fontWeight: '900' 
     },
     checkWrapper: { 
         position: 'absolute', 
