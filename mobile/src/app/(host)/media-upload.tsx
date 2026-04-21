@@ -284,31 +284,35 @@ export default function HostMediaUpload() {
                     })}
                 </View>
 
-                {/* BANNER */}
-                <View style={[styles.banner, { borderColor: currentTab.color + '30' }]}>
-                    <LinearGradient
-                        colors={[currentTab.color + '15', currentTab.color + '05', 'transparent']}
-                        style={StyleSheet.absoluteFillObject}
-                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                    />
-                    <View style={[styles.bannerIconBox, { backgroundColor: currentTab.color + '20' }]}>
-                        <Ionicons name={currentTab.icon} size={20} color={currentTab.color} />
+                {/* BANNER — only show when not loading */}
+                {!loading && (
+                    <View style={[styles.banner, { borderColor: currentTab.color + '30' }]}>
+                        <LinearGradient
+                            colors={[currentTab.color + '15', currentTab.color + '05', 'transparent']}
+                            style={StyleSheet.absoluteFillObject}
+                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                        />
+                        <View style={[styles.bannerIconBox, { backgroundColor: currentTab.color + '20' }]}>
+                            <Ionicons name={currentTab.icon} size={20} color={currentTab.color} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={[styles.bannerTitle, { color: 'white' }]}>{currentTab.label}</Text>
+                            <Text style={styles.bannerDesc}>{currentTab.desc}</Text>
+                        </View>
                     </View>
-                    <View style={{ flex: 1 }}>
-                        <Text style={[styles.bannerTitle, { color: 'white' }]}>{currentTab.label}</Text>
-                        <Text style={styles.bannerDesc}>{currentTab.desc}</Text>
-                    </View>
-                </View>
+                )}
 
-                {/* LIVE BAR */}
-                <View style={styles.liveBar}>
-                    <View style={styles.liveBarContent}>
-                        <PulsatingDot color="#10B981" size={8} />
-                        <Text style={styles.liveBarText}>Photos uploaded here are instantly live on your venue page.</Text>
+                {/* LIVE BAR — only show when not loading */}
+                {!loading && (
+                    <View style={styles.liveBar}>
+                        <View style={styles.liveBarContent}>
+                            <PulsatingDot color="#10B981" size={8} />
+                            <Text style={styles.liveBarText}>Photos uploaded here are instantly live on your venue page.</Text>
+                        </View>
                     </View>
-                </View>
+                )}
 
-                {/* GRID */}
+                {/* GRID / LOADING / EMPTY */}
                 {loading ? (
                     <View style={styles.loadingBox}>
                         <ActivityIndicator color={currentTab.color} size="large" />
@@ -338,7 +342,6 @@ export default function HostMediaUpload() {
                             color={currentTab.color}
                             gradient={currentTab.gradient}
                         />
-
                         {currentMedia.map(item => (
                             <MediaThumb key={item._id} item={item} onRemove={handleRemove} />
                         ))}
