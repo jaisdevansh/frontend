@@ -22,11 +22,10 @@ export default function ScreenWrapper({
             <KeyboardAvoidingView
                 style={styles.flex}
                 /**
-                 * iOS  → "padding": grows the bottom inset so content shifts up
-                 * Android → "height": shrinks the KAV height so content scrolls up
-                 * "resize" in app.json is set to "pan" so this has full control
+                 * iOS  → "padding": grows the bottom offset so content shifts up
+                 * Android → undefined: let native 'resize' mode physically squish the view
                  */
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 keyboardVerticalOffset={0}
             >
                 <ScrollView
@@ -37,8 +36,8 @@ export default function ScreenWrapper({
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                     bounces={false}
-                    // Automatically adjusts scroll position when keyboard appears (iOS 15+ / RN 0.68+)
-                    automaticallyAdjustKeyboardInsets={true}
+                    // Only iOS needs this inset auto-adjustment
+                    automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
                 >
                     {children}
                 </ScrollView>
