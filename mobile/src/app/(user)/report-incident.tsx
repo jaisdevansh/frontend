@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Platform, Keyboard, Image } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import ScreenWrapper from '../../components/ScreenWrapper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../constants/design-system';
@@ -213,15 +213,8 @@ export default function ReportIncidentScreen() {
                 <View style={{ width: 44 }} />
             </View>
 
-            <KeyboardAwareScrollView
-                style={{ flex: 1 }}
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                keyboardDismissMode="on-drag"
-                enableOnAndroid={true}
-                extraScrollHeight={80}
-            >
+            <ScreenWrapper>
+                <View style={styles.scrollContent}>
                     {/* Hero */}
                     <View style={styles.heroSection}>
                         <View style={styles.iconGlow}>
@@ -344,7 +337,8 @@ export default function ReportIncidentScreen() {
 
                     {/* Extra padding for keyboard */}
                     <View style={{ height: 20 }} />
-                </KeyboardAwareScrollView>
+                </View>
+            </ScreenWrapper>
         </View>
     );
 }

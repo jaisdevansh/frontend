@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ActivityIndicator, Image, Switch, FlatList, Platform, Keyboard, ScrollView } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import ScreenWrapper from '../../components/ScreenWrapper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useStrictBack } from '../../hooks/useStrictBack';
@@ -349,39 +349,29 @@ export default function HostCreateEvent() {
     }
 
     return (
-        <SafeAreaView style={styles.container}>
-            <KeyboardAwareScrollView
-                ref={scrollViewRef}
-                style={{ flex: 1 }}
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                enableOnAndroid={true}
-                enableAutomaticScroll={true}
-                extraHeight={250}
-                extraScrollHeight={250}
-                keyboardOpeningTime={0}
-            >
-                <TouchableOpacity style={styles.backBtn} onPress={() => goBack()}>
-                    <Ionicons name="arrow-back" size={24} color="white" />
+        <>
+        <ScreenWrapper>
+            <View style={styles.scrollContent}>
+            <TouchableOpacity style={styles.backBtn} onPress={() => goBack()}>
+                <Ionicons name="arrow-back" size={24} color="white" />
+            </TouchableOpacity>
+
+            <View style={styles.header}>
+                <Text style={styles.title}>{id ? 'Edit Experience' : 'New Experience'}</Text>
+                <Text style={styles.subtitle}>{id ? 'Refine your curation' : 'Curate a night to remember'}</Text>
+            </View>
+
+            <View style={styles.form}>
+                <TouchableOpacity style={styles.imageConfigPicker} onPress={pickImage}>
+                    {coverImage ? (
+                        <Image source={{ uri: coverImage }} style={styles.previewImage} />
+                    ) : (
+                        <View style={styles.imagePlaceholder}>
+                            <Ionicons name="image-outline" size={32} color={COLORS.primary} />
+                            <Text style={styles.uploadText}>Upload Event Cover</Text>
+                        </View>
+                    )}
                 </TouchableOpacity>
-
-                <View style={styles.header}>
-                    <Text style={styles.title}>{id ? 'Edit Experience' : 'New Experience'}</Text>
-                    <Text style={styles.subtitle}>{id ? 'Refine your curation' : 'Curate a night to remember'}</Text>
-                </View>
-
-                <View style={styles.form}>
-                    <TouchableOpacity style={styles.imageConfigPicker} onPress={pickImage}>
-                        {coverImage ? (
-                            <Image source={{ uri: coverImage }} style={styles.previewImage} />
-                        ) : (
-                            <View style={styles.imagePlaceholder}>
-                                <Ionicons name="image-outline" size={32} color={COLORS.primary} />
-                                <Text style={styles.uploadText}>Upload Event Cover</Text>
-                            </View>
-                        )}
-                    </TouchableOpacity>
 
                     <Input
                         label="Event Title"
@@ -772,8 +762,6 @@ export default function HostCreateEvent() {
                         <Text style={styles.addTicketText}>Add Ticket Type</Text>
                     </TouchableOpacity>
                 </View>
-            </KeyboardAwareScrollView>
-
             <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
                 <View style={styles.footerRow}>
                     <TouchableOpacity 
@@ -793,6 +781,8 @@ export default function HostCreateEvent() {
                     </View>
                 </View>
             </View>
+            </View>
+        </ScreenWrapper>
 
             <PremiumDateTimePicker
                 visible={pickerVisible}
@@ -803,7 +793,7 @@ export default function HostCreateEvent() {
                 title={pickerTitle}
                 minDate={new Date()}
             />
-        </SafeAreaView>
+        </>
     );
 }
 

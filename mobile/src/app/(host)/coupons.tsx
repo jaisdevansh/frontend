@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator, Platform, KeyboardAvoidingView } from 'react-native';
 import SafeFlashList from '../../components/SafeFlashList';
 const FlashList = SafeFlashList;
+import ScreenWrapper from '../../components/ScreenWrapper';
 import { Calendar } from 'react-native-calendars';
 import { useRouter } from 'expo-router';
 import { useStrictBack } from '../../hooks/useStrictBack';
@@ -283,131 +284,130 @@ export default function HostCoupons() {
                 transparent={true}
                 onRequestClose={() => setCreateModalVisible(false)}
             >
-                <KeyboardAvoidingView 
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    style={styles.modalOverlay}
-                >
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Create Coupon</Text>
-                            <TouchableOpacity onPress={() => setCreateModalVisible(false)}>
-                                <Ionicons name="close" size={24} color="white" />
-                            </TouchableOpacity>
-                        </View>
-
-                        <ScrollView style={styles.modalForm} showsVerticalScrollIndicator={false}>
-                            <Input
-                                label="Coupon Title (Optional)"
-                                placeholder="e.g. Weekend Drinks 50% Off"
-                                value={newCoupon.title}
-                                onChangeText={(text) => setNewCoupon({ ...newCoupon, title: text })}
-                            />
-                            <Input
-                                label="Coupon Code *"
-                                placeholder="e.g. ENTRY50"
-                                value={newCoupon.code}
-                                autoCapitalize="characters"
-                                onChangeText={(text) => setNewCoupon({ ...newCoupon, code: text })}
-                            />
-
-                            <View style={{ marginBottom: 16 }}>
-                                <Text style={{ color: COLORS.text.muted, fontSize: 13, marginBottom: 8, fontWeight: '600', marginLeft: 4 }}>Discount Type</Text>
-                                <View style={styles.typeSelector}>
-                                    <TouchableOpacity
-                                        style={[styles.typeButton, newCoupon.discountType === 'percentage' && styles.typeButtonActive]}
-                                        onPress={() => setNewCoupon({ ...newCoupon, discountType: 'percentage' })}
-                                    >
-                                        <Text style={[styles.typeButtonText, newCoupon.discountType === 'percentage' && styles.typeButtonTextActive]}>Percentage (%)</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        style={[styles.typeButton, newCoupon.discountType === 'flat' && styles.typeButtonActive]}
-                                        onPress={() => setNewCoupon({ ...newCoupon, discountType: 'flat' })}
-                                    >
-                                        <Text style={[styles.typeButtonText, newCoupon.discountType === 'flat' && styles.typeButtonTextActive]}>Flat Value</Text>
-                                    </TouchableOpacity>
-                                </View>
+                <ScreenWrapper>
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>Create Coupon</Text>
+                                <TouchableOpacity onPress={() => setCreateModalVisible(false)}>
+                                    <Ionicons name="close" size={24} color="white" />
+                                </TouchableOpacity>
                             </View>
 
-                            <Input
-                                label={newCoupon.discountType === 'percentage' ? "Discount Percentage (%)" : "Flat Discount Amount"}
-                                placeholder={newCoupon.discountType === 'percentage' ? "e.g. 50" : "e.g. 500"}
-                                value={newCoupon.discountValue}
-                                onChangeText={(text) => setNewCoupon({ ...newCoupon, discountValue: text })}
-                                keyboardType="numeric"
-                            />
+                            <ScrollView style={styles.modalForm} showsVerticalScrollIndicator={false}>
+                                <Input
+                                    label="Coupon Title (Optional)"
+                                    placeholder="e.g. Weekend Drinks 50% Off"
+                                    value={newCoupon.title}
+                                    onChangeText={(text) => setNewCoupon({ ...newCoupon, title: text })}
+                                />
+                                <Input
+                                    label="Coupon Code *"
+                                    placeholder="e.g. ENTRY50"
+                                    value={newCoupon.code}
+                                    autoCapitalize="characters"
+                                    onChangeText={(text) => setNewCoupon({ ...newCoupon, code: text })}
+                                />
 
-                            <Input
-                                label="Max Usage Limit"
-                                placeholder="e.g. 100"
-                                value={newCoupon.usageLimit}
-                                onChangeText={(text) => setNewCoupon({ ...newCoupon, usageLimit: text })}
-                                keyboardType="numeric"
-                            />
-
-                            {/* Points Cost — Key Feature */}
-                            <View style={styles.pointsInputWrapper}>
-                                <View style={styles.pointsInputHeader}>
-                                    <Ionicons name="flash" size={14} color="#FFD700" />
-                                    <Text style={styles.pointsInputLabel}>Points to Redeem (Store Cost)</Text>
+                                <View style={{ marginBottom: 16 }}>
+                                    <Text style={{ color: COLORS.text.muted, fontSize: 13, marginBottom: 8, fontWeight: '600', marginLeft: 4 }}>Discount Type</Text>
+                                    <View style={styles.typeSelector}>
+                                        <TouchableOpacity
+                                            style={[styles.typeButton, newCoupon.discountType === 'percentage' && styles.typeButtonActive]}
+                                            onPress={() => setNewCoupon({ ...newCoupon, discountType: 'percentage' })}
+                                        >
+                                            <Text style={[styles.typeButtonText, newCoupon.discountType === 'percentage' && styles.typeButtonTextActive]}>Percentage (%)</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[styles.typeButton, newCoupon.discountType === 'flat' && styles.typeButtonActive]}
+                                            onPress={() => setNewCoupon({ ...newCoupon, discountType: 'flat' })}
+                                        >
+                                            <Text style={[styles.typeButtonText, newCoupon.discountType === 'flat' && styles.typeButtonTextActive]}>Flat Value</Text>
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
-                                <Text style={styles.pointsInputHint}>User itne points kharch karke ye coupon store se redeem kar sakta hai</Text>
-                                <TextInput
-                                    style={styles.pointsInput}
-                                    placeholder="e.g. 100"
-                                    placeholderTextColor="rgba(255,255,255,0.3)"
-                                    value={newCoupon.pointsCost}
-                                    onChangeText={(text) => setNewCoupon({ ...newCoupon, pointsCost: text })}
+
+                                <Input
+                                    label={newCoupon.discountType === 'percentage' ? "Discount Percentage (%)" : "Flat Discount Amount"}
+                                    placeholder={newCoupon.discountType === 'percentage' ? "e.g. 50" : "e.g. 500"}
+                                    value={newCoupon.discountValue}
+                                    onChangeText={(text) => setNewCoupon({ ...newCoupon, discountValue: text })}
                                     keyboardType="numeric"
                                 />
-                            </View>
-                            <TouchableOpacity onPress={() => setShowDatePicker(true)} activeOpacity={0.7}>
-                                <Input
-                                    label="Expiry Date"
-                                    placeholder="Select Date"
-                                    value={newCoupon.expiryDisplay}
-                                    editable={false}
-                                    pointerEvents="none"
-                                />
-                            </TouchableOpacity>
 
-                            {showDatePicker && (
-                                <View style={{ marginBottom: 20, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.card.glassBorder }}>
-                                    <Calendar
-                                        onDayPress={onDayPress}
-                                        minDate={new Date().toISOString().split('T')[0]}
-                                        theme={{
-                                            backgroundColor: COLORS.card.glass,
-                                            calendarBackground: COLORS.card.dark,
-                                            textSectionTitleColor: COLORS.text.muted,
-                                            selectedDayBackgroundColor: COLORS.primary,
-                                            selectedDayTextColor: '#ffffff',
-                                            todayTextColor: COLORS.primary,
-                                            dayTextColor: 'white',
-                                            textDisabledColor: 'rgba(255,255,255,0.1)',
-                                            monthTextColor: 'white',
-                                            arrowColor: COLORS.primary,
-                                            textDayFontWeight: '500',
-                                            textMonthFontWeight: 'bold',
-                                            textDayHeaderFontWeight: '600'
-                                        }}
-                                        markedDates={
-                                            newCoupon.expiryDate 
-                                            ? { [newCoupon.expiryDate.split('T')[0]]: { selected: true, selectedColor: COLORS.primary } } 
-                                            : {}
-                                        }
+                                <Input
+                                    label="Max Usage Limit"
+                                    placeholder="e.g. 100"
+                                    value={newCoupon.usageLimit}
+                                    onChangeText={(text) => setNewCoupon({ ...newCoupon, usageLimit: text })}
+                                    keyboardType="numeric"
+                                />
+
+                                {/* Points Cost — Key Feature */}
+                                <View style={styles.pointsInputWrapper}>
+                                    <View style={styles.pointsInputHeader}>
+                                        <Ionicons name="flash" size={14} color="#FFD700" />
+                                        <Text style={styles.pointsInputLabel}>Points to Redeem (Store Cost)</Text>
+                                    </View>
+                                    <Text style={styles.pointsInputHint}>User itne points kharch karke ye coupon store se redeem kar sakta hai</Text>
+                                    <TextInput
+                                        style={styles.pointsInput}
+                                        placeholder="e.g. 100"
+                                        placeholderTextColor="rgba(255,255,255,0.3)"
+                                        value={newCoupon.pointsCost}
+                                        onChangeText={(text) => setNewCoupon({ ...newCoupon, pointsCost: text })}
+                                        keyboardType="numeric"
                                     />
                                 </View>
-                            )}
+                                <TouchableOpacity onPress={() => setShowDatePicker(true)} activeOpacity={0.7}>
+                                    <Input
+                                        label="Expiry Date"
+                                        placeholder="Select Date"
+                                        value={newCoupon.expiryDisplay}
+                                        editable={false}
+                                        pointerEvents="none"
+                                    />
+                                </TouchableOpacity>
 
-                            <Button
-                                title={createLoading ? "Creating..." : "Create Promo Code"}
-                                onPress={handleCreateCoupon}
-                                loading={createLoading}
-                                style={{ marginTop: 24, marginBottom: 80 }}
-                            />
-                        </ScrollView>
+                                {showDatePicker && (
+                                    <View style={{ marginBottom: 20, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.card.glassBorder }}>
+                                        <Calendar
+                                            onDayPress={onDayPress}
+                                            minDate={new Date().toISOString().split('T')[0]}
+                                            theme={{
+                                                backgroundColor: COLORS.card.glass,
+                                                calendarBackground: COLORS.card.dark,
+                                                textSectionTitleColor: COLORS.text.muted,
+                                                selectedDayBackgroundColor: COLORS.primary,
+                                                selectedDayTextColor: '#ffffff',
+                                                todayTextColor: COLORS.primary,
+                                                dayTextColor: 'white',
+                                                textDisabledColor: 'rgba(255,255,255,0.1)',
+                                                monthTextColor: 'white',
+                                                arrowColor: COLORS.primary,
+                                                textDayFontWeight: '500',
+                                                textMonthFontWeight: 'bold',
+                                                textDayHeaderFontWeight: '600'
+                                            }}
+                                            markedDates={
+                                                newCoupon.expiryDate 
+                                                ? { [newCoupon.expiryDate.split('T')[0]]: { selected: true, selectedColor: COLORS.primary } } 
+                                                : {}
+                                            }
+                                        />
+                                    </View>
+                                )}
+
+                                <Button
+                                    title={createLoading ? "Creating..." : "Create Promo Code"}
+                                    onPress={handleCreateCoupon}
+                                    loading={createLoading}
+                                    style={{ marginTop: 24, marginBottom: 80 }}
+                                />
+                            </ScrollView>
+                        </View>
                     </View>
-                </KeyboardAvoidingView>
+                </ScreenWrapper>
             </Modal>
 
             {/* Delete Confirmation Modal */}

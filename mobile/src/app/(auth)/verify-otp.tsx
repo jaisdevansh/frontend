@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Platform, TouchableOpacity, Dimensions } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { View, Text, StyleSheet, Platform, TouchableOpacity, Dimensions, KeyboardAvoidingView } from 'react-native';
+import ScreenWrapper from '../../components/ScreenWrapper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -65,26 +65,14 @@ export default function VerifyOtpScreen() {
     };
 
     return (
-        <View style={styles.container}>
-            <LinearGradient
-                colors={['#000000', '#1a1a2e', '#000000']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.background}
-            />
-            <KeyboardAwareScrollView
-                style={{ flex: 1 }}
-                contentContainerStyle={styles.scrollContent}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-                enableOnAndroid={true}
-                enableAutomaticScroll={true}
-                extraHeight={250}
-                extraScrollHeight={250}
-                keyboardOpeningTime={0}
-                viewIsInsideTabBar={false}
-                enableResetScrollToCoords={false}
-            >
+        <ScreenWrapper>
+            <View style={styles.container}>
+                <LinearGradient
+                    colors={['#000000', '#1a1a2e', '#000000']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.background}
+                />
                 <View style={[styles.innerContent, { paddingTop: insets.top + 20 }]}>
                     <View>
                         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
@@ -102,33 +90,34 @@ export default function VerifyOtpScreen() {
                         </View>
                     </View>
 
-                    <View style={styles.form}>
-                        <Input
-                            label="One-Time Password"
-                            placeholder="000000"
-                            value={otp}
-                            onChangeText={setOtp}
-                            keyboardType="number-pad"
-                            maxLength={6}
-                        />
+                {/* Form directly beneath the header */}
+                <View style={styles.form}>
+                    <Input
+                        label="One-Time Password"
+                        placeholder="000000"
+                        value={otp}
+                        onChangeText={setOtp}
+                        keyboardType="number-pad"
+                        maxLength={6}
+                    />
 
-                        <Button
-                            title="Verify & Enter"
-                            onPress={handleVerifyOtp}
-                            style={styles.verifyButton}
-                            loading={loading}
-                        />
+                    <Button
+                        title="Verify & Enter"
+                        onPress={handleVerifyOtp}
+                        style={styles.verifyButton}
+                        loading={loading}
+                    />
 
-                        <View style={styles.resendContainer}>
-                            <Text style={styles.resendText}>Didn't receive the code? </Text>
-                            <TouchableOpacity onPress={handleResendOtp}>
-                                <Text style={styles.resendLink}>Resend OTP</Text>
-                            </TouchableOpacity>
-                        </View>
+                    <View style={styles.resendContainer}>
+                        <Text style={styles.resendText}>Didn't receive the code? </Text>
+                        <TouchableOpacity onPress={handleResendOtp}>
+                            <Text style={styles.resendLink}>Resend OTP</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
-            </KeyboardAwareScrollView>
-        </View>
+            </View>
+            </View>
+        </ScreenWrapper>
     );
 }
 
@@ -146,22 +135,22 @@ const styles = StyleSheet.create({
     },
     innerContent: {
         paddingHorizontal: SPACING.xl,
-        paddingBottom: 40,
+        paddingBottom: Platform.OS === 'ios' ? 40 : 80,
         flex: 1,
-        justifyContent: 'space-between',
+        justifyContent: 'flex-start',
     },
     backBtn: {
         width: 40,
         height: 40,
         justifyContent: 'center',
         alignItems: 'flex-start',
-        marginBottom: 24,
-        marginTop: 12,
+        marginBottom: 12,
+        marginTop: 8,
     },
     header: {
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: SPACING.lg,
+        marginBottom: SPACING.sm,
         width: '100%',
     },
     title: {
@@ -198,6 +187,7 @@ const styles = StyleSheet.create({
     },
     form: {
         width: '100%',
+        marginTop: 16,
     },
     verifyButton: {
         marginTop: SPACING.xl,

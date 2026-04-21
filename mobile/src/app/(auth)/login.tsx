@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Platform, TouchableOpacity, Dimensions, TextInput } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { View, Text, StyleSheet, Platform, TouchableOpacity, Dimensions, TextInput, KeyboardAvoidingView } from 'react-native';
+import ScreenWrapper from '../../components/ScreenWrapper';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
@@ -160,117 +160,87 @@ export default function LoginScreen() {
     };
 
     return (
-        <View style={styles.container}>
-            <LinearGradient
-                colors={['#000000', '#1a1a2e', '#000000']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.background}
-            />
-            <KeyboardAwareScrollView
-                style={{ flex: 1 }}
-                contentContainerStyle={styles.scrollContent}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-                enableOnAndroid={true}
-                enableAutomaticScroll={true}
-                extraHeight={250}
-                extraScrollHeight={250}
-                keyboardOpeningTime={0}
-                viewIsInsideTabBar={false}
-                enableResetScrollToCoords={false}
-            >
+        <ScreenWrapper>
+            <View style={styles.container}>
+                <LinearGradient
+                    colors={['#000000', '#1a1a2e', '#000000']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.background}
+                />
+                
                 <View style={[styles.innerContent, { paddingTop: insets.top + 20 }]}>
-                        
-                        <View style={styles.topSection}>
-                            <TouchableOpacity onPress={() => goBack()} style={styles.backBtn}>
-                                <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
-                            </TouchableOpacity>
+                    <View style={styles.topSection}>
+                        <TouchableOpacity onPress={() => goBack()} style={styles.backBtn}>
+                            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+                        </TouchableOpacity>
 
-                            <View style={styles.header}>
-                                <Logo size={90} />
-                            </View>
+                        <View style={styles.header}>
+                            <Logo size={90} />
                         </View>
+                    </View>
 
-                        <View style={styles.form}>
-                            {/* ── Smart Phone / Email Input ── */}
-                            <Text style={styles.inputLabel}>Phone Number or Email</Text>
-                            <View style={styles.inputRow}>
+                <View style={styles.form}>
+                    {/* ── Smart Phone / Email Input ── */}
+                    <Text style={styles.inputLabel}>Phone Number or Email</Text>
+                    <View style={styles.inputRow}>
+                        <TouchableOpacity 
+                            style={styles.dialCodePill}
+                            onPress={() => setInputType(prev => prev === 'phone' ? 'email' : 'phone')}
+                            activeOpacity={0.7}
+                        >
+                            {isPhoneMode ? <Text style={styles.flagEmoji}>🇮🇳</Text> : <Ionicons name="mail" size={20} color="rgba(255, 255, 255, 0.7)" />}
+                        </TouchableOpacity>
 
-                                {/* Icon pill — explicit toggle button between phone/email */}
-                                <TouchableOpacity 
-                                    style={styles.dialCodePill}
-                                    onPress={() => setInputType(prev => prev === 'phone' ? 'email' : 'phone')}
-                                    activeOpacity={0.7}
-                                >
-                                    {isPhoneMode ? (
-                                        <Text style={styles.flagEmoji}>🇮🇳</Text>
-                                    ) : (
-                                        <Ionicons name="mail" size={20} color="rgba(255, 255, 255, 0.7)" />
-                                    )}
-                                </TouchableOpacity>
-
-                                {/* Input field — its own box with +91 prefix inside */}
-                                <View style={[
-                                    styles.inputBox,
-                                    isFocused && styles.inputBoxFocused,
-                                ]}>
-                                    {isPhoneMode && (
-                                        <>
-                                            <Text style={styles.dialPrefix}>+91</Text>
-                                            <View style={styles.prefixDivider} />
-                                        </>
-                                    )}
-                                    <TextInput
-                                        style={styles.textField}
-                                        placeholder={
-                                            isPhoneMode
-                                                ? '98765 43210'
-                                                : 'phone or email'
-                                        }
-                                        placeholderTextColor="rgba(255,255,255,0.25)"
-                                        value={identifier}
-                                        onChangeText={(text) => {
-                                            setIdentifier(text);
-                                            // Auto-switch to email mode if an '@' is pasted
-                                            if (text.includes('@') && inputType === 'phone') {
-                                                setInputType('email');
-                                            }
-                                        }}
-                                        keyboardType={isPhoneMode ? 'phone-pad' : 'email-address'}
-                                        autoCapitalize="none"
-                                        autoCorrect={false}
-                                        onFocus={() => setIsFocused(true)}
-                                        onBlur={() => setIsFocused(false)}
-                                    />
-                                </View>
-                            </View>
-
-                            <Button
-                                title="Send OTP"
-                                onPress={handleSendOtp}
-                                style={styles.loginButton}
-                                loading={loading}
+                        <View style={[styles.inputBox, isFocused && styles.inputBoxFocused]}>
+                            {isPhoneMode && (
+                                <>
+                                    <Text style={styles.dialPrefix}>+91</Text>
+                                    <View style={styles.prefixDivider} />
+                                </>
+                            )}
+                            <TextInput
+                                style={styles.textField}
+                                placeholder={isPhoneMode ? '98765 43210' : 'phone or email'}
+                                placeholderTextColor="rgba(255,255,255,0.25)"
+                                value={identifier}
+                                onChangeText={(text) => {
+                                    setIdentifier(text);
+                                    if (text.includes('@') && inputType === 'phone') setInputType('email');
+                                }}
+                                keyboardType={isPhoneMode ? 'phone-pad' : 'email-address'}
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                                onFocus={() => setIsFocused(true)}
+                                onBlur={() => setIsFocused(false)}
                             />
-
-                            <View style={styles.divider}>
-                                <View style={styles.dividerLine} />
-                                <Text style={styles.dividerText}>OR</Text>
-                                <View style={styles.dividerLine} />
-                            </View>
-
-                            <Button
-                                title="Continue with Google"
-                                onPress={handleGoogleLogin}
-                                variant="glass"
-                                icon={<FontAwesome name="google" size={20} color="#FFFFFF" />}
-                                style={styles.googleButton}
-                            />
-
                         </View>
+                    </View>
+
+                    <Button
+                        title="Send OTP"
+                        onPress={handleSendOtp}
+                        style={styles.loginButton}
+                        loading={loading}
+                    />
+
+                    <View style={styles.divider}>
+                        <View style={styles.dividerLine} />
+                        <Text style={styles.dividerText}>OR</Text>
+                        <View style={styles.dividerLine} />
+                    </View>
+
+                    <Button
+                        title="Continue with Google"
+                        onPress={handleGoogleLogin}
+                        variant="glass"
+                        icon={<FontAwesome name="google" size={20} color="#FFFFFF" />}
+                        style={styles.googleButton}
+                    />
                 </View>
-            </KeyboardAwareScrollView>
-        </View>
+            </View>
+            </View>
+        </ScreenWrapper>
     );
 }
 
@@ -288,29 +258,29 @@ const styles = StyleSheet.create({
     },
     innerContent: {
         paddingHorizontal: SPACING.xl,
-        paddingBottom: 20,
-        flexGrow: 1,
-        minHeight: Platform.OS === 'ios' ? height : height * 0.8,
-        flexDirection: 'column',
+        paddingBottom: Platform.OS === 'ios' ? 40 : 80,
+        flex: 1,
+        justifyContent: 'flex-start',
     },
     topSection: {
-        marginBottom: 20,
+        marginBottom: 8,
     },
     backBtn: {
         width: 40,
         height: 40,
         justifyContent: 'center',
         alignItems: 'flex-start',
-        marginBottom: 24,
-        marginTop: 12,
+        marginBottom: 12,
+        marginTop: 8,
     },
     header: {
         alignItems: 'center',
         justifyContent: 'center',
-        marginVertical: 10,
+        marginVertical: 4,
     },
     form: {
         width: '100%',
+        marginTop: 16,
     },
     loginButton: {
         marginTop: SPACING.xl,

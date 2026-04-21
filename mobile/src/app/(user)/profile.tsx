@@ -99,8 +99,8 @@ export default function UserProfile() {
 
     const handleLogout = async () => {
         setIsLoggingOut(true);
-        try { await authService.logout(); await logout(true); }
-        catch { await logout(true); }
+        try { await authService.logout(); await logout(); }
+        catch { await logout(); }
         finally { setIsLoggingOut(false); }
     };
 

@@ -10,7 +10,7 @@ import {
     Image,
     Platform
 } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import ScreenWrapper from '../../components/ScreenWrapper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -118,13 +118,9 @@ export default function ReportBug() {
                     <View style={{ width: 44 }} />
                 </View>
 
-                <KeyboardAwareScrollView 
-                    style={{ flex: 1 }}
-                    contentContainerStyle={styles.scroll}
-                    showsVerticalScrollIndicator={false}
-                    keyboardShouldPersistTaps="handled"
-                    enableOnAndroid={true}
-                    extraScrollHeight={250}
+                <ScreenWrapper>
+                <View 
+                    style={styles.scroll}
                 >
                     <View style={styles.form}>
                         <Text style={styles.label}>YOUR NAME</Text>
@@ -175,7 +171,8 @@ export default function ReportBug() {
                     
                     {/* Extra padding for keyboard */}
                     <View style={{ height: 100 }} />
-                </KeyboardAwareScrollView>
+                </View>
+                </ScreenWrapper>
         </SafeAreaView>
     );
 }
