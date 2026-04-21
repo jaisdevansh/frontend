@@ -340,7 +340,7 @@ export default function SecurityPanel() {
                                     'Are you sure you want to sign out from the Tactical Panel?',
                                     [
                                         { text: 'Cancel', style: 'cancel' },
-                                        { text: 'Logout', style: 'destructive', onPress: async () => await logout() }
+                                        { text: 'Logout', style: 'destructive', onPress: async () => await logout(true) }
                                     ]
                                 );
                             }}

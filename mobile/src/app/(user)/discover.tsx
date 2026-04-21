@@ -122,6 +122,8 @@ export default function DiscoverScreen() {
     
     const [activeEventId, setActiveEventId] = useState<string | null>(paramEventId || null);
     const [activeHostId, setActiveHostId] = useState<string | null>(paramHostId || null);
+    const [activeTableId, setActiveTableId] = useState<string | null>(paramTableId || null);
+    const [activeZone, setActiveZone] = useState<string | null>(paramZone || null);
     const [activeTab, setActiveTab] = useState<'chats' | 'orders' | 'gift'>(
         (initialTab as any) || 'chats'
     );
@@ -338,6 +340,8 @@ await new Promise(resolve => setTimeout(resolve, delay));
                 
                 if (eid) {
                     setActiveEventId(String(eid));
+                    if (booking.tableId) setActiveTableId(String(booking.tableId));
+                    if (booking.ticketType) setActiveZone(String(booking.ticketType));
                     
                     // Update presence with location if available
                     if (capturedLocation) {
@@ -377,6 +381,8 @@ await new Promise(resolve => setTimeout(resolve, delay));
                 // Reset state to clear any old params or cached IDs
                 setActiveEventId(null);
                 setActiveHostId(null);
+                setActiveTableId(null);
+                setActiveZone(null);
                 setLiveCrowd(0);
                 setVisibility(false);
                 setNearbyUsers([]);
@@ -963,8 +969,8 @@ await new Promise(resolve => setTimeout(resolve, delay));
                                 <DrinksAndMore 
                                     eventId={activeEventId || undefined} 
                                     hostId={activeHostId || undefined}
-                                    zone={paramZone}
-                                    tableId={paramTableId}
+                                    zone={activeZone || paramZone}
+                                    tableId={activeTableId || paramTableId}
                                 />
                             )}
                     </>

@@ -23,7 +23,7 @@ interface AuthContextType extends AuthState {
     login: (authData: { token: string; role: string; refreshToken?: string; hostId?: string | null; user?: any; onboardingCompleted?: boolean }) => Promise<void>;
     updateUser: (userData: Partial<any>) => Promise<void>;
     setOnboardingStatus: (status: boolean) => Promise<void>;
-    logout: () => Promise<void>;
+    logout: (isManual?: boolean) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

@@ -53,7 +53,7 @@ export default function ReportIncidentScreen() {
             try {
                 const bookingRes = await apiClient.get('/user/bookings');
                 const activeBooking = bookingRes.data.data?.find((b: any) => 
-                    ['approved', 'active', 'checked_in'].includes(b.status)
+                    b.status === 'checked_in'
                 );
                 
                 if (activeBooking && activeBooking.eventId) {
@@ -87,8 +87,9 @@ export default function ReportIncidentScreen() {
         }
 
         const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsMultipleSelection: true,
+            selectionLimit: 5,
             quality: 0.6,
             base64: true,
         });
@@ -107,7 +108,7 @@ export default function ReportIncidentScreen() {
 
     const handleSubmit = async () => {
         if (hasActiveEvent === false) {
-            return showToast('You can only report an incident during an active event.', 'error');
+            return showToast('You must be checked-in to an event to report an incident.', 'error');
         }
         if (!selectedType) {
             return showToast('Please select what this report is about.', 'error');
@@ -328,7 +329,7 @@ export default function ReportIncidentScreen() {
                             {submitting ? (
                                 <ActivityIndicator color="#FFFFFF" />
                             ) : hasActiveEvent === false ? (
-                                <Text style={[styles.submitBtnText, { color: 'rgba(255,255,255,0.5)', fontSize: 11, letterSpacing: 1.5, textAlign: 'center', paddingHorizontal: 16 }]}>🚫 UNAVAILABLE - NO EVENTS</Text>
+                                <Text style={[styles.submitBtnText, { color: 'rgba(255,255,255,0.5)', fontSize: 11, letterSpacing: 1.5, textAlign: 'center', paddingHorizontal: 16 }]}>🚫 CHECK-IN REQUIRED</Text>
                             ) : (
                                 <Text style={styles.submitBtnText}>Submit Secure Report</Text>
                             )}

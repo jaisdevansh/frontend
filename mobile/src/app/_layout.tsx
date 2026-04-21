@@ -138,7 +138,7 @@ function RootLayoutNav() {
       if (!sessionToastLock.current) {
          sessionToastLock.current = true;
          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-         showToast('Secure Session Ended. Please re-authenticate.', 'error');
+         showToast('Session expired. Please log in again.', 'error');
          setTimeout(() => { sessionToastLock.current = false; }, 5000);
       }
       logout();

@@ -101,6 +101,7 @@ const OrderSkeleton = () => (
 
 // ─── Order Card ──────────────────────────────────────────────────────────────
 const OrderCard = memo(({ order, activeTab, onAccept, onReject, onUpdateStatus }: any) => {
+    const [isExpanded, setIsExpanded] = useState(false);
     const cfg = StatusConfig[order.status] || StatusConfig.confirmed;
     const isAvailable = activeTab === 'available';
     const isActive    = activeTab === 'active';
@@ -120,7 +121,7 @@ const OrderCard = memo(({ order, activeTab, onAccept, onReject, onUpdateStatus }
                    : ['#10B981', '#059669'];
 
     return (
-        <View style={[styles.orderCard, isGift && styles.giftCard]}>
+        <TouchableOpacity activeOpacity={0.9} onPress={() => { Haptics.selectionAsync(); setIsExpanded(!isExpanded); }} style={[styles.orderCard, isGift && styles.giftCard]}>
             {/* Left accent strip */}
             <LinearGradient colors={cfg.grad as any} style={styles.cardAccentStrip} />
 
@@ -141,15 +142,22 @@ const OrderCard = memo(({ order, activeTab, onAccept, onReject, onUpdateStatus }
             <View style={styles.infoStrip}>
                 <View style={[styles.infoChip, { borderColor: 'rgba(255,255,255,0.07)' }]}>
                     <Text style={styles.infoChipLabel}>ZONE</Text>
-                    <Text style={styles.infoChipValue} numberOfLines={1}>{order.zone?.toUpperCase() || 'VIP'}</Text>
+                    <Text style={styles.infoChipValue} numberOfLines={isExpanded ? undefined : 1}>{order.zone?.toUpperCase() || 'VIP'}</Text>
                 </View>
                 <View style={[styles.infoChip, { borderColor: `${cfg.color}30`, backgroundColor: `${cfg.color}10` }]}>
                     <Text style={styles.infoChipLabel}>TABLE</Text>
-                    <Text style={[styles.infoChipValue, { color: cfg.color }]} numberOfLines={1}>{order.tableId || '—'}</Text>
+                    <Text style={[styles.infoChipValue, { color: cfg.color }]} numberOfLines={isExpanded ? undefined : 1}>
+                        {(() => {
+                            const tid = order.tableId || '';
+                            if (tid.includes('_s')) return tid.split('_s')[1];
+                            if (tid.length > 10) return tid.substring(tid.length - 4).toUpperCase();
+                            return tid || '—';
+                        })()}
+                    </Text>
                 </View>
-                <View style={[styles.infoChip, { borderColor: 'rgba(255,255,255,0.07)' }]}>
+                <View style={[styles.infoChip, { borderColor: 'rgba(255,255,255,0.07)', flex: 1.2 }]}>
                     <Text style={styles.infoChipLabel}>GUEST</Text>
-                    <Text style={styles.infoChipValue} numberOfLines={1}>
+                    <Text style={[styles.infoChipValue, { textAlign: 'center' }]} numberOfLines={isExpanded ? undefined : 2}>
                         {isGift ? (order.receiverId?.name || 'Guest') : (order.userId?.name || 'Guest')}
                     </Text>
                 </View>
@@ -174,16 +182,16 @@ const OrderCard = memo(({ order, activeTab, onAccept, onReject, onUpdateStatus }
 
             {/* Items */}
             <View style={styles.itemsBox}>
-                {(order.items || []).slice(0, 4).map((it: any, idx: number) => (
+                {(order.items || []).slice(0, isExpanded ? 999 : 4).map((it: any, idx: number) => (
                     <View key={idx} style={styles.itemRow}>
                         <View style={[styles.qtyBadge, { backgroundColor: `${cfg.color}20`, borderColor: `${cfg.color}30` }]}>
                             <Text style={[styles.qtyText, { color: cfg.color }]}>{it.qty || it.quantity}×</Text>
                         </View>
-                        <Text style={styles.itemName} numberOfLines={1}>{it.name}</Text>
+                        <Text style={styles.itemName} numberOfLines={isExpanded ? undefined : 1}>{it.name}</Text>
                         {it.price && <Text style={styles.itemPrice}>₹{it.price}</Text>}
                     </View>
                 ))}
-                {(order.items?.length || 0) > 4 && (
+                {!isExpanded && (order.items?.length || 0) > 4 && (
                     <Text style={styles.moreItems}>+{order.items.length - 4} more items</Text>
                 )}
             </View>
@@ -213,7 +221,7 @@ const OrderCard = memo(({ order, activeTab, onAccept, onReject, onUpdateStatus }
                     </LinearGradient>
                 </ScaleButton>
             )}
-        </View>
+        </TouchableOpacity>
     );
 });
 
@@ -341,7 +349,7 @@ export default function WaiterPanel() {
                                 )}
                             </View>
                         </View>
-                        <TouchableOpacity style={styles.logoutBtn} onPress={() => logout()}>
+                        <TouchableOpacity style={styles.logoutBtn} onPress={() => logout(true)}>
                             <LinearGradient colors={['rgba(255,59,48,0.15)', 'rgba(255,59,48,0.05)']} style={styles.logoutInner}>
                                 <Ionicons name="power" size={18} color="#FF4D4D" />
                             </LinearGradient>
@@ -376,12 +384,22 @@ export default function WaiterPanel() {
                             <TouchableOpacity key={t} style={styles.tabItem} onPress={() => switchTab(t)} activeOpacity={0.8}>
                                 {isActive
                                     ? <LinearGradient colors={[TAB_COLORS[t] + '30', TAB_COLORS[t] + '10']} style={[styles.tabPill, { borderColor: TAB_COLORS[t] + '50' }]}>
-                                        <Ionicons name={TAB_ICONS[t]} size={14} color={TAB_COLORS[t]} />
-                                        <Text style={[styles.tabLabel, { color: TAB_COLORS[t] }]}>{t.toUpperCase()}</Text>
+                                        <Ionicons name={TAB_ICONS[t]} size={12} color={TAB_COLORS[t]} />
+                                        <Text style={[styles.tabLabel, { color: TAB_COLORS[t] }]} numberOfLines={1}>{t === 'available' ? 'NEW' : t === 'completed' ? 'DONE' : 'ACTIVE'}</Text>
+                                        {(t === 'available' ? avail.length : t === 'active' ? active.length : comp.length) > 0 && (
+                                            <View style={[styles.tabBadge, { backgroundColor: TAB_COLORS[t] }]}>
+                                                <Text style={styles.tabBadgeText}>{t === 'available' ? avail.length : t === 'active' ? active.length : comp.length}</Text>
+                                            </View>
+                                        )}
                                     </LinearGradient>
                                     : <View style={[styles.tabPill, { borderColor: 'transparent', backgroundColor: 'transparent' }]}>
-                                        <Ionicons name={TAB_ICONS[t]} size={14} color="rgba(255,255,255,0.25)" />
-                                        <Text style={[styles.tabLabel, { color: 'rgba(255,255,255,0.25)' }]}>{t.toUpperCase()}</Text>
+                                        <Ionicons name={TAB_ICONS[t]} size={12} color="rgba(255,255,255,0.25)" />
+                                        <Text style={[styles.tabLabel, { color: 'rgba(255,255,255,0.25)' }]} numberOfLines={1}>{t === 'available' ? 'NEW' : t === 'completed' ? 'DONE' : 'ACTIVE'}</Text>
+                                        {(t === 'available' ? avail.length : t === 'active' ? active.length : comp.length) > 0 && (
+                                            <View style={[styles.tabBadge, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
+                                                <Text style={[styles.tabBadgeText, { color: 'rgba(255,255,255,0.8)' }]}>{t === 'available' ? avail.length : t === 'active' ? active.length : comp.length}</Text>
+                                            </View>
+                                        )}
                                     </View>
                                 }
                             </TouchableOpacity>
@@ -453,6 +471,8 @@ const styles = StyleSheet.create({
     tabItem: { flex: 1 },
     tabPill: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
     tabLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+    tabBadge: { position: 'absolute', top: -6, right: -4, minWidth: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: '#000' },
+    tabBadgeText: { color: '#FFF', fontSize: 10, fontWeight: '900', includeFontPadding: false, textAlignVertical: 'center', marginTop: Platform.OS === 'ios' ? 1 : 0 },
 
     // List
     list: { paddingHorizontal: 20, paddingBottom: 50 },
@@ -485,10 +505,10 @@ const styles = StyleSheet.create({
     statusPillText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
 
     // Info chips
-    infoStrip: { flexDirection: 'row', gap: 8, marginLeft: 6 },
-    infoChip: { flex: 1, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 14, borderWidth: 1, padding: 12, alignItems: 'center' },
+    infoStrip: { flexDirection: 'row', gap: 6, marginLeft: 6 },
+    infoChip: { flex: 1, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 12, borderWidth: 1, paddingVertical: 10, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
     infoChipLabel: { color: 'rgba(255,255,255,0.3)', fontSize: 8, fontWeight: '900', letterSpacing: 1.2, marginBottom: 5 },
-    infoChipValue: { color: '#FFF', fontSize: 13, fontWeight: '900' },
+    infoChipValue: { color: '#FFF', fontSize: 13, fontWeight: '900', textAlign: 'center' },
 
     // Gift banner
     giftBanner: { borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(236,72,153,0.2)' },

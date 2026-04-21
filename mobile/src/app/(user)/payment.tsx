@@ -410,7 +410,7 @@ export default function SecureCheckout() {
                         </View>
                     )}
                     <View style={styles.row}>
-                        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, paddingRight: 16 }}>
                             <Text style={styles.rowLbl}>Service Charge (10%)</Text>
                             <View style={{ backgroundColor: 'rgba(251,146,60,0.12)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
                                 <Text style={{ color: '#F59E0B', fontSize: 8, fontWeight: '900' }}>PLATFORM FEE</Text>

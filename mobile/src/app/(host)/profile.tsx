@@ -55,7 +55,7 @@ export default function HostProfile() {
             "Are you sure you want to sign out from the Host Dashboard? You will need to re-verify for access.",
             [
                 { text: "Later", style: "cancel" },
-                { text: "Sign Out", style: "destructive", onPress: async () => await logout() }
+                { text: "Sign Out", style: "destructive", onPress: async () => await logout(true) }
             ]
         );
     };

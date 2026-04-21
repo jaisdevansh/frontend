@@ -348,7 +348,7 @@ const TableSelection = () => {
                                     {t.price ? (
                                         <View>
                                             <Text style={[styles.tableCardPrice, { color: isSelected ? t.color : '#fff' }]}>{'\u20b9'}{t.price.toLocaleString()}</Text>
-                                            {t.discount && <Text style={styles.tableDiscount}>{t.discount}</Text>}
+                                            {t.discount ? <Text style={styles.tableDiscount}>{t.discount}</Text> : null}
                                         </View>
                                     ) : (
                                         <Text style={styles.unavailText}>Unavailable</Text>
@@ -377,7 +377,7 @@ const TableSelection = () => {
             {/* FOOTER */}
             <View style={[styles.footer, { paddingBottom: insets.bottom > 0 ? insets.bottom + 8 : 20 }]}>
                 <View style={{ flex: 1 }}>
-                    {table?.price && (() => {
+                    {table?.price ? (() => {
                         const base = table.price * guests;
                         const serviceFee = Math.round(base * 0.10);
                         const totalWithFee = base + serviceFee;
@@ -394,7 +394,11 @@ const TableSelection = () => {
                                 </Text>
                             </>
                         );
-                    })()}
+                    })() : (
+                        table && !table.unavailable ? (
+                            <Text style={{ color: '#10b981', fontSize: 20, fontWeight: '900' }}>Free Entry</Text>
+                        ) : null
+                    )}
                 </View>
                 <TouchableOpacity 
                     style={[styles.proceedBtn, (!table || table.unavailable || isProceeding) && { opacity: 0.5 }]} 
