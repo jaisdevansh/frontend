@@ -15,9 +15,9 @@ export default function ScreenWrapper({
         <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
             <KeyboardAvoidingView
                 style={styles.flex}
-                // METHOD 2: Using padding behavior on BOTH OS for explicit JS-controlled spacing in app.json "pan" mode.
-                behavior={Platform.OS === "ios" ? "padding" : "padding"}
-                keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+                // ✅ edit-profile.tsx wala confirmed working pattern:
+                // iOS = 'padding', Android = undefined (pan mode mein OS khud handle karta hai)
+                behavior={Platform.OS === "ios" ? "padding" : undefined}
             >
                 <ScrollView
                     style={styles.flex}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
     View, 
     Text, 
@@ -7,10 +7,9 @@ import {
     TouchableOpacity, 
     TextInput,
     Keyboard,
-    TouchableWithoutFeedback,
-    ScrollView,
-    KeyboardAvoidingView
+    TouchableWithoutFeedback
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
@@ -34,18 +33,12 @@ export default function LoginScreen() {
     const [loading, setLoading] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
     const [inputType, setInputType] = useState<'phone' | 'email'>('phone');
-    
-    // 🔥 PLAN C: Absolute Keyboard Height Tracking hook
-    const [keyboardHeight, setKeyboardHeight] = useState(0);
 
     const isPhoneMode = inputType === 'phone';
     const { login, logout } = useAuth();
     const router = useRouter();
     const goBack = useStrictBack('/(auth)/welcome');
     const { showToast } = useToast();
-
-    // Removed the complex Plan C JS height listeners. 
-    // Android "resize" + React Native Flex is enough.
 
     const handleGoogleLogin = async () => {
         try {
@@ -134,6 +127,9 @@ export default function LoginScreen() {
         }
     };
 
+    // ✅ edit-profile.tsx wala exact method — APK pe confirmed working
+    // iOS = 'padding', Android = undefined (ScrollView khud handle karta hai)
+
     return (
         <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
             <LinearGradient
@@ -142,30 +138,31 @@ export default function LoginScreen() {
                 end={{ x: 1, y: 1 }}
                 style={StyleSheet.absoluteFillObject}
             />
-            <KeyboardAvoidingView 
-                style={styles.flex} 
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            >
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                    <View style={styles.flex}>
-                        {/* SCROLLABLE TOP SECTION */}
-                        <ScrollView 
-                            contentContainerStyle={styles.scrollContent}
-                            keyboardShouldPersistTaps="handled"
-                            showsVerticalScrollIndicator={false}
-                        >
-                            <View style={styles.topSection}>
-                                <TouchableOpacity onPress={() => goBack()} style={styles.backBtn}>
-                                    <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
-                                </TouchableOpacity>
+            {/* ✅ KeyboardAwareScrollView — same as venue-gifts/menu/staff, APK pe confirmed working */}
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                <KeyboardAwareScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                    enableOnAndroid={true}
+                    enableAutomaticScroll={true}
+                    extraScrollHeight={150}
+                    extraHeight={150}
+                    keyboardOpeningTime={0}
+                >
+                            <View style={styles.topAndFormContainer}>
+                                <View style={styles.topSection}>
+                                    <TouchableOpacity onPress={() => goBack()} style={styles.backBtn}>
+                                        <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+                                    </TouchableOpacity>
 
-                                <View style={styles.header}>
-                                    <Logo size={90} />
+                                    <View style={styles.header}>
+                                        <Logo size={90} />
+                                    </View>
                                 </View>
-                            </View>
 
-                            <View style={styles.formContainer}>
-                                <Text style={styles.inputLabel}>Phone Number or Email</Text>
+                                <View style={styles.formContainer}>
+                                    <Text style={styles.inputLabel}>Phone Number or Email</Text>
                                 <View style={styles.inputRow}>
                                     <TouchableOpacity 
                                         style={styles.dialCodePill}
@@ -200,35 +197,34 @@ export default function LoginScreen() {
                                     </View>
                                 </View>
                             </View>
-                        </ScrollView>
-
-                        {/* STICKY FOOTER ACTION BUTTONS */}
-                        {/* Stays seamlessly at the bottom. Android 'resize' shrinks the whole window so this naturally floats up. */}
-                        <View style={styles.stickyFooter}>
-                            <Button
-                                title="Send OTP"
-                                onPress={handleSendOtp}
-                                style={styles.loginButton}
-                                loading={loading}
-                            />
-
-                            <View style={styles.divider}>
-                                <View style={styles.dividerLine} />
-                                <Text style={styles.dividerText}>OR</Text>
-                                <View style={styles.dividerLine} />
                             </View>
 
-                            <Button
-                                title="Continue with Google"
-                                onPress={handleGoogleLogin}
-                                variant="glass"
-                                icon={<FontAwesome name="google" size={20} color="#FFFFFF" />}
-                                style={styles.googleButton}
-                            />
-                        </View>
-                    </View>
-                </TouchableWithoutFeedback>
-            </KeyboardAvoidingView>
+                            {/* IN-SCROLL BOTTOM FOOTER */}
+                            {/* Isko scrollView ke andar hi rakha hai taaki OVERLAP ki mathematical possibility hi khatam ho jaye. */}
+                            <View style={styles.inScrollFooter}>
+                                <Button
+                                    title="Send OTP"
+                                    onPress={handleSendOtp}
+                                    style={styles.loginButton}
+                                    loading={loading}
+                                />
+
+                                <View style={styles.divider}>
+                                    <View style={styles.dividerLine} />
+                                    <Text style={styles.dividerText}>OR</Text>
+                                    <View style={styles.dividerLine} />
+                                </View>
+
+                                <Button
+                                    title="Continue with Google"
+                                    onPress={handleGoogleLogin}
+                                    variant="glass"
+                                    icon={<FontAwesome name="google" size={20} color="#FFFFFF" />}
+                                    style={styles.googleButton}
+                                />
+                            </View>
+                </KeyboardAwareScrollView>
+            </TouchableWithoutFeedback>
         </SafeAreaView>
     );
 }
@@ -245,7 +241,9 @@ const styles = StyleSheet.create({
         flexGrow: 1,
         paddingHorizontal: SPACING.xl,
         paddingTop: 10,
-        paddingBottom: 20,
+    },
+    topAndFormContainer: {
+        flex: 1, // Pushes the footer to the bottom when screen is large
     },
     topSection: {
         marginBottom: 8,
@@ -265,12 +263,10 @@ const styles = StyleSheet.create({
     formContainer: {
         marginTop: 16,
     },
-    // 🔥 Pure Sticky Footer Styles
-    stickyFooter: {
-        paddingHorizontal: SPACING.xl,
-        paddingBottom: Platform.OS === 'ios' ? 20 : 30, // Safe distance below
-        paddingTop: 10,
-        backgroundColor: 'transparent',
+    // 🔥 In-Scroll Footer Styles
+    inScrollFooter: {
+        paddingBottom: Platform.OS === 'ios' ? 40 : 50, // Extended bottom space inside scroll
+        paddingTop: 20,
     },
     loginButton: {
         // Shadow to pop over content as it scrolls

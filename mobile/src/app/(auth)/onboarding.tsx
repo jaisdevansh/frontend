@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from '../../services/apiClient';
 import { useQueryClient } from '@tanstack/react-query';
 import { userService } from '../../services/userService';
+import { uploadImage } from '../../services/cloudinaryService';
 
 const AVATARS = [
     { id: 'male', uri: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png' },
@@ -30,6 +32,11 @@ export default function OnboardingScreen() {
     const [gender, setGender] = useState('Male');
     const [profileImage, setProfileImage] = useState<string | null>(AVATARS[0].uri);
     const [loading, setLoading] = useState(false);
+    const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'done'>('idle');
+    // ── imageKey: bump this every time the user picks/captures a new photo.
+    // It is used as the <key> prop on the preview image so React unmounts &
+    // remounts the component, bypassing any in-memory cache from the previous URI.
+    const [imageKey, setImageKey] = useState(0);
 
     const insets = useSafeAreaInsets();
     const { setOnboardingStatus, updateUser, logout } = useAuth();
@@ -64,6 +71,18 @@ export default function OnboardingScreen() {
         return () => clearTimeout(t);
     }, [username]);
 
+    // ── Normalise URI ────────────────────────────────────────────────────────────
+    // Android camera sometimes returns a content:// URI without a file extension.
+    // expo-image needs at least a hint for the MIME type; appending ?type=jpg is
+    // the lightest hint that doesn't break content:// resolution.
+    const normaliseUri = (uri: string): string => {
+        if (Platform.OS !== 'android') return uri;
+        if (uri.startsWith('content://') && !uri.includes('?')) {
+            return `${uri}?type=jpg`;
+        }
+        return uri;
+    };
+
     const pickImage = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
@@ -75,11 +94,13 @@ export default function OnboardingScreen() {
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
             aspect: [1, 1],
-            quality: 0.5,
+            quality: 0.8,
         });
 
-        if (!result.canceled) {
-            setProfileImage(result.assets[0].uri);
+        if (!result.canceled && result.assets[0]?.uri) {
+            const uri = normaliseUri(result.assets[0].uri);
+            setProfileImage(uri);
+            setImageKey(k => k + 1); // force preview remount
         }
     };
 
@@ -90,21 +111,33 @@ export default function OnboardingScreen() {
             return;
         }
 
+        // ── WHY allowsEditing is disabled on Android ─────────────────────────
+        // On Android, allowsEditing:true routes the capture through the system
+        // crop Activity which writes the result to a temp content:// path that
+        // React-Native's Image component cannot always read back (permission
+        // denied or stale cache).  We skip the in-app crop so the raw camera
+        // URI is returned directly — this is always readable and renderable.
         const result = await ImagePicker.launchCameraAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
+            allowsEditing: Platform.OS === 'ios', // crop only on iOS where it is safe
             aspect: [1, 1],
-            quality: 0.5,
+            quality: 0.8,
         });
 
-        if (!result.canceled) {
-            setProfileImage(result.assets[0].uri);
+        if (!result.canceled && result.assets[0]?.uri) {
+            const uri = normaliseUri(result.assets[0].uri);
+            setProfileImage(uri);
+            setImageKey(k => k + 1); // force preview remount
         }
     };
 
     const handleCompleteOnboarding = async () => {
         if (!firstName.trim() || !lastName.trim() || !username || !gender) {
             showToast('Please fill in all required fields including Username', 'error');
+            return;
+        }
+        if (usernameStatus === 'checking') {
+            showToast('Please wait while we check username availability.', 'error');
             return;
         }
         if (usernameStatus === 'taken') {
@@ -115,29 +148,65 @@ export default function OnboardingScreen() {
         setLoading(true);
         try {
             const fullName = `${firstName.trim()} ${lastName.trim()}`;
+
+            // ─── STEP 1: Upload profile image to Cloudinary ─────────────────────
+            // A local file:// URI only exists on the device during this session.
+            // We MUST upload it to Cloudinary before saving to the backend so the
+            // profile picture renders everywhere (profile screen, home, etc.).
+            let finalProfileImageUrl: string | undefined = profileImage || undefined;
+
+            const isLocalUri =
+                finalProfileImageUrl &&
+                !finalProfileImageUrl.startsWith('http');
+
+            if (isLocalUri) {
+                setUploadStatus('uploading');
+                try {
+                    const cloudinaryUrl = await uploadImage(finalProfileImageUrl!);
+                    // uploadImage returns the original URI on failure — detect that
+                    if (cloudinaryUrl && cloudinaryUrl.startsWith('http')) {
+                        finalProfileImageUrl = cloudinaryUrl;
+                    } else {
+                        // Upload failed silently — warn but don't block onboarding
+                        console.warn('[Onboarding] Cloudinary upload failed; falling back to avatar URL.');
+                        // Use the first avatar as a safe fallback so DB doesn't store a dead local path
+                        finalProfileImageUrl = AVATARS[0].uri;
+                    }
+                } catch (uploadErr) {
+                    console.error('[Onboarding] Image upload error:', uploadErr);
+                    finalProfileImageUrl = AVATARS[0].uri;
+                } finally {
+                    setUploadStatus('done');
+                }
+            }
+
+            // ─── STEP 2: Persist to backend with the final HTTPS URL ─────────────
             const res = await authService.completeOnboarding({
                 name: fullName,
                 username: username.trim(),
                 gender,
-                profileImage: profileImage || undefined
+                profileImage: finalProfileImageUrl,
             } as any);
 
             if (res.success) {
-                // Clear stale cache and trigger refetch so profile shows on Home/Profile screens
-                userService.clearCache();
-                queryClient.invalidateQueries({ queryKey: ['user_profile'] });
-
-                // Overwrite the 'Club Member' default in global AuthContext immediately
+                // ─── STEP 3: Sync AuthContext cache with the same HTTPS URL ─────
+                // This ensures the profile tab shows the correct image immediately
+                // without waiting for an API refetch.
                 await updateUser({
                     name: fullName,
                     firstName: firstName.trim(),
                     lastName: lastName.trim(),
                     username: username.trim(),
                     gender,
-                    profileImage: profileImage || undefined
+                    profileImage: finalProfileImageUrl,
                 });
 
-                // --- Referral Code Application ---
+                // ─── STEP 4: Bust TanStack Query cache ──────────────────────────
+                userService.clearCache();
+                queryClient.invalidateQueries({ queryKey: ['user_profile'] });
+                queryClient.invalidateQueries({ queryKey: ['user-profile'] });
+
+                // ─── STEP 5: Apply pending referral code ────────────────────────
                 try {
                     const pendingCode = await AsyncStorage.getItem('pending_referral_code');
                     if (pendingCode) {
@@ -156,9 +225,11 @@ export default function OnboardingScreen() {
                 await setOnboardingStatus(true);
             }
         } catch (error: any) {
-            showToast('Failed to save profile', 'error');
+            console.error('[Onboarding] handleCompleteOnboarding error:', error);
+            showToast('Failed to save profile. Please try again.', 'error');
         } finally {
             setLoading(false);
+            setUploadStatus('idle');
         }
     };
 
@@ -191,7 +262,22 @@ export default function OnboardingScreen() {
                     <View style={styles.previewContainer}>
                         <View style={styles.previewImageWrapper}>
                             {profileImage ? (
-                                <Image source={{ uri: profileImage }} style={styles.previewImage} />
+                                // ── Use expo-image for the preview ──────────────────────────────
+                                // expo-image correctly handles:
+                                //   • file:// URIs (gallery picks)
+                                //   • content:// URIs (Android camera captures)
+                                // cachePolicy='none' ensures the latest capture is always shown
+                                // even if the URI path looks the same as a previous capture.
+                                // The `key` prop forces a full unmount+remount whenever imageKey
+                                // changes, completely bypassing any internal component cache.
+                                <ExpoImage
+                                    key={`preview-${imageKey}`}
+                                    source={{ uri: profileImage }}
+                                    style={styles.previewImage}
+                                    contentFit="cover"
+                                    cachePolicy="none"
+                                    transition={200}
+                                />
                             ) : (
                                 <Ionicons name="person" size={40} color="rgba(255, 255, 255, 0.5)" />
                             )}
@@ -301,8 +387,15 @@ export default function OnboardingScreen() {
                             </TouchableOpacity>
                         </View>
 
+                        {uploadStatus === 'uploading' && (
+                            <View style={styles.uploadBanner}>
+                                <Ionicons name="cloud-upload-outline" size={16} color="#818CF8" style={{ marginRight: 8 }} />
+                                <Text style={styles.uploadBannerText}>Uploading profile picture…</Text>
+                            </View>
+                        )}
+
                         <Button
-                            title="Continue"
+                            title={uploadStatus === 'uploading' ? 'Uploading...' : 'Continue'}
                             onPress={handleCompleteOnboarding}
                             style={styles.continueBtn}
                             loading={loading}
@@ -351,4 +444,17 @@ const styles = StyleSheet.create({
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginLeft: 4 },
     chip: { backgroundColor: 'rgba(59,130,246,0.15)', borderWidth: 1, borderColor: 'rgba(59,130,246,0.4)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6 },
     chipText: { color: '#60a5fa', fontSize: 12, fontWeight: '700' },
+    uploadBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(129,140,248,0.08)',
+        borderWidth: 1,
+        borderColor: 'rgba(129,140,248,0.2)',
+        borderRadius: BORDER_RADIUS.default,
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        marginTop: 16,
+    },
+    uploadBannerText: { color: '#818CF8', fontSize: 13, fontWeight: '600' },
 });

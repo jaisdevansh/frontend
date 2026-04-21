@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ActivityIndicator, Image, Switch, FlatList, Platform, Keyboard, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ActivityIndicator, Image, Switch, FlatList, Platform, Keyboard, ScrollView, KeyboardAvoidingView } from 'react-native';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -351,6 +351,10 @@ export default function HostCreateEvent() {
     return (
         <>
         <ScreenWrapper>
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            >
             <View style={styles.scrollContent}>
             <TouchableOpacity style={styles.backBtn} onPress={() => goBack()}>
                 <Ionicons name="arrow-back" size={24} color="white" />
@@ -782,6 +786,7 @@ export default function HostCreateEvent() {
                 </View>
             </View>
             </View>
+            </KeyboardAvoidingView>
         </ScreenWrapper>
 
             <PremiumDateTimePicker

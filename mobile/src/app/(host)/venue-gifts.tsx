@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View, Text, StyleSheet, Dimensions, Platform,
     ScrollView, TouchableOpacity, Modal, TextInput,
-    ActivityIndicator, FlatList, Switch
+    ActivityIndicator, FlatList, Switch, Keyboard, KeyboardAvoidingView
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -49,8 +49,17 @@ export default function VenueGiftsScreen() {
     const [isModalVisible, setModalVisible] = useState(false);
     const [formData, setFormData] = useState(EMPTY_FORM);
     const scrollViewRef = useRef<KeyboardAwareScrollView>(null);
-    // STAGE 4: PRODUCTION-GRADE ASSET CACHE (Prevents media disappearance during sync)
+    // STAGE 4: PRODUCTION-GRADE ASSET CACHE
     const localAssetCache = React.useRef<Record<string, string>>({});
+
+    // 🔍 DEBUG: Keyboard tracker — remove after testing
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
+    useEffect(() => {
+        const screenH = Dimensions.get('window').height;
+        const show = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
+        const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
+        return () => { show.remove(); hide.remove(); };
+    }, []);
 
     // ─── Fetch gifts from standalone Gift collection ───────────────────────────
     const fetchGifts = useCallback(async () => {
@@ -254,8 +263,12 @@ export default function VenueGiftsScreen() {
 
             {/* Add / Edit Modal */}
             <Modal visible={isModalVisible} animationType="slide" transparent>
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
+                <KeyboardAvoidingView
+                    style={{ flex: 1 }}
+                    behavior={Platform.OS === 'android' ? 'height' : 'padding'}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
                             <Text style={styles.modalTitle}>{formData._id ? 'Edit Offering' : 'Add New Offering'}</Text>
                             <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeBtn}>
@@ -263,17 +276,11 @@ export default function VenueGiftsScreen() {
                             </TouchableOpacity>
                         </View>
 
-                        <KeyboardAwareScrollView
-                            ref={scrollViewRef}
-                            showsVerticalScrollIndicator={false}
-                            contentContainerStyle={{ paddingBottom: 40 }}
-                            enableOnAndroid={true}
-                            enableAutomaticScroll={true}
-                            extraHeight={250}
-                            extraScrollHeight={250}
-                            keyboardOpeningTime={0}
-                            keyboardShouldPersistTaps="handled"
-                        >
+                            <ScrollView
+                                showsVerticalScrollIndicator={false}
+                                contentContainerStyle={{ paddingBottom: 24 }}
+                                keyboardShouldPersistTaps="handled"
+                            >
                             {/* Image Picker */}
                             <TouchableOpacity style={styles.imagePicker} onPress={pickImage} activeOpacity={0.8}>
                                 {formData.image ? (
@@ -366,9 +373,10 @@ export default function VenueGiftsScreen() {
                                     <Text style={styles.saveBtnText}>{formData._id ? 'Update Offering' : 'Add Offering'}</Text>
                                 )}
                             </TouchableOpacity>
-                        </KeyboardAwareScrollView>
+                            </ScrollView>
+                        </View>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
         </SafeAreaView>
     );
@@ -405,7 +413,7 @@ const styles = StyleSheet.create({
     fabGradient: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
 
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },
-    modalContent: { backgroundColor: '#0A0A0A', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, height: '90%' },
+    modalContent: { backgroundColor: '#0A0A0A', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24 },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
     modalTitle: { color: 'white', fontSize: 22, fontWeight: '800' },
     closeBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },

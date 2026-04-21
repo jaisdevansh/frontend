@@ -163,40 +163,26 @@ function RootLayoutNav() {
   const [showSplashAnim, setShowSplashAnim] = React.useState(true);
 
   useEffect(() => {
-    console.log('[Splash] isLoading:', isLoading, 'showSplashAnim:', showSplashAnim);
     if (!isLoading) {
-        console.log('[Splash] Starting 800ms timer...');
-        // Show custom "Entry Club" splash for exactly 800ms
         const timer = setTimeout(() => {
-            console.log('[Splash] Timer complete, hiding splash...');
             setShowSplashAnim(false);
-        }, 800); // 800ms - as requested
+        }, 800);
         return () => clearTimeout(timer);
     }
   }, [isLoading]);
 
   useEffect(() => {
-    console.log('[Navigation] isLoading:', isLoading, 'showSplashAnim:', showSplashAnim, 'segments:', segments, 'token:', !!token);
-    if (isLoading || showSplashAnim) {
-      console.log('[Navigation] Blocked - waiting for splash/loading');
-      return;
-    }
+    if (isLoading || showSplashAnim) return;
 
     const inAuthGroup = segments[0] === '(auth)';
     const isOnboardingPage = segments[1] === 'onboarding';
     const isLoginPage = segments[1] === 'login';
     const isRoot = !segments[0] || segments[0] === 'index' || segments.length === 0;
 
-    console.log('[Navigation] Analyzing - inAuthGroup:', inAuthGroup, 'isRoot:', isRoot, 'segments:', segments);
-
-    // 1. GUEST GATE - Redirect to welcome if no token
+    // 1. GUEST GATE
     if (!token) {
-      // If we're at root/index or not in auth group, go to welcome
       if (isRoot || !inAuthGroup) {
-        console.log('[Navigation] ✅ No token, redirecting to welcome from:', segments);
         setTimeout(() => router.replace('/(auth)/welcome'), 100);
-      } else {
-        console.log('[Navigation] No token but already in auth group');
       }
       return;
     }
@@ -249,12 +235,7 @@ function RootLayoutNav() {
         const hStatus = hostProfile?.hostStatus || user?.hostStatus;
         
         // If no status available at all, wait (don't navigate yet)
-        if (!hStatus) {
-            console.log('[Navigation] Host status not available yet, waiting...');
-            return;
-        }
-        
-        console.log('[Navigation] Host status:', hStatus);
+        if (!hStatus) return;
         
         if (hStatus === 'INVITED' || hStatus === 'CREATED') {
             if (segments[1] !== 'onboarding') return navigateTo('/(host)/onboarding');
@@ -265,8 +246,7 @@ function RootLayoutNav() {
         } else if (hStatus === 'SUSPENDED') {
             if (segments[1] !== 'suspended') return navigateTo('/(auth)/suspended');
         } else if (hStatus === 'ACTIVE') {
-            // Allow navigation to any host screen
-            console.log('[Navigation] Host is ACTIVE, allowing navigation');
+            // Allow navigation
         } else {
             if (segments[1] !== 'onboarding') return navigateTo('/(host)/onboarding');
         }
@@ -278,7 +258,6 @@ function RootLayoutNav() {
     // If user is logged in but on an Auth or Index page, send them to their home
     if (inAuthGroup || isRoot) {
         if (!isOnboardingPage) {
-            console.log('[Navigation] Logged in user on auth/root, redirecting to:', targetHome);
             return navigateTo(targetHome);
         }
     }

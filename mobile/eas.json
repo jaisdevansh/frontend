@@ -25,6 +25,16 @@
                 "NODE_ENV": "production"
             }
         },
+        "firebase": {
+            "distribution": "internal",
+            "android": {
+                "buildType": "apk",
+                "gradleCommand": ":app:assembleRelease"
+            },
+            "env": {
+                "NODE_ENV": "production"
+            }
+        },
         "production": {
             "distribution": "store",
             "android": {

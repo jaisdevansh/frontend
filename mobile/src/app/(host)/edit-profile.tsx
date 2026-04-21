@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform, TextInput, Keyboard, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import { useRouter } from 'expo-router';
@@ -39,6 +39,17 @@ export default function EditProfileScreen() {
     const queryClient = useQueryClient();
     const { updateUser } = useAuth();
     const scrollViewRef = useRef<any>(null);
+
+    // 🔍 DEBUG: Keyboard tracker — remove after testing
+    useEffect(() => {
+        const screenH = Dimensions.get('window').height;
+        console.log('[HOST EDIT-PROFILE DEBUG] Screen:', screenH, '| Platform:', Platform.OS);
+        const show = Keyboard.addListener('keyboardDidShow', (e) => {
+            const kbH = e.endCoordinates.height;
+            console.log('[HOST EDIT-PROFILE DEBUG] KB Height:', kbH, '| Remaining:', screenH - kbH);
+        });
+        return () => show.remove();
+    }, []);
 
     // Use SAME queryKey as useHostProfile hook → data is already cached, no extra network call
     const { data: profileData, isLoading: isFetching } = useQuery({

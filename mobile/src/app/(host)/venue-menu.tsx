@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Modal, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Modal, Dimensions, Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useRouter } from 'expo-router';
@@ -45,9 +45,14 @@ export default function HostVenueMenu() {
     const [itemPrice, setItemPrice] = useState('');
     const [itemImage, setItemImage] = useState('');
 
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
     useEffect(() => {
-        fetchVenueMenu();
+        const show = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
+        const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
+        return () => { show.remove(); hide.remove(); };
     }, []);
+
+    useEffect(() => { fetchVenueMenu(); }, []);
 
     const fetchVenueMenu = async () => {
         try {
@@ -239,7 +244,11 @@ export default function HostVenueMenu() {
 
             {/* Add/Edit Modal */}
             <Modal visible={modalVisible} transparent animationType="slide">
-                <View style={styles.modalOverlay}>
+                <KeyboardAvoidingView
+                    style={{ flex: 1 }}
+                    behavior={Platform.OS === 'android' ? 'height' : 'padding'}
+                >
+                    <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
                             <Text style={styles.modalTitle}>{editIndex !== null ? 'Edit Item' : 'New Offering'}</Text>
@@ -248,14 +257,9 @@ export default function HostVenueMenu() {
                             </TouchableOpacity>
                         </View>
 
-                        <KeyboardAwareScrollView
-                            ref={scrollViewRef}
+                        <ScrollView
                             showsVerticalScrollIndicator={false}
-                            enableOnAndroid={true}
-                            enableAutomaticScroll={true}
-                            extraHeight={250}
-                            extraScrollHeight={250}
-                            keyboardOpeningTime={0}
+                            contentContainerStyle={{ paddingBottom: 40 }}
                             keyboardShouldPersistTaps="handled"
                         >
                             <TouchableOpacity style={styles.modalImagePicker} onPress={pickImage}>
@@ -308,9 +312,10 @@ export default function HostVenueMenu() {
                             />
 
                             <Button title="Save Item to List" onPress={handleSaveItem} style={{ marginTop: 12 }} />
-                        </KeyboardAwareScrollView>
+                            </ScrollView>
                     </View>
-                </View>
+                    </View>
+                </KeyboardAvoidingView>
             </Modal>
         </View>
     );
@@ -500,7 +505,6 @@ const styles = StyleSheet.create({
         borderTopRightRadius: 40,
         padding: 24,
         paddingTop: 32,
-        maxHeight: '90%',
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.05)',
     },

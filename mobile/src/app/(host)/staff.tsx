@@ -1,8 +1,8 @@
-import React, { useCallback, useState, useMemo, memo, useRef } from 'react';
+import React, { useCallback, useState, useMemo, memo, useRef, useEffect } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
-    TextInput, StatusBar, Modal,
-    Platform, Switch, Pressable
+    TextInput, StatusBar, Modal, ScrollView,
+    Platform, Switch, Pressable, Keyboard, Dimensions, KeyboardAvoidingView
 } from 'react-native';
 import SafeFlashList from '../../components/SafeFlashList';
 const FlashList = SafeFlashList;
@@ -74,6 +74,13 @@ export default function StaffManagement() {
     const { showToast } = useToast();
     const qc = useQueryClient();
     const scrollViewRef = useRef<KeyboardAwareScrollView>(null);
+
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
+    useEffect(() => {
+        const show = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
+        const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
+        return () => { show.remove(); hide.remove(); };
+    }, []);
 
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState<FilterType>('ALL');
@@ -303,6 +310,10 @@ export default function StaffManagement() {
 
             {/* Add Staff Modal */}
             <Modal visible={showAddModal} animationType="slide" transparent onRequestClose={() => setShowAddModal(false)}>
+                <KeyboardAvoidingView
+                    style={{ flex: 1 }}
+                    behavior={Platform.OS === 'android' ? 'height' : 'padding'}
+                >
                 <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setShowAddModal(false)} />
                 <View style={styles.sheet}>
                     {/* Sheet handle */}
@@ -314,17 +325,11 @@ export default function StaffManagement() {
                         </TouchableOpacity>
                     </View>
 
-                    <KeyboardAwareScrollView
-                        ref={scrollViewRef}
-                        showsVerticalScrollIndicator={false}
-                        contentContainerStyle={{ paddingBottom: 40 }}
-                        enableOnAndroid={true}
-                        enableAutomaticScroll={true}
-                        extraHeight={250}
-                        extraScrollHeight={250}
-                        keyboardOpeningTime={0}
-                        keyboardShouldPersistTaps="handled"
-                    >
+                    <ScrollView
+                            showsVerticalScrollIndicator={false}
+                            contentContainerStyle={{ paddingBottom: 40 }}
+                            keyboardShouldPersistTaps="handled"
+                        >
                             {/* Role Picker */}
                             <Text style={styles.sectionLabel}>ASSIGN ROLE</Text>
                             <RolePicker value={form.staffType} onChange={(r) => setField('staffType', r)} />
@@ -388,8 +393,9 @@ export default function StaffManagement() {
                                     <Text style={styles.saveBtnText}>Add {ROLE_CONFIG[form.staffType].label}</Text>
                                 )}
                             </TouchableOpacity>
-                        </KeyboardAwareScrollView>
+                        </ScrollView>
                     </View>
+                </KeyboardAvoidingView>
             </Modal>
         </View>
     );
@@ -420,7 +426,7 @@ const styles = StyleSheet.create({
 
     // Modal/Sheet
     overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.55)' },
-    sheet: { backgroundColor: '#0E0F1A', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, maxHeight: '88%' },
+    sheet: { backgroundColor: '#0E0F1A', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24 },
     handle: { width: 40, height: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
     sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
     sheetTitle: { color: 'white', fontSize: 20, fontWeight: '800' },

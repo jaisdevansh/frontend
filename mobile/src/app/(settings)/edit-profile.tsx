@@ -12,7 +12,8 @@ import {
     Image,
     Keyboard,
     TouchableWithoutFeedback,
-    Modal
+    Modal,
+    Dimensions
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -89,6 +90,20 @@ export default function EditProfile() {
     const [saving, setSaving] = useState(false);
     const [locating, setLocating] = useState(false);
     
+    // 🔍 DEBUG: Keyboard tracker — remove after testing
+    useEffect(() => {
+        const screenH = Dimensions.get('window').height;
+        console.log('[EDIT-PROFILE DEBUG] Screen Height:', screenH, '| Platform:', Platform.OS);
+        const show = Keyboard.addListener('keyboardDidShow', (e) => {
+            const kbH = e.endCoordinates.height;
+            const remaining = screenH - kbH;
+            console.log('[EDIT-PROFILE DEBUG] Keyboard Height:', kbH);
+            console.log('[EDIT-PROFILE DEBUG] Remaining Space:', remaining);
+            console.log('[EDIT-PROFILE DEBUG] Scroll needed?', remaining < 500 ? 'YES' : 'NO — enough space');
+        });
+        return () => show.remove();
+    }, []);
+
     // 🔥 FIX DATA LEAKAGE: Always sync component state when authUser changes 
     // (handles React Navigation caching old component instances after logout/login)
     useEffect(() => {

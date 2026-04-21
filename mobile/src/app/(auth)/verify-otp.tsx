@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Platform, TouchableOpacity, Dimensions } from 'react-native';
-import ScreenWrapper from '../../components/ScreenWrapper';
+import { View, Text, StyleSheet, TouchableOpacity, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../context/AuthContext';
 import { Input } from '../../components/Input';
@@ -12,7 +12,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { authService } from '../../services/authService';
 import { useToast } from '../../context/ToastContext';
 import { Logo } from '../../components/Logo';
-const { height } = Dimensions.get('window');
 
 export default function VerifyOtpScreen() {
     const { identifier, hint } = useLocalSearchParams<{ identifier: string, hint?: string }>();
@@ -65,79 +64,78 @@ export default function VerifyOtpScreen() {
     };
 
     return (
-        <ScreenWrapper>
-            <View style={styles.container}>
-                <LinearGradient
-                    colors={['#000000', '#1a1a2e', '#000000']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.background}
-                />
-                <View style={styles.innerContent}>
-                    <View>
-                        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
-                        </TouchableOpacity>
+        <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
+            <LinearGradient
+                colors={['#000000', '#1a1a2e', '#000000']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+            />
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                <KeyboardAwareScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                    enableOnAndroid={true}
+                    enableAutomaticScroll={true}
+                    extraScrollHeight={150}
+                    extraHeight={150}
+                    keyboardOpeningTime={0}
+                >
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                        <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+                    </TouchableOpacity>
 
-                        <View style={styles.header}>
-                            <View style={{ marginBottom: 20 }}>
-                                <Logo size={80} showText={false} />
-                            </View>
-                            <Text style={styles.title} adjustsFontSizeToFit numberOfLines={1}>VERIFY ACCESS</Text>
-                            <Text style={styles.subtitle}>Enter the 6-digit code sent to</Text>
-                            <Text style={styles.identifierText}>{identifier}</Text>
-                            {currentHint && <Text style={styles.hintText}>Demo Code: {currentHint}</Text>}
+                    <View style={styles.header}>
+                        <View style={{ marginBottom: 20 }}>
+                            <Logo size={80} showText={false} />
+                        </View>
+                        <Text style={styles.title} adjustsFontSizeToFit numberOfLines={1}>VERIFY ACCESS</Text>
+                        <Text style={styles.subtitle}>Enter the 6-digit code sent to</Text>
+                        <Text style={styles.identifierText}>{identifier}</Text>
+                        {currentHint && <Text style={styles.hintText}>Demo Code: {currentHint}</Text>}
+                    </View>
+
+                    <View style={styles.form}>
+                        <Input
+                            label="One-Time Password"
+                            placeholder="000000"
+                            value={otp}
+                            onChangeText={setOtp}
+                            keyboardType="number-pad"
+                            maxLength={6}
+                        />
+
+                        <Button
+                            title="Verify & Enter"
+                            onPress={handleVerifyOtp}
+                            style={styles.verifyButton}
+                            loading={loading}
+                        />
+
+                        <View style={styles.resendContainer}>
+                            <Text style={styles.resendText}>Didn't receive the code? </Text>
+                            <TouchableOpacity onPress={handleResendOtp}>
+                                <Text style={styles.resendLink}>Resend OTP</Text>
+                            </TouchableOpacity>
                         </View>
                     </View>
-
-                {/* Form directly beneath the header */}
-                <View style={styles.form}>
-                    <Input
-                        label="One-Time Password"
-                        placeholder="000000"
-                        value={otp}
-                        onChangeText={setOtp}
-                        keyboardType="number-pad"
-                        maxLength={6}
-                    />
-
-                    <Button
-                        title="Verify & Enter"
-                        onPress={handleVerifyOtp}
-                        style={styles.verifyButton}
-                        loading={loading}
-                    />
-
-                    <View style={styles.resendContainer}>
-                        <Text style={styles.resendText}>Didn't receive the code? </Text>
-                        <TouchableOpacity onPress={handleResendOtp}>
-                            <Text style={styles.resendLink}>Resend OTP</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </View>
-            </View>
-        </ScreenWrapper>
+                </KeyboardAwareScrollView>
+            </TouchableWithoutFeedback>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        backgroundColor: 'transparent',
-    },
-    background: {
-        ...StyleSheet.absoluteFillObject,
+    root: {
+        flex: 1,
+        backgroundColor: '#000000',
     },
     scrollContent: {
         flexGrow: 1,
-        paddingBottom: 50,
-    },
-    innerContent: {
         paddingHorizontal: SPACING.xl,
         paddingTop: 20,
-        paddingBottom: 40,
-        // NO flex:1 — let natural height enable scroll
-        justifyContent: 'flex-start',
+        paddingBottom: 60,
     },
     backBtn: {
         width: 40,
