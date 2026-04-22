@@ -6,7 +6,7 @@ import { COLORS } from '../../constants/design-system';
 
 /**
  * Signup deep-link handler.
- * Catch-all for entryclub://signup?code=REFERENCE_CODE
+ * Catch-all for entry-club://(auth)/signup?code=REFERENCE_CODE
  */
 export default function SignupRedirect() {
     const { code } = useLocalSearchParams();

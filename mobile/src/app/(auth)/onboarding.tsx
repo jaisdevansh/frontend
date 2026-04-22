@@ -94,7 +94,7 @@ export default function OnboardingScreen() {
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
             aspect: [1, 1],
-            quality: 0.8,
+            quality: 0.5,
         });
 
         if (!result.canceled && result.assets[0]?.uri) {
@@ -121,7 +121,7 @@ export default function OnboardingScreen() {
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: Platform.OS === 'ios', // crop only on iOS where it is safe
             aspect: [1, 1],
-            quality: 0.8,
+            quality: 0.5,
         });
 
         if (!result.canceled && result.assets[0]?.uri) {

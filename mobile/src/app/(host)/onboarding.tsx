@@ -10,7 +10,7 @@ import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+import { uploadImage } from '../../services/cloudinaryService';
 import * as Location from 'expo-location';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PremiumDateTimePicker } from '../../components/PremiumDateTimePicker';
@@ -54,8 +54,9 @@ export default function Onboarding() {
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [location, setLocation] = useState('');
     const [profileImage, setProfileImage] = useState<string | null>(null);
-    const [aadhaarFile, setAadhaarFile] = useState<any>(null);
-    const [panFile, setPanFile] = useState<any>(null);
+    // Store file URIs (not base64) for fast local preview + Cloudinary upload
+    const [aadhaarFile, setAadhaarFile] = useState<{ uri: string; name: string } | null>(null);
+    const [panFile, setPanFile] = useState<{ uri: string; name: string } | null>(null);
 
     useEffect(() => {
         let percent = 25;
@@ -91,11 +92,12 @@ export default function Onboarding() {
                         try {
                             const { status } = await ImagePicker.requestCameraPermissionsAsync();
                             if (status !== 'granted') return showToast('Camera permission required', 'error');
+                            // No base64 — use file URI for fast local preview
                             const result = await ImagePicker.launchCameraAsync({
-                                allowsEditing: true, aspect: [1, 1], quality: 0.3, base64: true,
+                                allowsEditing: true, aspect: [1, 1], quality: 0.4,
                             });
-                            if (!result.canceled && result.assets?.[0]?.base64) {
-                                setProfileImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+                            if (!result.canceled && result.assets?.[0]?.uri) {
+                                setProfileImage(result.assets[0].uri);
                             }
                         } catch (e) { showToast('Camera failed', 'error'); }
                     }
@@ -104,10 +106,10 @@ export default function Onboarding() {
                     text: 'Choose Gallery',
                     onPress: async () => {
                         const result = await ImagePicker.launchImageLibraryAsync({
-                            mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.3, base64: true,
+                            mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.4,
                         });
-                        if (!result.canceled && result.assets?.[0]?.base64) {
-                            setProfileImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+                        if (!result.canceled && result.assets?.[0]?.uri) {
+                            setProfileImage(result.assets[0].uri);
                         }
                     }
                 }
@@ -127,14 +129,15 @@ export default function Onboarding() {
                         try {
                             const { status } = await ImagePicker.requestCameraPermissionsAsync();
                             if (status !== 'granted') return showToast('Camera permission required', 'error');
+                            // No base64 — store file URI only; upload to Cloudinary on submit
                             const result = await ImagePicker.launchCameraAsync({
-                                mediaTypes: ['images'], quality: 0.3, base64: true,
+                                mediaTypes: ['images'], quality: 0.4,
                             });
-                            if (!result.canceled && result.assets?.[0]?.base64) {
-                                const asset = result.assets[0];
-                                const fileData = `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`;
-                                if (type === 'aadhaar') setAadhaarFile({ ...asset, base64: fileData });
-                                else setPanFile({ ...asset, base64: fileData });
+                            if (!result.canceled && result.assets?.[0]?.uri) {
+                                const uri = result.assets[0].uri;
+                                const name = uri.split('/').pop() || `${type}.jpg`;
+                                if (type === 'aadhaar') setAadhaarFile({ uri, name });
+                                else setPanFile({ uri, name });
                                 showToast(`${type.toUpperCase()} photo captured`, 'success');
                             }
                         } catch (e) { showToast('Camera failed', 'error'); }
@@ -145,13 +148,13 @@ export default function Onboarding() {
                     onPress: async () => {
                         try {
                             const result = await ImagePicker.launchImageLibraryAsync({
-                                mediaTypes: ['images'], quality: 0.3, base64: true,
+                                mediaTypes: ['images'], quality: 0.4,
                             });
-                            if (!result.canceled && result.assets?.[0]?.base64) {
-                                const asset = result.assets[0];
-                                const fileData = `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`;
-                                if (type === 'aadhaar') setAadhaarFile({ ...asset, base64: fileData });
-                                else setPanFile({ ...asset, base64: fileData });
+                            if (!result.canceled && result.assets?.[0]?.uri) {
+                                const uri = result.assets[0].uri;
+                                const name = uri.split('/').pop() || `${type}.jpg`;
+                                if (type === 'aadhaar') setAadhaarFile({ uri, name });
+                                else setPanFile({ uri, name });
                                 showToast(`${type.toUpperCase()} photo selected`, 'success');
                             }
                         } catch (e) { showToast('Gallery failed', 'error'); }
@@ -207,10 +210,20 @@ export default function Onboarding() {
         
         setIsSubmitting(true);
         try {
+            // ── Upload all 3 images to Cloudinary in parallel ──────────────────
+            // Using file URIs (not base64) keeps each upload fast and memory-light.
+            showToast('Uploading documents…', 'info');
+            const [profileUrl, aadhaarUrl, panUrl] = await Promise.all([
+                uploadImage(profileImage),
+                uploadImage(aadhaarFile.uri),
+                uploadImage(panFile.uri),
+            ]);
+
             const payload = {
-                name, dob, location, profileImage,
-                aadhaarUrl: aadhaarFile.base64,
-                panUrl: panFile.base64,
+                name, dob, location,
+                profileImage: profileUrl,
+                aadhaarUrl,
+                panUrl,
             };
             
             const response = await hostService.completeProfile(payload);

@@ -128,7 +128,7 @@ export default function ReferralScreen() {
 
         const isAvailable = await SMS.isAvailableAsync();
         if (isAvailable) {
-            const message = `Join me on Entry Club! Use my code ${referralCode} to get 50 bonus points. Download here: https://entryclub.com/invite/${referralCode}`;
+            const message = `Join me on Entry Club! Use my code ${referralCode} to get 50 bonus points. Download here: https://entry-user-backend-mpft.onrender.com/invite/${referralCode}`;
             const { result } = await SMS.sendSMSAsync([phoneNumber], message);
             const contactId = (contact as any).id || (contact as any).contactId || '';
             if (result === 'sent' && contactId) {
@@ -167,7 +167,7 @@ export default function ReferralScreen() {
     const handleShare = async () => {
         try {
             await Share.share({
-                message: `Join Entry Club and discover the best nightlife! Use my referral code: ${referralCode} to get 50 bonus points on signup. https://entryclub.com/invite/${referralCode}`,
+                message: `Join Entry Club and discover the best nightlife! Use my referral code: ${referralCode} to get 50 bonus points on signup. https://entry-user-backend-mpft.onrender.com/invite/${referralCode}`,
             });
         } catch (error: any) {
             showToast(error.message, 'error');
@@ -175,7 +175,7 @@ export default function ReferralScreen() {
     };
 
     const handleWhatsAppShare = () => {
-        const message = `Join Entry Club and discover the best nightlife! Use my referral code: ${referralCode} to get 50 bonus points on signup. https://entryclub.com/invite/${referralCode}`;
+        const message = `Join Entry Club and discover the best nightlife! Use my referral code: ${referralCode} to get 50 bonus points on signup. https://entry-user-backend-mpft.onrender.com/invite/${referralCode}`;
         Linking.openURL(`whatsapp://send?text=${encodeURIComponent(message)}`).catch(() => {
             showToast('WhatsApp is not installed on this device', 'error');
         });
