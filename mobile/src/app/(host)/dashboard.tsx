@@ -15,6 +15,7 @@ import { PendingVerification } from '../../components/host/PendingVerification';
 import { useQueryClient } from '@tanstack/react-query';
 import { StatCardSkeleton, StatCardHalfSkeleton } from '../../components/Skeletons/StatCardSkeleton';
 import { HostEventCardSkeleton } from '../../components/Skeletons/HostEventCardSkeleton';
+import { useNotification } from '../../context/NotificationContext';
 
 const { width } = Dimensions.get('window');
 
@@ -146,6 +147,7 @@ export default function HostDashboard() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
     const { logout, user } = useAuth();
+    const { unreadCount } = useNotification();
     
     const { data: hostProfile, isLoading: profileLoading } = useHostProfile();
     const { data: stats, isLoading: statsLoading } = useDashboardStats();
@@ -253,9 +255,19 @@ export default function HostDashboard() {
             <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
             
             <View style={styles.topBar}>
-                <TouchableOpacity onPress={() => logout(true)} style={styles.powerBtn}>
-                    <Ionicons name="power" size={18} color="#ef4444" />
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <TouchableOpacity style={styles.bellBtn} onPress={() => router.push('/(settings)/notifications' as any)}>
+                        <Ionicons name="notifications-outline" size={20} color="#FFF" />
+                        {unreadCount > 0 && (
+                            <View style={styles.notifBadge}>
+                                <Text style={styles.notifBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                            </View>
+                        )}
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => logout(true)} style={styles.powerBtn}>
+                        <Ionicons name="power" size={18} color="#ef4444" />
+                    </TouchableOpacity>
+                </View>
             </View>
 
             <View style={styles.header}>
@@ -404,6 +416,9 @@ const styles = StyleSheet.create({
     loader: { flex: 1, backgroundColor: '#000000', alignItems: 'center', justifyContent: 'center' },
     topBar: { alignItems: 'flex-end', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 10 },
     powerBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(239, 68, 68, 0.1)', justifyContent: 'center', alignItems: 'center' },
+    bellBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center', position: 'relative' },
+    notifBadge: { position: 'absolute', top: -2, right: -2, backgroundColor: '#EF4444', minWidth: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#000', paddingHorizontal: 4 },
+    notifBadgeText: { color: '#FFF', fontSize: 8, fontWeight: '900' },
     
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 24 },
     welcome: { color: 'rgba(255,255,255,0.7)', fontSize: 16, fontWeight: '500', marginBottom: 2 },

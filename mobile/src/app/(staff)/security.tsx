@@ -22,6 +22,7 @@ import {
     useResolveIssue,
     useSecuritySocket,
 } from '../../hooks/useSecurityIssues';
+import { useNotification } from '../../context/NotificationContext';
 
 type TabType = 'active' | 'in_progress' | 'history';
 
@@ -41,6 +42,7 @@ export default function SecurityPanel() {
     const { logout, user: authUser } = useAuth();
     const { showToast } = useToast();
     const { showAlert } = useAlert();
+    const { unreadCount } = useNotification();
     
     // UI States
     const [activeTab, setActiveTab] = useState<TabType>('active');
@@ -331,7 +333,15 @@ export default function SecurityPanel() {
                             <Text style={styles.officerName}>{profile?.username || profile?.name || 'Security'}</Text>
                         </View>
                     </View>
-                    <View style={{ flexDirection: 'row' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <TouchableOpacity style={styles.bellBtn} onPress={() => router.push('/(settings)/notifications' as any)}>
+                            <Ionicons name="notifications-outline" size={24} color="#FFF" />
+                            {unreadCount > 0 && (
+                                <View style={styles.badge}>
+                                    <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                                </View>
+                            )}
+                        </TouchableOpacity>
                          <TouchableOpacity 
                             style={styles.logoutCircle} 
                             onPress={() => {
@@ -583,6 +593,9 @@ const styles = StyleSheet.create({
     badgeId: { color: COLORS.primary, fontSize: 10, fontWeight: '900', letterSpacing: 2 },
     bigDecision: { fontSize: 24, fontWeight: '900', marginTop: 4, letterSpacing: 1 },
     officerName: { color: 'white', fontSize: 20, fontWeight: '900' },
+    bellBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.03)', alignItems: 'center', justifyContent: 'center', position: 'relative' },
+    badge: { position: 'absolute', top: 0, right: 0, backgroundColor: '#EF4444', minWidth: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#050510', paddingHorizontal: 4 },
+    badgeText: { color: '#FFF', fontSize: 9, fontWeight: '900' },
     logoutCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.03)', justifyContent: 'center', alignItems: 'center' },
     
     venueBar: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', backgroundColor: 'rgba(255, 59, 48, 0.08)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, gap: 10, marginBottom: 15, borderWidth: 1, borderColor: 'rgba(255, 59, 48, 0.15)' },

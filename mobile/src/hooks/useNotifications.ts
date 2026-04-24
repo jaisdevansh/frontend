@@ -17,7 +17,7 @@ if (!isExpoGo) {
     Notifications.setNotificationHandler({
         handleNotification: async () => ({
             shouldShowAlert: false,  // Custom banner handles this
-            shouldPlaySound: true,
+            shouldPlaySound: false,  // Custom banner handles sound
             shouldSetBadge: true,
             shouldShowBanner: false, // Custom banner handles this
             shouldShowList: true,    // Show in notification tray (background)

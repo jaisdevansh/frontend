@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import * as Notifications from 'expo-notifications';
+import { Audio } from 'expo-av';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { showLocalNotification } from '../services/notificationService';
 
@@ -39,11 +40,11 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 
 // ─── Type Config ─────────────────────────────────────────────────────────────
 const TYPE_CONFIG = {
-    CHAT:    { icon: 'chatbubble-ellipses', color: '#3B82F6', bg: 'rgba(59,130,246,0.15)' },
-    ORDER:   { icon: 'restaurant',          color: '#F59E0B', bg: 'rgba(245,158,11,0.15)' },
-    ALERT:   { icon: 'notifications',       color: '#7C3AED', bg: 'rgba(124,58,237,0.15)' },
-    INFO:    { icon: 'information-circle',  color: '#64748B', bg: 'rgba(100,116,139,0.15)' },
-    SUCCESS: { icon: 'checkmark-circle',    color: '#10B981', bg: 'rgba(16,185,129,0.15)' },
+    CHAT:    { icon: 'chatbubble-ellipses', color: '#60A5FA', bg: 'rgba(30,58,138,0.95)', border: '#3B82F6' },
+    ORDER:   { icon: 'restaurant',          color: '#FBBF24', bg: 'rgba(120,53,15,0.95)', border: '#F59E0B' },
+    ALERT:   { icon: 'notifications',       color: '#C084FC', bg: 'rgba(76,29,149,0.95)', border: '#8B5CF6' },
+    INFO:    { icon: 'information-circle',  color: '#94A3B8', bg: 'rgba(15,23,42,0.95)', border: '#475569' },
+    SUCCESS: { icon: 'checkmark-circle',    color: '#34D399', bg: 'rgba(6,78,59,0.95)', border: '#10B981' },
 };
 
 // ─── Deduplication ───────────────────────────────────────────────────────────
@@ -118,11 +119,11 @@ const NotificationBanner: React.FC<{
                     transform: [{ translateY }],
                     opacity,
                     backgroundColor: config.bg,
-                    borderColor: config.color + '50',
+                    borderColor: config.border,
                 }
             ]}
         >
-            <View style={[styles.bannerIconWrap, { backgroundColor: config.color + '20' }]}>
+            <View style={[styles.bannerIconWrap, { backgroundColor: config.color + '30' }]}>
                 <Ionicons name={config.icon as any} size={22} color={config.color} />
             </View>
             <View style={styles.bannerTextWrap}>
@@ -170,6 +171,24 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
 
+        // Play custom notification sound
+        const playNotificationSound = async () => {
+            try {
+                const { sound } = await Audio.Sound.createAsync(
+                    require('../assets/sounds/notify.ogg')
+                );
+                await sound.playAsync();
+                sound.setOnPlaybackStatusUpdate((status) => {
+                    if (status.isLoaded && status.didJustFinish) {
+                        sound.unloadAsync();
+                    }
+                });
+            } catch (err) {
+                console.log('[NotificationContext] Sound error:', err);
+            }
+        };
+        playNotificationSound();
+
         // Queue banner
         bannerQueue.current.push(notification);
         if (!isBannerShowing.current) {
@@ -183,10 +202,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
         Notifications.setNotificationHandler({
             handleNotification: async () => ({
-                shouldShowAlert: false, // We handle UI ourselves
-                shouldPlaySound: true,
+                shouldShowAlert: false, // Custom banner handles this to avoid duplicates
+                shouldPlaySound: false, // We play sound manually via expo-av
                 shouldSetBadge: true,
-            } as any),
+                shouldShowBanner: false,
+                shouldShowList: true,
+            }),
         });
 
         // Listen for push notifications received in foreground
@@ -241,24 +262,24 @@ const styles = StyleSheet.create({
         left: 16,
         right: 16,
         zIndex: 9999,
-        borderRadius: 18,
-        borderWidth: 1,
+        borderRadius: 20,
+        borderWidth: 1.5,
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 14,
-        paddingVertical: 12,
-        gap: 12,
-        // Glass shadow
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        gap: 14,
+        // Strong Drop shadow for maximum visibility
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.4,
-        shadowRadius: 20,
-        elevation: 20,
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.8,
+        shadowRadius: 25,
+        elevation: 25,
     },
     bannerIconWrap: {
-        width: 40,
-        height: 40,
-        borderRadius: 12,
+        width: 44,
+        height: 44,
+        borderRadius: 14,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -267,18 +288,20 @@ const styles = StyleSheet.create({
     },
     bannerTitle: {
         color: '#FFFFFF',
-        fontSize: 14,
+        fontSize: 16,
         fontWeight: '800',
-        letterSpacing: 0.2,
-        marginBottom: 2,
+        letterSpacing: 0.3,
+        marginBottom: 4,
     },
     bannerBody: {
-        color: 'rgba(255,255,255,0.6)',
-        fontSize: 12,
-        fontWeight: '500',
-        lineHeight: 16,
+        color: '#E2E8F0',
+        fontSize: 14,
+        fontWeight: '600',
+        lineHeight: 20,
     },
     bannerClose: {
-        padding: 4,
+        padding: 6,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        borderRadius: 20,
     },
 });

@@ -24,6 +24,7 @@ import {
     useRejectOrder,
 } from '../../hooks/useWaiterOrders';
 import SafeFlashList from '../../components/SafeFlashList';
+import { useNotification } from '../../context/NotificationContext';
 
 const { width } = Dimensions.get('window');
 const TabTypes = ['available', 'active', 'completed'] as const;
@@ -231,6 +232,7 @@ export default function WaiterPanel() {
     const insets = useSafeAreaInsets();
     const { logout } = useAuth();
     const { showToast } = useToast();
+    const { unreadCount } = useNotification();
     const [activeTab, setActiveTab] = useState<TabType>('available');
     const [profile, setProfile] = useState<any>(null);
 
@@ -349,11 +351,21 @@ export default function WaiterPanel() {
                                 )}
                             </View>
                         </View>
-                        <TouchableOpacity style={styles.logoutBtn} onPress={() => logout(true)}>
-                            <LinearGradient colors={['rgba(255,59,48,0.15)', 'rgba(255,59,48,0.05)']} style={styles.logoutInner}>
-                                <Ionicons name="power" size={18} color="#FF4D4D" />
-                            </LinearGradient>
-                        </TouchableOpacity>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                            <TouchableOpacity style={styles.bellBtn} onPress={() => router.push('/(settings)/notifications' as any)}>
+                                <Ionicons name="notifications-outline" size={24} color="#FFF" />
+                                {unreadCount > 0 && (
+                                    <View style={styles.badge}>
+                                        <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                                    </View>
+                                )}
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.logoutBtn} onPress={() => logout(true)}>
+                                <LinearGradient colors={['rgba(255,59,48,0.15)', 'rgba(255,59,48,0.05)']} style={styles.logoutInner}>
+                                    <Ionicons name="power" size={18} color="#FF4D4D" />
+                                </LinearGradient>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </LinearGradient>
 
@@ -456,6 +468,9 @@ const styles = StyleSheet.create({
     nameLabel: { color: '#FFF', fontSize: 17, fontWeight: '900', marginTop: 1, maxWidth: 180 },
     usernameLabel: { color: 'rgba(255,255,255,0.75)', fontSize: 15, fontWeight: '700', marginTop: 2 },
     venueLabel: { color: 'rgba(255,255,255,0.35)', fontSize: 11, fontWeight: '600', marginTop: 2, maxWidth: 180 },
+    bellBtn: { width: 42, height: 42, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center', position: 'relative' },
+    badge: { position: 'absolute', top: -2, right: -2, backgroundColor: '#EF4444', minWidth: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#000', paddingHorizontal: 4 },
+    badgeText: { color: '#FFF', fontSize: 9, fontWeight: '900' },
     logoutBtn: { borderRadius: 14, overflow: 'hidden' },
     logoutInner: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
 

@@ -23,6 +23,7 @@ import { useAuth } from '../../context/AuthContext';
 import { log } from '../../utils/logger';
 import { EventCardSkeleton } from '../../components/Skeletons/EventCardSkeleton';
 import { useSmartRefresh } from '../../hooks/useSmartRefresh';
+import { useNotification } from '../../context/NotificationContext';
 
 import { InteractionManager } from 'react-native';
 const FlashList = SafeFlashList;
@@ -176,6 +177,7 @@ export default function HomeScreen() {
     const { user: authUser } = useAuth();
     const insets = useSafeAreaInsets();
     const prefetchEvent = usePrefetchEvent();
+    const { unreadCount } = useNotification();
     
     // ── SUPER-FAST PARALLEL DATA FETCHING ──
     const eventsQuery = useQuery({
@@ -397,9 +399,19 @@ export default function HomeScreen() {
                         <Text style={styles.locValue}>{cityName}</Text>
                     </TouchableOpacity>
                 </View>
-                <TouchableOpacity onPress={() => router.push('/(user)/profile')} style={styles.profileWrapper}>
-                    <Image source={{ uri: avatar(profileImage, profileName) || 'https://via.placeholder.com/100' }} cachePolicy="memory-disk" contentFit="cover" style={styles.profilePic} />
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <TouchableOpacity onPress={() => router.push('/(settings)/notifications' as any)} style={styles.bellBtn}>
+                        <Ionicons name="notifications-outline" size={24} color="#FFF" />
+                        {unreadCount > 0 && (
+                            <View style={styles.badge}>
+                                <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                            </View>
+                        )}
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => router.push('/(user)/profile')} style={styles.profileWrapper}>
+                        <Image source={{ uri: avatar(profileImage, profileName) || 'https://via.placeholder.com/100' }} cachePolicy="memory-disk" contentFit="cover" style={styles.profilePic} />
+                    </TouchableOpacity>
+                </View>
             </View>
 
             <View style={styles.searchContainer}>
@@ -419,7 +431,7 @@ export default function HomeScreen() {
                 <Text style={{ color: '#fff', fontSize: 18, fontWeight: '900' }}>Explore Events</Text>
             </TouchableOpacity>
         </View>
-    ), [cityName, profileImage, profileName, router]);
+    ), [cityName, profileImage, profileName, router, unreadCount]);
 
     const listEmptyComponent = useCallback(() => loading ? (
         <View style={{ paddingHorizontal: 20 }}>
@@ -596,6 +608,9 @@ const styles = StyleSheet.create({
     locationSelector: { justifyContent: 'center' },
     locLabel: { color: '#3b82f6', fontSize: 10, fontWeight: '800', letterSpacing: 1.5 },
     locValue: { color: '#fff', fontSize: 18, fontWeight: '800', marginTop: 2 },
+    bellBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center', position: 'relative' },
+    badge: { position: 'absolute', top: 4, right: 4, backgroundColor: '#EF4444', minWidth: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#050505', paddingHorizontal: 4 },
+    badgeText: { color: '#FFF', fontSize: 9, fontWeight: '900' },
     profileWrapper: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.05)', padding: 2 },
     profilePic: { width: '100%', height: '100%', borderRadius: 22 },
     searchContainer: { paddingHorizontal: 20, marginVertical: 12 },
