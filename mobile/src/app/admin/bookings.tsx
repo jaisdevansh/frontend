@@ -6,7 +6,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { FlashList } from '@shopify/flash-list';
 import adminService, { AdminBooking } from '../../services/adminService';
@@ -29,7 +29,7 @@ const COLORS = {
 const STATUS_FILTERS = [
     { label: 'ALL',        value: '',           color: COLORS.textDim },
     { label: 'PENDING',    value: 'pending',    color: COLORS.warning },
-    { label: 'ACTIVE',     value: 'active',     color: COLORS.primary },
+    { label: 'ACTIVE',     value: 'approved',   color: COLORS.primary },
     { label: 'CHECKED IN', value: 'checked_in', color: COLORS.success },
 ];
 
@@ -122,7 +122,9 @@ const BookingRow = React.memo(({ item }: { item: AdminBooking }) => {
                 <View style={styles.metaContainer}>
                     <View style={styles.metaTag}>
                         <MaterialIcons name="people-outline" size={12} color={COLORS.textWhite} />
-                        <Text style={styles.metaTagText}>{item.guests ?? 1} GUEST{(item.guests ?? 1) !== 1 ? 'S' : ''}</Text>
+                        <Text style={styles.metaTagText}>
+                            {`${item.guestsEntered || 0}/${item.guests ?? 1} IN`}
+                        </Text>
                     </View>
                     {item.ticketType && (
                         <View style={styles.metaTag}>
@@ -147,7 +149,8 @@ const BookingRow = React.memo(({ item }: { item: AdminBooking }) => {
 export default function BookingsScreen() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
-    const [statusFilter, setStatusFilter] = useState('');
+    const params = useLocalSearchParams();
+    const [statusFilter, setStatusFilter] = useState(params.status ? String(params.status) : '');
 
     const {
         data, isLoading, isFetchingNextPage, fetchNextPage,

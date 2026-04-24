@@ -32,6 +32,7 @@ export interface AdminBooking {
     };
     pricePaid: number;
     guests: number;
+    guestsEntered?: number;
     ticketType?: string;
     paymentStatus?: string;
     status: string;
@@ -67,6 +68,7 @@ export interface AdminStats {
     activeHosts: number;
     pendingHosts: number;
     bookings: number;
+    checkedIn: number;
     totalRevenue: number;
     updatedAt: string;
 }
