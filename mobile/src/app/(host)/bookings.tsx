@@ -118,7 +118,7 @@ const EventGroupCard = React.memo(({ group, getStatusColor, handleUpdateStatus }
                     )}
                 </View>
                 <View style={{ flex: 1, paddingRight: 10 }}>
-                    <Text style={styles.groupTitle} numberOfLines={1}>{group.title}</Text>
+                    <Text style={styles.groupTitle}>{group.title}</Text>
                     <Text style={styles.groupDate}>{group.date ? new Date(group.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric'}) : 'Ongoing'}</Text>
                     <Text style={styles.groupSubtitle}>
                         Manage <Text style={{ color: '#818CF8', fontWeight: '800' }}>{group.bookings.length} reservations</Text>
@@ -433,6 +433,7 @@ const styles = StyleSheet.create({
     },
     guestInfo: {
         flex: 1,
+        paddingRight: 12,
     },
     guestName: {
         color: '#FFFFFF',
@@ -444,6 +445,7 @@ const styles = StyleSheet.create({
     guestMetaRow: {
         flexDirection: 'row',
         alignItems: 'center',
+        flexWrap: 'wrap',
         gap: 6,
     },
     bookingType: {
