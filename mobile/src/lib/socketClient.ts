@@ -53,9 +53,17 @@ export const getSocket = async (): Promise<Socket> => {
         throw new Error('Socket not available for staff role');
     }
 
-    console.log('[Socket] Connecting to:', API_BASE_URL);
+    // Fix for production AWS reverse proxy:
+    // If API_BASE_URL is 'https://stayin.in/api1', socket should connect to 'https://stayin.in'
+    // with the path '/api1/socket.io' so Nginx proxies it correctly.
+    const isProd = API_BASE_URL.includes('/api1');
+    const socketOrigin = isProd ? API_BASE_URL.replace('/api1', '') : API_BASE_URL;
+    const socketPath = isProd ? '/api1/socket.io' : '/socket.io';
 
-    socket = io(API_BASE_URL, {
+    console.log('[Socket] Connecting to:', socketOrigin, 'with path:', socketPath);
+
+    socket = io(socketOrigin, {
+        path: socketPath,
         transports: ['websocket', 'polling'],
         auth: { token },
         reconnection: false, // DISABLED: Prevent automatic reconnection

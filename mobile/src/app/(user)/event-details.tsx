@@ -72,7 +72,7 @@ const EventDetails = () => {
     // ── Socket.io: real-time updates invalidate cache ────────────────────────
     useEffect(() => {
         if (!eventId) return;
-        const sock = io(API_BASE_URL, { transports: ['websocket'] });
+        const sock = io(API_BASE_URL.replace('/api1', ''), { path: API_BASE_URL.includes('/api1') ? '/api1/socket.io' : '/socket.io', transports: ['websocket'] });
 
         sock.on('location_revealed', (data: any) => {
             if (data?.eventId === eventId) {

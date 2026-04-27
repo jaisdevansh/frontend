@@ -53,7 +53,7 @@ export default function FloorManager() {
         if (eventId) {
             fetchFloors();
 
-            const newSocket = io(API_BASE_URL);
+            const newSocket = io(API_BASE_URL.replace('/api1', ''), { path: API_BASE_URL.includes('/api1') ? '/api1/socket.io' : '/socket.io' });
             setSocket(newSocket);
 
             newSocket.on('floor_update', (data: { eventId: string, floors: Floor[] }) => {

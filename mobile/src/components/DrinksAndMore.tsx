@@ -90,7 +90,7 @@ export default function DrinksAndMore({ eventId, hostId, zone, tableId }: { even
         }).catch(() => {});
 
         // REAL-TIME SYNC
-        const socket = io(API_BASE_URL);
+        const socket = io(API_BASE_URL.replace('/api1', ''), { path: API_BASE_URL.includes('/api1') ? '/api1/socket.io' : '/socket.io' });
         socket.on('menu_updated', () => {
             console.log('🔄 Menu updated via socket, refetching...');
             // React Query will auto-refetch

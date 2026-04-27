@@ -98,7 +98,12 @@ export const useChatStore = create<ChatState>()(
         // Ensure we point to the correct backend host
         const socketUrl = apiClient.defaults.baseURL?.replace('/api/v1', '') || 'http://localhost:3000';
         
-        const socket = io(socketUrl, {
+        const isProd = socketUrl.includes('/api1');
+        const socketOrigin = isProd ? socketUrl.replace('/api1', '') : socketUrl;
+        const socketPath = isProd ? '/api1/socket.io' : '/socket.io';
+
+        const socket = io(socketOrigin, {
+            path: socketPath,
             auth: { token },
             transports: ['websocket', 'polling'], // Allow fallback to polling if websocket fails
             reconnection: true,

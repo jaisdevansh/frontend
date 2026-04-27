@@ -25,6 +25,10 @@ export const ADMIN_API_BASE_URL = 'https://stayin.in/api2';
 // 🔧 LOCAL DEV: Admin backend on local machine
 // export const ADMIN_API_BASE_URL = 'http://10.225.202.18:3002';
 
+// 🔌 Global Socket Config (Auto-detects correct path for Nginx reverse proxy)
+export const SOCKET_ORIGIN = API_BASE_URL.replace('/api1', '').replace('/api2', '');
+export const SOCKET_PATH = API_BASE_URL.includes('/api1') ? '/api1/socket.io' : (API_BASE_URL.includes('/api2') ? '/api2/socket.io' : '/socket.io');
+
 // 🚀 ULTRA-AGGRESSIVE WAKE-UP: Ping server with exponential backoff
 // Render free tier sleeps after 15min inactivity, takes 30-60s to wake up
 let _serverAwake = false;

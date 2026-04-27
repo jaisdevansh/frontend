@@ -102,7 +102,13 @@ export const useProductionChatStore = create<ProductionChatState>((set, get) => 
         if (get().socket?.connected) return;
 
         const socketUrl = ADMIN_API_BASE_URL || 'http://localhost:3002';
-        const socket = io(socketUrl, {
+        
+        const isProd = socketUrl.includes('/api2');
+        const socketOrigin = isProd ? socketUrl.replace('/api2', '') : socketUrl;
+        const socketPath = isProd ? '/api2/socket.io' : '/socket.io';
+
+        const socket = io(socketOrigin, {
+            path: socketPath,
             auth: { token },
             transports: ['websocket', 'polling'],
             reconnection: true,

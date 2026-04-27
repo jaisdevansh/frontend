@@ -97,7 +97,7 @@ export default function FloorPlan() {
     }, [floorPlanData, eventId, targetZone, isLoading]);
 
     useEffect(() => {
-        const socket = io(API_BASE_URL);
+        const socket = io(API_BASE_URL.replace('/api1', ''), { path: API_BASE_URL.includes('/api1') ? '/api1/socket.io' : '/socket.io' });
         socket.on('inventory_update', (data: any) => {
             if (data.eventId === eventId) refetch();
         });

@@ -12,6 +12,7 @@ import { hostService } from '../../services/hostService';
 import { useToast } from '../../context/ToastContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { ADMIN_API_BASE_URL } from '../../services/apiClient';
 import { io, Socket } from 'socket.io-client';
 
 const { width } = Dimensions.get('window');
@@ -56,12 +57,12 @@ export default function HostAdminChat() {
 
     const connectSocket = async () => {
         const token = await AsyncStorage.getItem('auth_token');
-        const hostUri = Constants.expoConfig?.hostUri;
-        const wsUrl = hostUri
-            ? `http://${hostUri.split(':')[0]}:3000`
-            : 'http://10.187.142.18:3000';
+        const wsUrl = ADMIN_API_BASE_URL;
+        const isProd = wsUrl.includes('/api2');
+        const socketOrigin = isProd ? wsUrl.replace('/api2', '') : wsUrl;
+        const socketPath = isProd ? '/api2/socket.io' : '/socket.io';
 
-        const socket = io(wsUrl, { auth: { token } });
+        const socket = io(socketOrigin, { path: socketPath, auth: { token } });
         socketRef.current = socket;
 
         socket.on('adminReply', ({ message: newMsg }: any) => {

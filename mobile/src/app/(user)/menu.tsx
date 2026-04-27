@@ -82,7 +82,7 @@ export default function PremiumMenu() {
         if (isHostMode || !eventId) return;
         // Defer socket to after first paint — doesn't block data display
         const timer = setTimeout(() => {
-            const socket = io(API_BASE_URL);
+            const socket = io(API_BASE_URL.replace('/api1', ''), { path: API_BASE_URL.includes('/api1') ? '/api1/socket.io' : '/socket.io' });
             socket.on('menu_updated', () => fetchMenu());
             return () => { socket.disconnect(); };
         }, 1500);
