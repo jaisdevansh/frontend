@@ -50,6 +50,13 @@ export default function LoginScreen() {
             const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
             if (result.type === 'success' && result.url) {
                 const parsed = Linking.parse(result.url);
+                
+                const errorMsg = parsed.queryParams?.error as string | undefined;
+                if (errorMsg) {
+                    showToast(decodeURIComponent(errorMsg).replace(/_/g, ' '), 'error');
+                    return;
+                }
+
                 const token = parsed.queryParams?.token as string | undefined;
                 if (!token) {
                     showToast('Google login failed. Please try again.', 'error');
