@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ActivityIndicator, Image, Switch, FlatList, Platform, Keyboard, ScrollView, KeyboardAvoidingView } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
-import ScreenWrapper from '../../components/ScreenWrapper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView as SafeAreaContextView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useStrictBack } from '../../hooks/useStrictBack';
 import { Ionicons } from '@expo/vector-icons';
@@ -351,7 +350,7 @@ export default function HostCreateEvent() {
 
     return (
         <>
-        <ScreenWrapper>
+        <SafeAreaContextView style={[styles.container, { flex: 1 }]} edges={['top', 'left', 'right']}>
             <KeyboardAwareScrollView 
                 ref={scrollViewRef}
                 style={{ flex: 1 }} 
@@ -791,7 +790,7 @@ export default function HostCreateEvent() {
                     </View>
                 </View>
             </View>
-        </ScreenWrapper>
+        </SafeAreaContextView>
 
             <PremiumDateTimePicker
                 visible={pickerVisible}
