@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ActivityIndicator, Image, Switch, FlatList, Platform, Keyboard, ScrollView, KeyboardAvoidingView } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -351,11 +352,15 @@ export default function HostCreateEvent() {
     return (
         <>
         <ScreenWrapper>
-            <KeyboardAvoidingView
-                style={{ flex: 1 }}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            <KeyboardAwareScrollView 
+                ref={scrollViewRef}
+                style={{ flex: 1 }} 
+                contentContainerStyle={styles.scrollContent} 
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                enableOnAndroid={true}
+                extraHeight={Platform.OS === 'ios' ? 120 : 150}
             >
-            <View style={styles.scrollContent}>
             <TouchableOpacity style={styles.backBtn} onPress={() => goBack()}>
                 <Ionicons name="arrow-back" size={24} color="white" />
             </TouchableOpacity>
@@ -766,6 +771,7 @@ export default function HostCreateEvent() {
                         <Text style={styles.addTicketText}>Add Ticket Type</Text>
                     </TouchableOpacity>
                 </View>
+            </KeyboardAwareScrollView>
             <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
                 <View style={styles.footerRow}>
                     <TouchableOpacity 
@@ -785,8 +791,6 @@ export default function HostCreateEvent() {
                     </View>
                 </View>
             </View>
-            </View>
-            </KeyboardAvoidingView>
         </ScreenWrapper>
 
             <PremiumDateTimePicker
