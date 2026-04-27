@@ -243,7 +243,12 @@ export default function HostVenueMenu() {
             </View>
 
             {/* Add/Edit Modal */}
-            <Modal visible={modalVisible} transparent animationType="slide">
+            <Modal 
+                visible={modalVisible} 
+                transparent 
+                animationType="slide"
+                onRequestClose={() => setModalVisible(false)}
+            >
                 <KeyboardAvoidingView
                     style={{ flex: 1 }}
                     behavior={Platform.OS === 'android' ? 'height' : 'padding'}
@@ -251,10 +256,10 @@ export default function HostVenueMenu() {
                     <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>{editIndex !== null ? 'Edit Item' : 'New Offering'}</Text>
-                            <TouchableOpacity onPress={() => setModalVisible(false)}>
-                                <Ionicons name="close" size={24} color="white" />
+                            <TouchableOpacity onPress={() => setModalVisible(false)} style={{ marginRight: 16 }}>
+                                <Ionicons name="arrow-back" size={24} color="white" />
                             </TouchableOpacity>
+                            <Text style={[styles.modalTitle, { flex: 1 }]}>{editIndex !== null ? 'Edit Item' : 'New Offering'}</Text>
                         </View>
 
                         <ScrollView
