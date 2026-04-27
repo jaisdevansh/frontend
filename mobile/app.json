@@ -24,7 +24,9 @@
       "buildNumber": "1",
       "jsEngine": "hermes",
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"],
+        "UIBackgroundModes": [
+          "remote-notification"
+        ],
         "NSUserNotificationsUsageDescription": "Entry Club sends you real-time updates about your bookings, orders, and events."
       }
     },
@@ -106,7 +108,8 @@
             "buildToolsVersion": "35.0.0",
             "minSdkVersion": 24,
             "usesCleartextTraffic": false,
-            "useLegacyPackaging": false
+            "useLegacyPackaging": false,
+            "enableMinifyInReleaseBuilds": true
           },
           "ios": {
             "deploymentTarget": "15.1"
@@ -120,12 +123,12 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "0249ef54-b7a8-46dc-967a-5eef51fda9ad"
+        "projectId": "b68beff7-8632-4fad-933d-e7dbe742e313"
       }
     },
     "assetBundlePatterns": [
       "**/*"
     ],
-    "owner": "devanshjais"
+    "owner": "ohhoooo"
   }
 }
