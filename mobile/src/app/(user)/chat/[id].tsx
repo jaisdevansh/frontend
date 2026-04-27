@@ -287,6 +287,15 @@ export default function ChatScreen() {
         }
     }, [messages.length, peerId]);
 
+    // ── Auto Scroll on New Message ───────────────────────────────────────────
+    useEffect(() => {
+        if (invertedMessages.length > 0) {
+            setTimeout(() => {
+                listRef.current?.scrollToOffset({ offset: 0, animated: true });
+            }, 100);
+        }
+    }, [invertedMessages.length]);
+
     // ── Send ──────────────────────────────────────────────────────────────────
     const handleSend = useCallback(() => {
         if (!inputText.trim() || !peerId || !myId) return;
@@ -301,6 +310,11 @@ export default function ChatScreen() {
 
         // Stop typing indicator
         handleTypingStop();
+
+        // Auto scroll to bottom
+        setTimeout(() => {
+            listRef.current?.scrollToOffset({ offset: 0, animated: true });
+        }, 100);
     }, [inputText, peerId, myId, sendMessage, me]);
 
     // ── Typing ────────────────────────────────────────────────────────────────
@@ -413,7 +427,7 @@ export default function ChatScreen() {
             {/* ─── Messages ──────────────────────────────────────────────── */}
             <KeyboardAvoidingView
                 style={{ flex: 1 }}
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
             >
                 {messages.length === 0 ? (

@@ -979,7 +979,7 @@ await new Promise(resolve => setTimeout(resolve, delay));
 
             {/* --- MODALS --- */}
             <Modal visible={chatModal.visible} animationType="slide" transparent>
-                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                     <View style={styles.modalBg}>
                         <View style={[styles.modalHeader, { paddingTop: insets.top + 10 }]}>
                             <TouchableOpacity style={styles.iconBtn} onPress={() => setChatModal({ visible: false, chatId: null, user: null, msgs: [] })}>

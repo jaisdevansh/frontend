@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Platform, Share, Modal, Linking, Image, InteractionManager } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Platform, Share, Modal, Linking, Image, InteractionManager, KeyboardAvoidingView } from 'react-native';
 import * as Contacts from 'expo-contacts';
 import * as SMS from 'expo-sms';
 import { BlurView } from 'expo-blur';
@@ -223,7 +223,11 @@ export default function ReferralScreen() {
                 <View style={{ width: 44 }} />
             </View>
 
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            >
+                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 
                 {/* Points Hero */}
                 <View style={styles.heroCard}>
@@ -350,7 +354,8 @@ export default function ReferralScreen() {
                     </View>
                 </View>
 
-            </ScrollView>
+                </ScrollView>
+            </KeyboardAvoidingView>
 
             {/* Premium Full-Screen Success Modal */}
             <Modal visible={showSuccessModal} animationType="slide">

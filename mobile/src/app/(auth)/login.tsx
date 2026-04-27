@@ -139,7 +139,6 @@ export default function LoginScreen() {
                 style={StyleSheet.absoluteFillObject}
             />
             {/* ✅ KeyboardAwareScrollView — same as venue-gifts/menu/staff, APK pe confirmed working */}
-            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <KeyboardAwareScrollView
                     contentContainerStyle={styles.scrollContent}
                     keyboardShouldPersistTaps="handled"
@@ -224,7 +223,6 @@ export default function LoginScreen() {
                                 />
                             </View>
                 </KeyboardAwareScrollView>
-            </TouchableWithoutFeedback>
         </SafeAreaView>
     );
 }

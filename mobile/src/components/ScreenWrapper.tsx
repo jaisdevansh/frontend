@@ -15,9 +15,11 @@ export default function ScreenWrapper({
         <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
             <KeyboardAvoidingView
                 style={styles.flex}
-                // ✅ edit-profile.tsx wala confirmed working pattern:
-                // iOS = 'padding', Android = undefined (pan mode mein OS khud handle karta hai)
-                behavior={Platform.OS === "ios" ? "padding" : undefined}
+                // ✅ APK-compatible fix:
+                // iOS = 'padding' (standard)
+                // Android = 'height' (works with softwareKeyboardLayoutMode: resize in app.json)
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                keyboardVerticalOffset={Platform.OS === "android" ? 0 : 0}
             >
                 <ScrollView
                     style={styles.flex}
@@ -28,7 +30,7 @@ export default function ScreenWrapper({
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                     bounces={false}
-                    automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
+                    automaticallyAdjustKeyboardInsets={true}
                 >
                     <View style={styles.contentWrap}>
                         {children}

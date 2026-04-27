@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
     View, Text, StyleSheet, TouchableOpacity, 
     TextInput, ScrollView, Animated, Platform,
-    Dimensions, StatusBar, ActivityIndicator, Alert
+    Dimensions, StatusBar, ActivityIndicator, Alert,
+    KeyboardAvoidingView
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -429,15 +430,20 @@ export default function Onboarding() {
                 </View>
             </View>
 
-            <ScrollView 
-                contentContainerStyle={styles.scroll} 
-                keyboardShouldPersistTaps="handled" 
-                showsVerticalScrollIndicator={false}
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             >
-                {currentStep === 1 && renderStep1()}
-                {currentStep === 2 && renderStep2()}
-                {currentStep === 3 && renderStep3()}
-            </ScrollView>
+                <ScrollView 
+                    contentContainerStyle={styles.scroll} 
+                    keyboardShouldPersistTaps="handled" 
+                    showsVerticalScrollIndicator={false}
+                >
+                    {currentStep === 1 && renderStep1()}
+                    {currentStep === 2 && renderStep2()}
+                    {currentStep === 3 && renderStep3()}
+                </ScrollView>
+            </KeyboardAvoidingView>
         </View>
     );
 }

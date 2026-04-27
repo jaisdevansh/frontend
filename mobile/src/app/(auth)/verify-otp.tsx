@@ -71,7 +71,7 @@ export default function VerifyOtpScreen() {
                 end={{ x: 1, y: 1 }}
                 style={StyleSheet.absoluteFillObject}
             />
-            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+
                 <KeyboardAwareScrollView
                     contentContainerStyle={styles.scrollContent}
                     keyboardShouldPersistTaps="handled"
@@ -121,7 +121,6 @@ export default function VerifyOtpScreen() {
                         </View>
                     </View>
                 </KeyboardAwareScrollView>
-            </TouchableWithoutFeedback>
         </SafeAreaView>
     );
 }
