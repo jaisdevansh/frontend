@@ -262,7 +262,12 @@ export default function VenueGiftsScreen() {
             </TouchableOpacity>
 
             {/* Add / Edit Modal */}
-            <Modal visible={isModalVisible} animationType="slide" transparent>
+            <Modal 
+                visible={isModalVisible} 
+                animationType="slide" 
+                transparent
+                onRequestClose={() => setModalVisible(false)}
+            >
                 <KeyboardAvoidingView
                     style={{ flex: 1 }}
                     behavior={Platform.OS === 'android' ? 'height' : 'padding'}
@@ -270,10 +275,10 @@ export default function VenueGiftsScreen() {
                     <View style={styles.modalOverlay}>
                         <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>{formData._id ? 'Edit Offering' : 'Add New Offering'}</Text>
-                            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeBtn}>
-                                <Ionicons name="close" size={24} color="white" />
+                            <TouchableOpacity onPress={() => setModalVisible(false)} style={{ marginRight: 16 }}>
+                                <Ionicons name="arrow-back" size={24} color="white" />
                             </TouchableOpacity>
+                            <Text style={[styles.modalTitle, { flex: 1 }]}>{formData._id ? 'Edit Offering' : 'Add New Offering'}</Text>
                         </View>
 
                             <ScrollView
