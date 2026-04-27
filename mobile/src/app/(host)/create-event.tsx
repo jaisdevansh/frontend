@@ -359,6 +359,7 @@ export default function HostCreateEvent() {
                 keyboardShouldPersistTaps="handled"
                 enableOnAndroid={true}
                 extraHeight={Platform.OS === 'ios' ? 120 : 150}
+                extraScrollHeight={120}
             >
             <TouchableOpacity style={styles.backBtn} onPress={() => goBack()}>
                 <Ionicons name="arrow-back" size={24} color="white" />
