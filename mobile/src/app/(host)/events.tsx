@@ -55,14 +55,17 @@ function getEventStatus(event: any): { label: string; color: string; bg: string 
 }
 
 // Optimization: Event Card Component
-const EventCardList = React.memo(({ event, handleDeleteEvent, handleForceReveal, handleEventOptions, formatDate, calculateTotalRevenue, calculateFillPercentage, getTotalSold }: any) => {
+const EventCardList = React.memo(({ event, handleDeleteEvent, handleForceReveal, handleEventOptions, handlePauseResume, formatDate, calculateTotalRevenue, calculateFillPercentage, getTotalSold }: any) => {
     const { day, month } = formatDate(event.date);
     const status = getEventStatus(event);
+    const dbStatus = event.status?.toUpperCase();
+    const canPauseResume = dbStatus === 'LIVE' || dbStatus === 'PAUSED';
+
     return (
         <TouchableOpacity
             style={styles.eventCard}
-            onLongPress={() => handleDeleteEvent(event._id, event.title)}
-            delayLongPress={500}
+            onPress={() => handleEventOptions(event)}
+            activeOpacity={0.85}
         >
             <View style={styles.cardImage}>
                 <Image 
@@ -81,10 +84,10 @@ const EventCardList = React.memo(({ event, handleDeleteEvent, handleForceReveal,
 
             <View style={styles.cardContent}>
                 <View style={styles.titleRow}>
-                    <View>
-                        <Text style={styles.eventTitle}>{event.title}</Text>
+                    <View style={{ flex: 1, paddingRight: 8 }}>
+                        <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
                         <View style={styles.statusRow}>
-                            <Text style={styles.eventDetails}>{event.startTime || '11:00 PM'}</Text>
+                            <Text style={styles.eventDetails}>{event.startTime || '—'}</Text>
                             <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
                                 <Text style={[styles.statusBadgeText, { color: status.color }]}>{status.label}</Text>
                             </View>
@@ -92,7 +95,8 @@ const EventCardList = React.memo(({ event, handleDeleteEvent, handleForceReveal,
                     </View>
                     <TouchableOpacity
                         style={styles.editBtn}
-                        onPress={() => handleEventOptions(event)}
+                        onPress={(e) => { e.stopPropagation?.(); handleEventOptions(event); }}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
                         <Ionicons name="ellipsis-vertical" size={20} color="rgba(255,255,255,0.4)" />
                     </TouchableOpacity>
@@ -100,24 +104,58 @@ const EventCardList = React.memo(({ event, handleDeleteEvent, handleForceReveal,
 
                 <View style={styles.statsRow}>
                     <View style={styles.stat}>
-                        <Text style={styles.statVal}>{getTotalSold(event.tickets || [])}</Text>
+                        <Text style={styles.statVal}>{getTotalSold(event)}</Text>
                         <Text style={styles.statLab}>Booked</Text>
                     </View>
                     <View style={styles.stat}>
-                        <Text style={styles.statVal}>{calculateTotalRevenue(event.tickets || [])}</Text>
+                        <Text style={styles.statVal}>{calculateTotalRevenue(event)}</Text>
                         <Text style={styles.statLab}>Revenue</Text>
                     </View>
                     <View style={styles.stat}>
-                        <Text style={styles.statVal}>{calculateFillPercentage(event.tickets || [])}</Text>
-                        <Text style={styles.statLab}>Full</Text>
+                        <Text style={styles.statVal}>{calculateFillPercentage(event)}</Text>
+                        <Text style={styles.statLab}>Fill</Text>
                     </View>
+                </View>
+
+                {/* Quick Action Buttons */}
+                <View style={styles.quickActionsRow}>
+                    {canPauseResume && (
+                        <TouchableOpacity
+                            style={[
+                                styles.quickActionBtn,
+                                dbStatus === 'LIVE'
+                                    ? { backgroundColor: 'rgba(245,158,11,0.12)', borderColor: 'rgba(245,158,11,0.25)' }
+                                    : { backgroundColor: 'rgba(52,211,153,0.12)', borderColor: 'rgba(52,211,153,0.25)' }
+                            ]}
+                            onPress={(e) => { e.stopPropagation?.(); handlePauseResume(event); }}
+                        >
+                            <Ionicons
+                                name={dbStatus === 'LIVE' ? 'pause-circle-outline' : 'play-circle-outline'}
+                                size={15}
+                                color={dbStatus === 'LIVE' ? '#F59E0B' : '#34D399'}
+                            />
+                            <Text style={[
+                                styles.quickActionText,
+                                { color: dbStatus === 'LIVE' ? '#F59E0B' : '#34D399' }
+                            ]}>
+                                {dbStatus === 'LIVE' ? 'Pause' : 'Resume'}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
+                    <TouchableOpacity
+                        style={[styles.quickActionBtn, { backgroundColor: 'rgba(129,140,248,0.1)', borderColor: 'rgba(129,140,248,0.2)', flex: canPauseResume ? undefined : 1 }]}
+                        onPress={(e) => { e.stopPropagation?.(); handleEventOptions(event); }}
+                    >
+                        <Ionicons name="settings-outline" size={15} color="#818CF8" />
+                        <Text style={[styles.quickActionText, { color: '#818CF8' }]}>Manage</Text>
+                    </TouchableOpacity>
                 </View>
 
                 {event.locationVisibility !== 'public' && !event.isLocationRevealed && (
                     <View style={styles.revealInfo}>
                         <TouchableOpacity 
                             style={styles.revealBtn}
-                            onPress={() => handleForceReveal(event._id, event.title)}
+                            onPress={(e) => { e.stopPropagation?.(); handleForceReveal(event._id, event.title); }}
                         >
                             <Ionicons name="location" size={16} color="#FFF" />
                             <Text style={styles.revealBtnText}>Reveal Now</Text>
@@ -166,6 +204,18 @@ export default function HostEvents() {
         }
     });
 
+    const pauseResumeMutation = useMutation({
+        mutationFn: ({ eventId, status }: { eventId: string; status: 'LIVE' | 'PAUSED' }) =>
+            hostService.updateEventStatus(eventId, status),
+        onSuccess: (_, vars) => {
+            showToast(vars.status === 'PAUSED' ? 'Event Paused ⏸' : 'Event Resumed ▶️', 'success');
+            queryClient.invalidateQueries({ queryKey: ['events'] });
+        },
+        onError: (error: any) => {
+            showToast(error.response?.data?.message || 'Failed to update event status', 'error');
+        }
+    });
+
     const handleDeleteEvent = useCallback((eventId: string, eventTitle: string) => {
         showAlert(
             "Cancel Experience",
@@ -196,28 +246,56 @@ export default function HostEvents() {
         );
     }, [showAlert, revealMutation]);
 
+    const handlePauseResume = useCallback((event: any) => {
+        const dbStatus = event.status?.toUpperCase();
+        const isPaused = dbStatus === 'PAUSED';
+        showAlert(
+            isPaused ? 'Resume Event' : 'Pause Event',
+            isPaused
+                ? `Resume "${event.title}"? It will go live again and accept new bookings.`
+                : `Pause "${event.title}"? New bookings will be stopped temporarily.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: isPaused ? 'Resume' : 'Pause',
+                    onPress: () => pauseResumeMutation.mutate({
+                        eventId: event._id,
+                        status: isPaused ? 'LIVE' : 'PAUSED'
+                    })
+                }
+            ]
+        );
+    }, [showAlert, pauseResumeMutation]);
+
     const handleEventOptions = useCallback((event: any) => {
+        const dbStatus = event.status?.toUpperCase();
+        const isPaused = dbStatus === 'PAUSED';
+        const isLive = dbStatus === 'LIVE';
         showAlert(
             event.title,
-            "Manage your experience",
+            "What would you like to do?",
             [
                 {
-                    text: "Update Experience",
+                    text: "Edit Event",
                     onPress: () => router.push({ pathname: '/(host)/create-event', params: { id: event._id } })
                 },
-                ...( (event.locationVisibility !== 'public' && !event.isLocationRevealed) ? [{
-                    text: "Force Reveal Location 📍",
+                ...((isLive || isPaused) ? [{
+                    text: isPaused ? 'Resume Event' : 'Pause Event',
+                    onPress: () => handlePauseResume(event)
+                }] : []),
+                ...((event.locationVisibility !== 'public' && !event.isLocationRevealed) ? [{
+                    text: "Reveal Location Now",
                     onPress: () => handleForceReveal(event._id, event.title)
                 }] : []),
                 {
-                    text: "Cancel Experience",
+                    text: "Cancel & Delete Event",
                     style: "destructive",
                     onPress: () => handleDeleteEvent(event._id, event.title)
                 },
                 { text: "Close", style: "cancel" }
             ]
         );
-    }, [router, showAlert, handleForceReveal, handleDeleteEvent]);
+    }, [router, showAlert, handleForceReveal, handleDeleteEvent, handlePauseResume]);
 
     const formatDate = useCallback((dateStr: string) => {
         if (!dateStr) return { day: '25', month: 'MAR' };
@@ -227,25 +305,32 @@ export default function HostEvents() {
         return { day, month };
     }, []);
 
-    const calculateTotalRevenue = useCallback((tickets: any[]) => {
-        if (!tickets) return '0';
-        const total = tickets.reduce((sum, t) => sum + ((t.sold || 0) * (t.price || 0)), 0);
+    // ── Real stats from backend aggregation (_bookingStats) ──────────────────
+    // These read from _bookingStats injected by getEvents controller (real Booking data)
+    // Fallback to ticket.sold for older cached responses
+    const getTotalSold = useCallback((event: any) => {
+        if (event?._bookingStats) return event._bookingStats.totalBooked ?? 0;
+        return (event?.tickets || []).reduce((sum: number, t: any) => sum + (t.sold || 0), 0);
+    }, []);
+
+    const calculateTotalRevenue = useCallback((event: any) => {
+        const total = event?._bookingStats
+            ? (event._bookingStats.totalRevenue ?? 0)
+            : (event?.tickets || []).reduce((sum: number, t: any) => sum + ((t.sold || 0) * (t.price || 0)), 0);
         if (total >= 100000) return `₹${(total / 100000).toFixed(1)}L`;
         if (total >= 1000) return `₹${(total / 1000).toFixed(1)}K`;
         return `₹${total}`;
     }, []);
 
-    const calculateFillPercentage = useCallback((tickets: any[]) => {
-        if (!tickets) return '0%';
-        const totalCapacity = tickets.reduce((sum, t) => sum + (t.capacity || 0), 0);
-        const totalSold = tickets.reduce((sum, t) => sum + (t.sold || 0), 0);
+    const calculateFillPercentage = useCallback((event: any) => {
+        const totalBooked = event?._bookingStats
+            ? (event._bookingStats.totalBooked ?? 0)
+            : (event?.tickets || []).reduce((sum: number, t: any) => sum + (t.sold || 0), 0);
+        // Capacity still comes from ticket definitions (configured max)
+        const totalCapacity = (event?.tickets || []).reduce((sum: number, t: any) => sum + (t.capacity || 0), 0)
+            || event?.attendeeCount || 0;
         if (totalCapacity === 0) return '0%';
-        return `${Math.round((totalSold / totalCapacity) * 100)}%`;
-    }, []);
-
-    const getTotalSold = useCallback((tickets: any[]) => {
-        if (!tickets) return 0;
-        return tickets.reduce((sum, t) => sum + (t.sold || 0), 0);
+        return `${Math.round((totalBooked / totalCapacity) * 100)}%`;
     }, []);
 
     const renderItem = useCallback(({ item }: any) => (
@@ -254,12 +339,13 @@ export default function HostEvents() {
             handleDeleteEvent={handleDeleteEvent}
             handleForceReveal={handleForceReveal}
             handleEventOptions={handleEventOptions}
+            handlePauseResume={handlePauseResume}
             formatDate={formatDate}
             calculateTotalRevenue={calculateTotalRevenue}
             calculateFillPercentage={calculateFillPercentage}
             getTotalSold={getTotalSold}
         />
-    ), [handleDeleteEvent, handleForceReveal, handleEventOptions, formatDate, calculateTotalRevenue, calculateFillPercentage, getTotalSold]);
+    ), [handleDeleteEvent, handleForceReveal, handleEventOptions, handlePauseResume, formatDate, calculateTotalRevenue, calculateFillPercentage, getTotalSold]);
 
     const ListEmptyComponent = useMemo(() => (
         <View style={styles.emptyContainer}>
@@ -469,6 +555,24 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         textTransform: 'uppercase',
         marginTop: 2,
+    },
+    quickActionsRow: {
+        flexDirection: 'row',
+        gap: 10,
+        marginTop: 14,
+    },
+    quickActionBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 14,
+        paddingVertical: 9,
+        borderRadius: 10,
+        borderWidth: 1,
+    },
+    quickActionText: {
+        fontSize: 12,
+        fontWeight: '700',
     },
     revealBtn: {
         flexDirection: 'row',

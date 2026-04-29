@@ -98,6 +98,10 @@ export const hostService = {
         const response = await apiClient.delete(`/host/events/${eventId}`);
         return response.data;
     },
+    updateEventStatus: async (eventId: string, status: 'LIVE' | 'PAUSED' | 'DRAFT') => {
+        const response = await apiClient.patch(`/host/events/${eventId}/status`, { status });
+        return response.data;
+    },
     revealLocation: async (eventId: string) => {
         const response = await apiClient.post(`/host/events/${eventId}/reveal-location`);
         return response.data;

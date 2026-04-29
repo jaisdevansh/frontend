@@ -203,15 +203,21 @@ export default function HostBookings() {
     }, []);
 
     const handleUpdateStatus = useCallback(async (bookingId: string, newStatus: string) => {
+        // Save previous state for rollback
+        const previousBookings = bookings;
+
+        // Optimistic UI update immediately
+        setBookings(prev => prev.map(b => b._id === bookingId ? { ...b, status: newStatus } : b));
+
         try {
-            // Optimistic update
-            setBookings(prev => prev.map(b => b._id === bookingId ? { ...b, status: newStatus } : b));
+            await hostService.updateBookingStatus(bookingId, newStatus);
             showToast(`Booking ${newStatus}`, 'success');
-        } catch {
+        } catch (err) {
+            // Rollback to previous state on failure
+            setBookings(previousBookings);
             showToast('Failed to update status', 'error');
-            fetchBookings();
         }
-    }, [showToast]);
+    }, [showToast, bookings]);
 
     // Group bookings by event
     const groupedBookings = useMemo(() => {
