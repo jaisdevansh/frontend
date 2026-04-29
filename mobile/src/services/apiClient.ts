@@ -11,7 +11,7 @@ import { DeviceEventEmitter } from 'react-native';
  * For local dev, set LOCAL_IP to your machine's LAN IP (run `ipconfig`).
  */
 
-const LOCAL_IP = '172.21.1.18'; // ← Change to your machine's IP for local dev only
+const LOCAL_IP = '192.168.29.86'; // ← Changed to your current Wi-Fi IP address
 
 const getBaseUrl = () => {
     const env = Constants.expoConfig?.extra?.ENV || 'production';
@@ -31,12 +31,12 @@ const getAdminBaseUrl = () => {
     return 'https://stayin.in/api2';        // ✅ Production (AWS Nginx)
 };
 
-export const API_BASE_URL        = getBaseUrl();
-export const ADMIN_API_BASE_URL  = getAdminBaseUrl();
+export const API_BASE_URL = getBaseUrl();
+export const ADMIN_API_BASE_URL = getAdminBaseUrl();
 
 // 🔌 Socket config — auto-detects correct Nginx path
 export const SOCKET_ORIGIN = API_BASE_URL.replace('/api1', '').replace('/api2', '');
-export const SOCKET_PATH   = API_BASE_URL.includes('/api1') ? '/api1/socket.io' : (API_BASE_URL.includes('/api2') ? '/api2/socket.io' : '/socket.io');
+export const SOCKET_PATH = API_BASE_URL.includes('/api1') ? '/api1/socket.io' : (API_BASE_URL.includes('/api2') ? '/api2/socket.io' : '/socket.io');
 
 // 🚀 ULTRA-AGGRESSIVE WAKE-UP: Ping server with exponential backoff
 // Render free tier sleeps after 15min inactivity, takes 30-60s to wake up
@@ -46,33 +46,33 @@ const MAX_WAKE_ATTEMPTS = 8;
 
 export const wakeUpServer = () => {
     if (_serverAwake) return;
-    
+
     const ping = (delay: number, attempt: number) => setTimeout(async () => {
         if (_serverAwake || attempt > MAX_WAKE_ATTEMPTS) return;
-        
+
         false && console.log(`Waking up backend...`);
-        
+
         try {
             // Parallel ping both servers with 30s timeout (Render needs time)
             await Promise.race([
                 axios.get(`${API_BASE_URL}/health`, { timeout: 30000 }),
                 axios.get(`${ADMIN_API_BASE_URL}/health`, { timeout: 30000 })
             ]);
-            
+
             _serverAwake = true;
-            DeviceEventEmitter.emit('BACKEND_CONNECTED', { 
-                isLocal: API_BASE_URL.includes('172.21') || API_BASE_URL.includes('localhost') 
+            DeviceEventEmitter.emit('BACKEND_CONNECTED', {
+                isLocal: API_BASE_URL.includes('172.21') || API_BASE_URL.includes('localhost')
             });
             false && console.log(`Backend is ready`);
         } catch (err) {
             false && console.log(`Waking up backend...`);
-            
+
             // Exponential backoff: 0s, 5s, 10s, 15s, 20s, 30s, 40s, 50s
             const nextDelay = Math.min(5000 * attempt, 50000);
             ping(nextDelay, attempt + 1);
         }
     }, delay);
-    
+
     // Start immediately
     ping(0, 1);
 };
@@ -84,7 +84,7 @@ wakeUpServer();
 setInterval(() => {
     if (_serverAwake) {
         axios.get(`${API_BASE_URL}/health`, { timeout: 5000 }).catch(() => { _serverAwake = false; });
-        axios.get(`${ADMIN_API_BASE_URL}/health`, { timeout: 5000 }).catch(() => {});
+        axios.get(`${ADMIN_API_BASE_URL}/health`, { timeout: 5000 }).catch(() => { });
     }
 }, 8 * 60 * 1000);
 
@@ -123,7 +123,7 @@ apiClient.interceptors.request.use(
                 'api/v1/security',
                 'api/chat',        // 🆕 Production Chat System
             ];
-            
+
             if (adminPrefixes.some(prefix => normalizedUrl.startsWith(prefix))) {
                 config.baseURL = ADMIN_API_BASE_URL;
             }
@@ -153,13 +153,13 @@ apiClient.interceptors.response.use(
         const originalRequest = error.config;
 
         // 🚨 RENDER COLD START DETECTION
-        if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT' || 
+        if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT' ||
             error.response?.status === 502 || error.response?.status === 503 || error.response?.status === 504) {
-            
+
             false && console.log('Waking up backend...');
             _serverAwake = false;
             wakeUpServer();
-            
+
             // Retry after 3 seconds if not already retried
             if (!originalRequest._coldStartRetry) {
                 originalRequest._coldStartRetry = true;
@@ -169,9 +169,9 @@ apiClient.interceptors.response.use(
         }
 
         // Prevent refresh logic for login/verify-otp endpoints - they are public
-        const isAuthEndpoint = originalRequest?.url?.includes('/auth/refresh') || 
-                               originalRequest?.url?.includes('/auth/verify-otp') ||
-                               originalRequest?.url?.includes('/auth/login');
+        const isAuthEndpoint = originalRequest?.url?.includes('/auth/refresh') ||
+            originalRequest?.url?.includes('/auth/verify-otp') ||
+            originalRequest?.url?.includes('/auth/login');
 
         if (isAuthEndpoint) {
             return Promise.reject(error);
@@ -201,7 +201,7 @@ apiClient.interceptors.response.use(
                     if (authStr) {
                         try {
                             refreshToken = JSON.parse(authStr).refreshToken;
-                        } catch (e) {}
+                        } catch (e) { }
                     }
 
                     if (!refreshToken) {
@@ -234,7 +234,7 @@ apiClient.interceptors.response.use(
                                     refreshToken: parsed.refreshToken
                                 }));
                                 DeviceEventEmitter.emit('ROLE_UPDATED', { role: parsed.role });
-                            } catch (e) {}
+                            } catch (e) { }
                         }
                         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
                         processQueue(null, accessToken);

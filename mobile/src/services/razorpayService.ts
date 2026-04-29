@@ -2,7 +2,7 @@ import RazorpayCheckout from 'react-native-razorpay';
 import apiClient from './apiClient';
 
 // ── Keys — rzp_test_* = test mode, no real charges ───────────────────────────
-const RAZORPAY_KEY_ID = 'rzp_test_SZ2UV8QmCtqOFR';
+const RAZORPAY_KEY_ID = 'rzp_test_SPXu9raqQAlU2T';
 
 export interface PaymentOptions {
     amount: number;          // in INR (NOT paise – we convert internally)

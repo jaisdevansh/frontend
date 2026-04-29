@@ -98,6 +98,13 @@ export default function HostProfile() {
                     </TouchableOpacity>
                     <Text style={styles.userName}>{profile?.name || 'Elite Curator'}</Text>
                     <Text style={styles.venueRole}>{profile?.businessName?.toUpperCase() || 'VENUE OWNER'}</Text>
+                    
+                    <View style={styles.commissionBadge}>
+                        <Ionicons name="sparkles" size={12} color={COLORS.primary} style={{ marginRight: 6 }} />
+                        <Text style={styles.commissionText}>
+                            Platform Fee: {profile?.commissionRate || 10}%
+                        </Text>
+                    </View>
                 </View>
 
                 <View style={styles.menu}>
@@ -275,5 +282,21 @@ const styles = StyleSheet.create({
     fullImage: {
         width: '100%',
         height: '80%',
+    },
+    commissionBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(124, 77, 255, 0.1)',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        marginTop: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(124, 77, 255, 0.2)',
+    },
+    commissionText: {
+        color: COLORS.primary,
+        fontSize: 12,
+        fontWeight: '700',
     },
 });

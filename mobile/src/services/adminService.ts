@@ -79,6 +79,7 @@ export interface PendingHost {
     name: string;
     email?: string;
     phone?: string;
+    commissionRate?: number;
     kyc?: {
         isVerified: boolean;
         documents: Array<{
@@ -179,6 +180,11 @@ const adminService = {
 
     deleteHost: async (id: string) => {
         const response = await apiClient.delete(`/admin/hosts/${id}`);
+        return response.data;
+    },
+
+    updateHostCommission: async (id: string, commissionRate: number) => {
+        const response = await apiClient.put(`/admin/hosts/${id}/commission`, { commissionRate });
         return response.data;
     },
 

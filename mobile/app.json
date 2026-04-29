@@ -124,12 +124,11 @@
       "ENV": "development",
       "router": {},
       "eas": {
-        "projectId": "b68beff7-8632-4fad-933d-e7dbe742e313"
+        "projectId": "bb210273-63f6-48f0-97ad-9328fd0157b7"
       }
     },
     "assetBundlePatterns": [
       "**/*"
-    ],
-    "owner": "ohhoooo"
+    ]
   }
 }
