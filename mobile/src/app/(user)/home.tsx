@@ -22,7 +22,6 @@ import { hero, avatar } from '../../services/cloudinaryService';
 import { useAuth } from '../../context/AuthContext';
 import { log } from '../../utils/logger';
 import { EventCardSkeleton } from '../../components/Skeletons/EventCardSkeleton';
-import { useSmartRefresh } from '../../hooks/useSmartRefresh';
 import { useNotification } from '../../context/NotificationContext';
 
 import { InteractionManager } from 'react-native';
@@ -30,11 +29,18 @@ const FlashList = SafeFlashList;
 
 const { width } = Dimensions.get('window');
 const DATE_OPTIONS = ['Today', 'Tomorrow', 'This Weekend', 'Next Week'];
+const TOP_CITIES = ['All', 'Delhi', 'Mumbai', 'Bengaluru', 'Hyderabad', 'Chennai', 'Goa', 'Pune'];
 
 // 🚀 HIGH PERFORMANCE MEMOIZED EVENT CARD 🚀
 const EventCardItem = React.memo(({ item, isLoading, onBodyPress, onDetailsPress, coverImageProps }: any) => {
-    const dateObj = item.date ? new Date(item.date) : new Date();
-    const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
+    const dateStr = useMemo(() => {
+        const base = item.date
+            ? new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()
+            : 'TBA';
+        if (!item.endDate) return base;
+        const endStr = new Date(item.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
+        return base !== endStr ? `${base} - ${endStr}` : base;
+    }, [item.date, item.endDate]);
     
     // Check if tickets are live
     const isTicketLive = item.bookingOpenDate ? new Date() > new Date(item.bookingOpenDate) : true;
@@ -57,32 +63,51 @@ const EventCardItem = React.memo(({ item, isLoading, onBodyPress, onDetailsPress
     
     const hostName = getHostName();
     
-    // Location display logic
+    // Location display logic — respects isLocationRevealed for delayed/hidden events
     const getLocationDisplay = () => {
-        if (item.locationVisibility === 'public' && item.locationData?.address) {
-            // Show full address for public locations
+        const isRevealed = item.isLocationRevealed === true;
+        const hasAddress = !!item.locationData?.address;
+
+        // If location has been revealed by host (regardless of original setting) → show address
+        if (isRevealed && hasAddress) {
             const addressParts = item.locationData.address.split(',');
             const displayAddress = addressParts.length > 2 
                 ? `${addressParts[0]}, ${addressParts[1]}`.trim()
                 : item.locationData.address;
             return {
                 text: displayAddress,
-                icon: 'location-sharp',
-                color: '#7c4dff'
-            };
-        } else if (item.locationVisibility === 'delayed') {
-            return {
-                text: 'Reveals at Event Time',
-                icon: 'time-outline',
-                color: '#fb923c'
-            };
-        } else {
-            return {
-                text: 'Revealed Post-Booking',
-                icon: 'lock-closed',
-                color: '#ef4444'
+                icon: 'location-sharp' as const,
+                color: '#22c55e'   // Green = revealed live
             };
         }
+
+        if (item.locationVisibility === 'public' && hasAddress) {
+            // Always-visible public address
+            const addressParts = item.locationData.address.split(',');
+            const displayAddress = addressParts.length > 2 
+                ? `${addressParts[0]}, ${addressParts[1]}`.trim()
+                : item.locationData.address;
+            return {
+                text: displayAddress,
+                icon: 'location-sharp' as const,
+                color: '#2563EB'
+            };
+        }
+
+        if (item.locationVisibility === 'delayed') {
+            return {
+                text: 'Reveals at Event Time ⏳',
+                icon: 'time-outline' as const,
+                color: '#fb923c'
+            };
+        }
+
+        // hidden / private / public with no address
+        return {
+            text: 'Location Revealed Post-Booking 🔒',
+            icon: 'lock-closed' as const,
+            color: '#ef4444'
+        };
     };
     
     const locationInfo = getLocationDisplay();
@@ -133,7 +158,7 @@ const EventCardItem = React.memo(({ item, isLoading, onBodyPress, onDetailsPress
                                 item.hostId?.profileImage || item.host?.profileImage || item.hostId?.logo || item.host?.logo, 
                                 hostName
                             ) }} 
-                            style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: '#3B82F6' }} 
+                            style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: '#2563EB' }} 
                             cachePolicy="memory-disk"
                             contentFit="cover"
                         />
@@ -228,22 +253,26 @@ export default function HomeScreen() {
     const [searchQuery, setSearchQuery] = useState('');
     const [loadingEventId, setLoadingEventId] = useState<string | null>(null);
     const [selectedDate, setSelectedDate] = useState<string>('Any');
-    const [selectedDistance, setSelectedDistance] = useState<string>('Any');
+    const [maxDistance, setMaxDistance] = useState<number>(50); // 50 represents 'Any'
+    const [sliderTempDist, setSliderTempDist] = useState<number>(50);
     const [priceRange, setPriceRange] = useState([0, 10000]);
     const [sliderTempPrice, setSliderTempPrice] = useState(10000);
     const [userLoc, setUserLoc] = useState<{lat: number, lng: number} | null>(null);
+    const [selectedCity, setSelectedCity] = useState<string>('All');
 
-    // ⚡ SMART REFRESH: Only fetch when updates are available
-    const { refreshing, onRefresh } = useSmartRefresh({
-        endpoint: '/user/events',
-        checkUpdatesEndpoint: '/user/events/check-updates',
-        cacheKey: 'events_lastFetch',
-        onRefresh: async () => {
+    // ⚡ SIMPLE REFRESH: Regular pull-to-refresh
+    const [refreshing, setRefreshing] = useState(false);
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        try {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             await refetchEvents();
-        },
-        debounceMs: 2000,
-    });
+        } catch (error) {
+            console.error('[Refresh] Error:', error);
+        } finally {
+            setRefreshing(false);
+        }
+    }, [refetchEvents]);
 
     useEffect(() => {
         const loadLocation = async () => {
@@ -347,15 +376,23 @@ export default function HomeScreen() {
             }
 
             // Distance Filter
-            if (userLoc && selectedDistance !== 'Any' && ev.location?.coordinates) {
+            if (userLoc && maxDistance < 50 && ev.location?.coordinates) {
                 const dist = getDistance(userLoc.lat, userLoc.lng, ev.location.coordinates[1], ev.location.coordinates[0]);
-                if (selectedDistance === '< 5km' && dist > 5) return false;
-                if (selectedDistance === '< 15km' && dist > 15) return false;
+                if (dist > maxDistance) return false;
+            }
+
+            // City Filter
+            if (selectedCity !== 'All') {
+                const evCity = (ev.locationData?.city || ev.location?.city || '').toLowerCase();
+                const evAddress = (ev.locationData?.address || ev.location?.address || '').toLowerCase();
+                if (!evCity.includes(selectedCity.toLowerCase()) && !evAddress.includes(selectedCity.toLowerCase())) {
+                    return false;
+                }
             }
 
             return true;
         });
-    }, [events, selectedDate, priceRange, selectedDistance, userLoc]);
+    }, [events, selectedDate, priceRange, maxDistance, userLoc, selectedCity]);
 
     // Fast image rendering cache optimization
     const coverImageProps = useMemo(() => ({
@@ -423,6 +460,23 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                 </TouchableOpacity>
             </View>
+
+            <View style={{ marginBottom: 16 }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
+                    {TOP_CITIES.map(city => {
+                        const isActive = selectedCity === city;
+                        return (
+                            <TouchableOpacity 
+                                key={city} 
+                                style={[styles.cityChip, isActive && styles.cityChipActive]} 
+                                onPress={() => setSelectedCity(city)}
+                            >
+                                <Text style={[styles.cityChipText, isActive && styles.cityChipTextActive]}>{city}</Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </ScrollView>
+            </View>
             
             <TouchableOpacity 
                 activeOpacity={1} 
@@ -431,7 +485,7 @@ export default function HomeScreen() {
                 <Text style={{ color: '#fff', fontSize: 18, fontWeight: '900' }}>Explore Events</Text>
             </TouchableOpacity>
         </View>
-    ), [cityName, profileImage, profileName, router, unreadCount]);
+    ), [cityName, profileImage, profileName, router, unreadCount, selectedCity]);
 
     const listEmptyComponent = useCallback(() => loading ? (
         <View style={{ paddingHorizontal: 20 }}>
@@ -460,7 +514,7 @@ export default function HomeScreen() {
                 contentContainerStyle={{ paddingBottom: 100 }}
                 ListHeaderComponent={ListHeader}
                 ListEmptyComponent={listEmptyComponent}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#7c4dff" />}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563EB" />}
             />
 
             {/* Premium Filter Modal */}
@@ -470,7 +524,7 @@ export default function HomeScreen() {
                         <View style={styles.modalHeader}>
                             <TouchableOpacity onPress={() => setFilterVisible(false)}><Ionicons name="close" size={24} color="#FFF" /></TouchableOpacity>
                             <Text style={styles.modalTitle}>Refined Filters</Text>
-                            <TouchableOpacity onPress={() => { setSelectedDate('Any'); setPriceRange([0, 10000]); setSliderTempPrice(10000); setSelectedDistance('Any'); }}><Text style={styles.resetBtnText}>Reset</Text></TouchableOpacity>
+                            <TouchableOpacity onPress={() => { setSelectedDate('Any'); setPriceRange([0, 10000]); setSliderTempPrice(10000); setMaxDistance(50); setSliderTempDist(50); }}><Text style={styles.resetBtnText}>Reset</Text></TouchableOpacity>
                         </View>
                         
                         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
@@ -491,17 +545,55 @@ export default function HomeScreen() {
 
                             <Text style={[styles.filterSectionLabel, { marginTop: 24 }]}>DISTANCE</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 20 }}>
-                                {['Any', '< 5km', '< 15km', '< 30km'].map(d => (
-                                    <TouchableOpacity key={d} style={[styles.dateChip, selectedDistance === d && styles.dateChipActive]} onPress={() => setSelectedDistance(d)}>
-                                        <Text style={[styles.dateChipText, selectedDistance === d && styles.dateChipTextActive]}>{d}</Text>
-                                    </TouchableOpacity>
-                                ))}
+                                {['Any', '< 10km', '< 20km', '< 30km', '< 40km', '< 50km'].map(d => {
+                                    let val = 50;
+                                    if (d === '< 10km') val = 10;
+                                    if (d === '< 20km') val = 20;
+                                    if (d === '< 30km') val = 30;
+                                    if (d === '< 40km') val = 40;
+                                    if (d === '< 50km') val = 50;
+
+                                    const isActive = (d === 'Any' && maxDistance === 50) || (d !== 'Any' && maxDistance === val);
+                                    
+                                    return (
+                                        <TouchableOpacity key={d} style={[styles.dateChip, isActive && styles.dateChipActive]} onPress={() => { setMaxDistance(val); setSliderTempDist(val); }}>
+                                            <Text style={[styles.dateChipText, isActive && styles.dateChipTextActive]}>{d}</Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
                             </ScrollView>
+
+                            <View style={{ marginTop: 28, paddingHorizontal: 10 }}>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
+                                    <Text style={[styles.filterSectionLabel, { marginBottom: 0 }]}>MAX DISTANCE</Text>
+                                    <Text style={{ color: '#2563EB', fontWeight: '800', fontSize: 16 }}>{sliderTempDist === 50 ? 'Any' : `${sliderTempDist}km`}</Text>
+                                </View>
+                                <MultiSlider 
+                                    values={[sliderTempDist]} 
+                                    onValuesChange={(v) => {
+                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                        setSliderTempDist(v[0]);
+                                    }} 
+                                    onValuesChangeFinish={(v) => { 
+                                        setSliderTempDist(v[0]); 
+                                        setMaxDistance(v[0]); 
+                                    }}
+                                    min={1} max={50} step={1} 
+                                    sliderLength={width - 68} 
+                                    selectedStyle={{ backgroundColor: '#2563EB' }}
+                                    markerStyle={{ backgroundColor: '#2563EB', width: 20, height: 20, marginTop: 4 }}
+                                    trackStyle={{ height: 4, backgroundColor: 'rgba(255,255,255,0.1)' }}
+                                />
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', opacity: 0.5, marginTop: -10 }}>
+                                    <Text style={{ color: '#FFF', fontSize: 10 }}>1km</Text>
+                                    <Text style={{ color: '#FFF', fontSize: 10 }}>50km+</Text>
+                                </View>
+                            </View>
 
                             <View style={{ marginTop: 28, marginBottom: 10, paddingHorizontal: 10 }}>
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
                                     <Text style={[styles.filterSectionLabel, { marginBottom: 0 }]}>MAX ENTRY PRICE</Text>
-                                    <Text style={{ color: '#8B5CF6', fontWeight: '800', fontSize: 16 }}>₹{sliderTempPrice.toLocaleString()}</Text>
+                                    <Text style={{ color: '#2563EB', fontWeight: '800', fontSize: 16 }}>₹{sliderTempPrice.toLocaleString()}</Text>
                                 </View>
                                 <MultiSlider 
                                     values={[priceRange[1]]} 
@@ -515,8 +607,8 @@ export default function HomeScreen() {
                                     }}
                                     min={0} max={10000} step={500} 
                                     sliderLength={width - 68} 
-                                    selectedStyle={{ backgroundColor: '#8B5CF6' }}
-                                    markerStyle={{ backgroundColor: '#8B5CF6', width: 20, height: 20, marginTop: 4 }}
+                                    selectedStyle={{ backgroundColor: '#2563EB' }}
+                                    markerStyle={{ backgroundColor: '#2563EB', width: 20, height: 20, marginTop: 4 }}
                                     trackStyle={{ height: 4, backgroundColor: 'rgba(255,255,255,0.1)' }}
                                 />
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', opacity: 0.5, marginTop: -10 }}>
@@ -528,7 +620,7 @@ export default function HomeScreen() {
 
                         <View style={{ position: 'absolute', bottom: insets.bottom + 20, left: 24, right: 24 }}>
                             <TouchableOpacity style={styles.applyBtn} onPress={() => setFilterVisible(false)}>
-                                <LinearGradient colors={['#A78BFA', '#7c4dff']} style={styles.applyBtnGrad}>
+                                <LinearGradient colors={['#3B82F6', '#2563EB']} style={styles.applyBtnGrad}>
                                     <Text style={styles.applyBtnTxt}>Show {filteredEvents.length} Events</Text>
                                 </LinearGradient>
                             </TouchableOpacity>
@@ -570,8 +662,8 @@ export default function HomeScreen() {
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
                                             {locationText && (
                                                 <>
-                                                    <Ionicons name="location" size={11} color="#7c4dff" />
-                                                    <Text style={[styles.srSub, { color: '#7c4dff' }]}>
+                                                    <Ionicons name="location" size={11} color="#2563EB" />
+                                                    <Text style={[styles.srSub, { color: '#2563EB' }]}>
                                                         {locationText}
                                                     </Text>
                                                 </>
@@ -579,12 +671,12 @@ export default function HomeScreen() {
                                             <Text style={styles.srSub}>
                                                 {locationText && ' · '}
                                                 {item.venueType || item.genre || 'Club Night'}
-                                                <Text style={{ color: '#8B5CF6' }}>{distText}</Text>
+                                                <Text style={{ color: '#2563EB' }}>{distText}</Text>
                                             </Text>
                                         </View>
                                     </View>
                                     <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
-                                        <Text style={{ color: '#A78BFA', fontWeight: '800', fontSize: 13 }}>
+                                        <Text style={{ color: '#3B82F6', fontWeight: '800', fontSize: 13 }}>
                                             {item.displayPrice ? `₹${item.displayPrice.toLocaleString()}` : 'Free'}
                                         </Text>
                                         <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.3)" style={{ marginTop: 4 }} />
@@ -617,6 +709,10 @@ const styles = StyleSheet.create({
     searchBar: { height: 50, backgroundColor: '#111', borderRadius: 25, flexDirection: 'row', alignItems: 'center', paddingLeft: 16, paddingRight: 6 },
     searchPlaceholder: { flex: 1, color: 'rgba(255,255,255,0.4)', marginLeft: 12, fontSize: 14 },
     filterInlineBtn: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+    cityChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    cityChipActive: { backgroundColor: 'rgba(37,99,235,0.15)', borderColor: '#2563EB' },
+    cityChipText: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '600' },
+    cityChipTextActive: { color: '#fff', fontWeight: '800' },
     eventCard: { marginHorizontal: 20, height: 400, borderRadius: 28, overflow: 'hidden', marginBottom: 24 },
     cardImageBg: { flex: 1 },
     cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', padding: 16 },
@@ -646,7 +742,7 @@ const styles = StyleSheet.create({
     filterSectionLabel: { color: 'rgba(255,255,255,0.3)', fontSize: 11, fontWeight: '800', marginBottom: 15 },
     cardLoaderOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', zIndex: 10, borderRadius: 28 },
     dateChip: { paddingHorizontal: 18, paddingVertical: 12, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.05)', marginRight: 10 },
-    dateChipActive: { backgroundColor: 'rgba(124,77,255,0.15)', borderWidth: 1, borderColor: '#7c4dff' },
+    dateChipActive: { backgroundColor: 'rgba(37,99,235,0.15)', borderWidth: 1, borderColor: '#2563EB' },
     dateChipText: { color: 'rgba(255,255,255,0.4)', fontSize: 14, fontWeight: '700' },
     dateChipTextActive: { color: '#fff' },
     applyBtn: { borderRadius: 20, overflow: 'hidden', marginTop: 30 },

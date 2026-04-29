@@ -19,9 +19,8 @@ interface PremiumDateTimePickerProps {
     maxDate?: Date;
 }
 
-const HOURS = Array.from({ length: 12 }, (_, i) => (i === 0 ? 12 : i).toString().padStart(2, '0'));
+const HOURS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
 const MINUTES = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
-const AMPM = ['AM', 'PM'];
 
 // Height of a single time picker item
 const ITEM_HEIGHT = 50; 
@@ -39,32 +38,27 @@ export const PremiumDateTimePicker: React.FC<PremiumDateTimePickerProps> = ({
     const [currentStep, setCurrentStep] = useState(mode === 'time' ? 'time' : 'date');
     const [selectedDate, setSelectedDate] = useState<string>(dayjs(initialDate).format('YYYY-MM-DD'));
     
-    const [selectedHour, setSelectedHour] = useState(dayjs(initialDate).format('hh'));
+    const [selectedHour, setSelectedHour] = useState(dayjs(initialDate).format('HH'));
     const [selectedMinute, setSelectedMinute] = useState(dayjs(initialDate).format('mm'));
-    const [selectedAmPm, setSelectedAmPm] = useState(dayjs(initialDate).format('A'));
 
     const hourListRef = useRef<FlatList>(null);
     const minuteListRef = useRef<FlatList>(null);
-    const ampmListRef = useRef<FlatList>(null);
 
     useEffect(() => {
         if (visible) {
             setCurrentStep(mode === 'time' ? 'time' : 'date');
             setSelectedDate(dayjs(initialDate).format('YYYY-MM-DD'));
-            setSelectedHour(dayjs(initialDate).format('hh'));
+            setSelectedHour(dayjs(initialDate).format('HH'));
             setSelectedMinute(dayjs(initialDate).format('mm'));
-            setSelectedAmPm(dayjs(initialDate).format('A'));
             
             // Scroll to initial time positions after slight delay
             if (mode === 'time' || mode === 'datetime') {
                 setTimeout(() => {
-                    const hIndex = HOURS.indexOf(dayjs(initialDate).format('hh'));
+                    const hIndex = HOURS.indexOf(dayjs(initialDate).format('HH'));
                     const mIndex = MINUTES.indexOf(dayjs(initialDate).format('mm'));
-                    const aIndex = AMPM.indexOf(dayjs(initialDate).format('A'));
                     
                     hourListRef.current?.scrollToOffset({ offset: hIndex * ITEM_HEIGHT, animated: false });
                     minuteListRef.current?.scrollToOffset({ offset: mIndex * ITEM_HEIGHT, animated: false });
-                    ampmListRef.current?.scrollToOffset({ offset: aIndex * ITEM_HEIGHT, animated: false });
                 }, 300);
             }
         }
@@ -75,10 +69,7 @@ export const PremiumDateTimePicker: React.FC<PremiumDateTimePickerProps> = ({
             ? dayjs().format('YYYY-MM-DD') 
             : selectedDate;
             
-        let hour24 = parseInt(selectedHour, 10);
-        if (selectedAmPm === 'PM' && hour24 !== 12) hour24 += 12;
-        if (selectedAmPm === 'AM' && hour24 === 12) hour24 = 0;
-
+        const hour24 = parseInt(selectedHour, 10);
         const finalDate = dayjs(`${datePart} ${hour24}:${selectedMinute}`, 'YYYY-MM-DD H:m').toDate();
         
         // If mode is datetime and we are on date step, move to time step
@@ -88,10 +79,8 @@ export const PremiumDateTimePicker: React.FC<PremiumDateTimePickerProps> = ({
             setTimeout(() => {
                 const hIndex = HOURS.indexOf(selectedHour);
                 const mIndex = MINUTES.indexOf(selectedMinute);
-                const aIndex = AMPM.indexOf(selectedAmPm);
                 hourListRef.current?.scrollToOffset({ offset: hIndex * ITEM_HEIGHT, animated: false });
                 minuteListRef.current?.scrollToOffset({ offset: mIndex * ITEM_HEIGHT, animated: false });
-                ampmListRef.current?.scrollToOffset({ offset: aIndex * ITEM_HEIGHT, animated: false });
             }, 100);
             return;
         }
@@ -100,7 +89,7 @@ export const PremiumDateTimePicker: React.FC<PremiumDateTimePickerProps> = ({
         onClose();
     };
 
-    const renderTimeScroller = (data: string[], selectedValue: string, onSelect: (val: string) => void, ref: React.RefObject<any>, isAmPm = false) => {
+    const renderTimeScroller = (data: string[], selectedValue: string, onSelect: (val: string) => void, ref: React.RefObject<any>) => {
         return (
             <View style={styles.scrollerCol}>
                 <FlatList
@@ -123,8 +112,7 @@ export const PremiumDateTimePicker: React.FC<PremiumDateTimePickerProps> = ({
                             <View style={styles.scrollerItem}>
                                 <Text style={[
                                     styles.scrollerText, 
-                                    isSelected && styles.scrollerTextSelected,
-                                    isAmPm && isSelected && { fontSize: 22 }
+                                    isSelected && styles.scrollerTextSelected
                                 ]}>
                                     {item}
                                 </Text>
@@ -189,8 +177,6 @@ export const PremiumDateTimePicker: React.FC<PremiumDateTimePickerProps> = ({
                                     {renderTimeScroller(HOURS, selectedHour, setSelectedHour, hourListRef)}
                                     <Text style={styles.colon}>:</Text>
                                     {renderTimeScroller(MINUTES, selectedMinute, setSelectedMinute, minuteListRef)}
-                                    <View style={{ width: 10 }} />
-                                    {renderTimeScroller(AMPM, selectedAmPm, setSelectedAmPm, ampmListRef, true)}
                                 </View>
                             </View>
                         )}

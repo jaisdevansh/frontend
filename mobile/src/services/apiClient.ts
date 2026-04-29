@@ -7,27 +7,36 @@ import { DeviceEventEmitter } from 'react-native';
 /**
  * API CONFIGURATION
  * -----------------
- * Local Development URLs
+ * Switch comments below to change environment.
+ * For local dev, set LOCAL_IP to your machine's LAN IP (run `ipconfig`).
  */
+
+const LOCAL_IP = '172.21.1.18'; // ← Change to your machine's IP for local dev only
+
 const getBaseUrl = () => {
-    // 🌍 PRODUCTION: User API on AWS (Live)
-    return 'https://stayin.in/api1';
-    
-    // 🔧 LOCAL DEV: Point to local machine (TWILIO_BYPASS=true active)
-    // return 'http://10.225.202.18:3001';
+    const env = Constants.expoConfig?.extra?.ENV || 'production';
+
+    if (env === 'development') {
+        return `http://${LOCAL_IP}:3001`;   // Local dev
+    }
+    return 'https://stayin.in/api1';        // ✅ Production (AWS Nginx)
 };
 
-export const API_BASE_URL = getBaseUrl();
+const getAdminBaseUrl = () => {
+    const env = Constants.expoConfig?.extra?.ENV || 'production';
 
-// 🌍 PRODUCTION: Admin backend on AWS (Live)
-export const ADMIN_API_BASE_URL = 'https://stayin.in/api2';
+    if (env === 'development') {
+        return `http://${LOCAL_IP}:3002`;   // Local dev
+    }
+    return 'https://stayin.in/api2';        // ✅ Production (AWS Nginx)
+};
 
-// 🔧 LOCAL DEV: Admin backend on local machine
-// export const ADMIN_API_BASE_URL = 'http://10.225.202.18:3002';
+export const API_BASE_URL        = getBaseUrl();
+export const ADMIN_API_BASE_URL  = getAdminBaseUrl();
 
-// 🔌 Global Socket Config (Auto-detects correct path for Nginx reverse proxy)
+// 🔌 Socket config — auto-detects correct Nginx path
 export const SOCKET_ORIGIN = API_BASE_URL.replace('/api1', '').replace('/api2', '');
-export const SOCKET_PATH = API_BASE_URL.includes('/api1') ? '/api1/socket.io' : (API_BASE_URL.includes('/api2') ? '/api2/socket.io' : '/socket.io');
+export const SOCKET_PATH   = API_BASE_URL.includes('/api1') ? '/api1/socket.io' : (API_BASE_URL.includes('/api2') ? '/api2/socket.io' : '/socket.io');
 
 // 🚀 ULTRA-AGGRESSIVE WAKE-UP: Ping server with exponential backoff
 // Render free tier sleeps after 15min inactivity, takes 30-60s to wake up
@@ -51,6 +60,9 @@ export const wakeUpServer = () => {
             ]);
             
             _serverAwake = true;
+            DeviceEventEmitter.emit('BACKEND_CONNECTED', { 
+                isLocal: API_BASE_URL.includes('172.21') || API_BASE_URL.includes('localhost') 
+            });
             false && console.log(`Backend is ready`);
         } catch (err) {
             false && console.log(`Waking up backend...`);
@@ -82,7 +94,6 @@ setInterval(() => {
 let _isInitialLoad = true;
 setTimeout(() => {
     _isInitialLoad = false;
-    console.log('[API] Initial load grace period ended');
 }, 5000);
 
 const apiClient = axios.create({
@@ -99,11 +110,6 @@ const apiClient = axios.create({
 // No per-request AsyncStorage lookup needed — it's already in the Axios instance.
 apiClient.interceptors.request.use(
     (config) => {
-        // Debug: Log if token is missing
-        if (!config.headers.Authorization) {
-            console.warn('[API] Request without token:', config.url);
-        }
-        
         // Smart Routing: Route admin, host, and staff modules to the Admin Backend
         if (config.url) {
             const normalizedUrl = config.url.replace(/^\//, '');

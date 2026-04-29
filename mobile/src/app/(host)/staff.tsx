@@ -17,6 +17,9 @@ import { hostService } from '../../services/hostService';
 import { StaffCard } from '../../features/staff/components/StaffCard';
 import { useToast } from '../../context/ToastContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import * as ImagePicker from 'expo-image-picker';
+import { uploadImage } from '../../services/cloudinaryService';
+import { Image } from 'expo-image';
 
 // Only waiter and security — per host requirement
 type StaffRole = 'WAITER' | 'SECURITY';
@@ -44,6 +47,7 @@ const EMPTY_FORM = {
     email: '',
     staffType: 'WAITER' as StaffRole,
     isActive: true,
+    profileImage: '',
 };
 
 // Memoised role picker badge
@@ -144,6 +148,19 @@ export default function StaffManagement() {
         setShowAddModal(true);
     }, []);
 
+    const pickImage = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.7,
+        });
+
+        if (!result.canceled) {
+            setField('profileImage', result.assets[0].uri);
+        }
+    };
+
     const handleSave = useCallback(async () => {
         if (!form.fullName.trim() || !form.phone.trim()) {
             showToast('Full name and phone are required', 'error');
@@ -151,6 +168,11 @@ export default function StaffManagement() {
         }
         setSaving(true);
         try {
+            let imageUrl = form.profileImage;
+            if (imageUrl && !imageUrl.startsWith('http')) {
+                imageUrl = await uploadImage(imageUrl);
+            }
+
             const payload: any = {
                 fullName: form.fullName.trim(),
                 username: form.username.trim() || undefined,
@@ -158,6 +180,7 @@ export default function StaffManagement() {
                 email: form.email.trim() || undefined,
                 staffType: form.staffType,
                 isActive: form.isActive,
+                profileImage: imageUrl
             };
 
             const res = await hostService.addStaff(payload);
@@ -311,7 +334,7 @@ export default function StaffManagement() {
             {/* Add Staff Modal */}
             <Modal visible={showAddModal} animationType="slide" transparent onRequestClose={() => setShowAddModal(false)}>
                 <KeyboardAvoidingView
-                    style={{ flex: 1 }}
+                    style={{ flex: 1, justifyContent: 'flex-end' }}
                     behavior={Platform.OS === 'android' ? 'height' : 'padding'}
                 >
                 <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setShowAddModal(false)} />
@@ -330,6 +353,21 @@ export default function StaffManagement() {
                             contentContainerStyle={{ paddingBottom: 40 }}
                             keyboardShouldPersistTaps="handled"
                         >
+                            {/* Profile Image Picker */}
+                            <TouchableOpacity style={styles.imagePicker} onPress={pickImage} activeOpacity={0.8}>
+                                {form.profileImage ? (
+                                    <Image source={{ uri: form.profileImage }} style={styles.pickedImage} />
+                                ) : (
+                                    <View style={styles.imagePlaceholder}>
+                                        <Ionicons name="camera" size={32} color="rgba(255,255,255,0.2)" />
+                                        <Text style={styles.imagePlaceholderTxt}>Add Photo</Text>
+                                    </View>
+                                )}
+                                <View style={styles.editBadge}>
+                                    <Ionicons name="pencil" size={14} color="white" />
+                                </View>
+                            </TouchableOpacity>
+
                             {/* Role Picker */}
                             <Text style={styles.sectionLabel}>ASSIGN ROLE</Text>
                             <RolePicker value={form.staffType} onChange={(r) => setField('staffType', r)} />
@@ -426,7 +464,7 @@ const styles = StyleSheet.create({
 
     // Modal/Sheet
     overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.55)' },
-    sheet: { backgroundColor: '#0E0F1A', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24 },
+    sheet: { backgroundColor: '#0E0F1A', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, maxHeight: '90%', flexShrink: 1 },
     handle: { width: 40, height: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
     sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
     sheetTitle: { color: 'white', fontSize: 20, fontWeight: '800' },
@@ -460,4 +498,47 @@ const styles = StyleSheet.create({
     deleteConfirmTxt: { color: 'white', fontSize: 16, fontWeight: '800' },
     cancelBtn: { width: '100%', paddingVertical: 14, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center' },
     cancelTxt: { color: 'rgba(255,255,255,0.5)', fontSize: 15, fontWeight: '700' },
+
+    // Image Picker
+    imagePicker: {
+        alignSelf: 'center',
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: '#161825',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 20,
+        position: 'relative',
+        overflow: 'visible',
+    },
+    imagePlaceholder: {
+        alignItems: 'center',
+        gap: 4,
+    },
+    imagePlaceholderTxt: {
+        color: 'rgba(255,255,255,0.2)',
+        fontSize: 10,
+        fontWeight: '700',
+    },
+    pickedImage: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 50,
+    },
+    editBadge: {
+        position: 'absolute',
+        bottom: 0,
+        right: 0,
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: COLORS.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 3,
+        borderColor: '#0E0F1A',
+    },
 });

@@ -60,6 +60,7 @@ export default function ReferralScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const { showToast } = useToast();
+    const scrollRef = React.useRef<ScrollView>(null);
 
     // Bypass buggy Expo Router back behavior which defaults to home tab
     const handleBack = React.useCallback(() => {
@@ -154,9 +155,12 @@ export default function ReferralScreen() {
                     setReferralCode(res.data.data.referralCode);
                     setPoints(res.data.data.loyaltyPoints || 0);
                     setReferralCount(res.data.data.referralsCount || 0);
+                } else {
+                    showToast('Backend returned success: false', 'error');
                 }
-            } catch (error) {
-                showToast('Failed to load referral data', 'error');
+            } catch (error: any) {
+                const errMsg = error.response?.data?.message || error.message || 'Unknown error';
+                showToast(`Error: ${errMsg}`, 'error');
             } finally {
                 setLoading(false);
             }
@@ -225,9 +229,15 @@ export default function ReferralScreen() {
 
             <KeyboardAvoidingView
                 style={{ flex: 1 }}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
             >
-                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                <ScrollView 
+                    ref={scrollRef}
+                    contentContainerStyle={styles.scrollContent} 
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                >
                 
                 {/* Points Hero */}
                 <View style={styles.heroCard}>
@@ -287,13 +297,14 @@ export default function ReferralScreen() {
                     </View>
 
                     <View style={styles.contactSearchWrapper}>
-                        <Ionicons name="search" size={18} color="rgba(255,255,255,0.3)" />
+                        <Ionicons name="search" size={20} color="rgba(255,255,255,0.6)" />
                         <TextInput
                             style={styles.contactSearchInput}
                             placeholder="Search friends to invite..."
-                            placeholderTextColor="rgba(255,255,255,0.3)"
+                            placeholderTextColor="rgba(255,255,255,0.6)"
                             value={searchQuery}
                             onChangeText={setSearchQuery}
+                            onFocus={() => setTimeout(() => scrollRef.current?.scrollTo({ y: 350, animated: true }), 150)}
                         />
                     </View>
 
@@ -339,6 +350,7 @@ export default function ReferralScreen() {
                             onChangeText={setInputCode}
                             autoCapitalize="characters"
                             maxLength={16}
+                            onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150)}
                         />
                         <TouchableOpacity 
                             style={[styles.applyBtn, !inputCode.trim() && { opacity: 0.5 }]} 
@@ -618,13 +630,13 @@ const styles = StyleSheet.create({
     contactSearchWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.05)',
+        backgroundColor: 'rgba(255,255,255,0.1)',
         borderRadius: BORDER_RADIUS.lg,
         paddingHorizontal: 16,
         marginBottom: 16,
-        height: 50,
+        height: 54,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.05)',
+        borderColor: 'rgba(255,255,255,0.4)',
     },
     contactSearchInput: {
         flex: 1,

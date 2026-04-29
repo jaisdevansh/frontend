@@ -103,10 +103,8 @@ const TableSelection = () => {
         return [{ day: dayNames[d.getDay()], date: d.getDate(), month: monthNames[d.getMonth()], full: d }];
     }, [eventBasic?.date]);
     
-    const timeSlots = React.useMemo(() => {
-        const slots = generateTimeSlots(eventBasic?.startTime || '', eventBasic?.endTime || '');
-        return slots;
-    }, [eventBasic?.startTime, eventBasic?.endTime]);
+    // Set default time slot
+    const timeSlots = [];
     
     const [guests, setGuests] = useState(2);
     const [selectedDay, setSelectedDay] = useState(0);
@@ -177,11 +175,12 @@ const TableSelection = () => {
     }, [eventData]);
     
     // Set default time slot when timeSlots are generated
+    // Default time is empty
     useEffect(() => {
-        if (timeSlots.length > 0 && !selectedTime) {
-            setSelectedTime(timeSlots[0]);
+        if (!selectedTime) {
+            setSelectedTime('Start Time onwards');
         }
-    }, [timeSlots]);
+    }, []);
 
     const table = dynamicTables.find(t => t.id === selectedTable) || dynamicTables[0];
 
@@ -359,16 +358,6 @@ const TableSelection = () => {
                         })}
                     </View>
 
-                    {/* TIME SLOTS */}
-                    <Text style={styles.sLabel}>Time Slot</Text>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-                        {timeSlots.map((t) => (
-                            <TouchableOpacity key={t} style={[styles.timeChip, selectedTime === t && styles.timeChipActive]}
-                                onPress={() => { Haptics.selectionAsync(); setSelectedTime(t); }}>
-                                <Text style={[styles.timeChipText, selectedTime === t && { color: '#fff', fontWeight: '700' }]}>{t}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
                         </>
                     )}
                 </View>

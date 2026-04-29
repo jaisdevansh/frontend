@@ -63,7 +63,7 @@ export default function SecureCheckout() {
     const passedTotal = params.total ? Number(params.total) : 0;
     const basePrice = passedTotal > 0 ? (passedTotal / guests) : (zone.includes('VIP') ? 3500 : zone.includes('Lounge') ? 2000 : 1200);
     const subtotal      = passedTotal > 0 ? passedTotal : (Math.max(1, guests) * basePrice);
-    const serviceCharge = Math.round(subtotal * 0.10);  // 10% platform service charge
+    const serviceCharge = 0;  // Service tax removed as requested
     const totalDiscount = (isApplied ? appliedDiscount : 0) + (isPromoApplied ? promoDiscount : 0);
     const total         = Math.max(0, subtotal + serviceCharge - totalDiscount);
 
@@ -192,56 +192,81 @@ export default function SecureCheckout() {
     const handleFullPayment = async () => {
         setShowSelection(false);
 
+        // Validation
         if (!total || total < 1) {
             showToast('Invalid amount', 'error');
             return;
         }
 
+        if (!eventId || !hostId) {
+            showToast('Missing event or host information', 'error');
+            console.error('[Payment] Missing required params:', { eventId, hostId });
+            return;
+        }
+
+        console.log('[Payment] Starting payment with params:', {
+            amount: total,
+            eventId,
+            hostId,
+            zone,
+            guests,
+            seatIds,
+            userCouponId: selectedUserCoupon?._id
+        });
+
         setProcessing(true);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
-        const result = await initiateRazorpayPayment(
-            {
-                amount: total,
-                receipt: makeReceipt('rcpt'),
-                description: `${zone} Booking – ${title}`,
-                prefillName:    profile?.name    || '',
-                prefillEmail:   profile?.email   || '',
-                prefillContact: profile?.phone   || '',
-                notes: { zone, eventId, seats: seatIds.join(',') },
-            },
-            {
-                eventId,
-                hostId,
-                ticketType: `${zone} Zone`,
-                tableId: seatIds[0] || undefined,
-                pricePaid: total,
-                seatIds,
-                zone,
-                guestCount: guests,
-                userCouponId: selectedUserCoupon?._id || undefined, // ← backend marks this as used
-            }
-        );
-
-        setProcessing(false);
-
-        if (result.success) {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            router.push({
-                pathname: '/(user)/booking-success',
-                params: {
-                    title,
-                    venueName,
+        try {
+            const result = await initiateRazorpayPayment(
+                {
+                    amount: total,
+                    receipt: makeReceipt('rcpt'),
+                    description: `${zone} Booking – ${title}`,
+                    prefillName:    profile?.name    || '',
+                    prefillEmail:   profile?.email   || '',
+                    prefillContact: profile?.phone   || '',
+                    notes: { zone, eventId, seats: seatIds.join(',') },
+                },
+                {
+                    eventId,
+                    hostId,
+                    ticketType: `${zone} Zone`,
+                    tableId: seatIds[0] || undefined,
+                    pricePaid: total,
+                    seatIds,
                     zone,
-                    timeSlot,
-                    guestCount: String(guests),
-                    seatIds: seatIds.join(','),
-                    coverImage: cover,
-                    bookingId: result.booking?._id || '',
+                    guestCount: guests,
+                    userCouponId: selectedUserCoupon?._id || undefined,
                 }
-            });
-        } else if (result.error !== 'Payment cancelled') {
-            showToast(result.error || 'Payment failed', 'error');
+            );
+
+            setProcessing(false);
+
+            console.log('[Payment] Payment result:', { success: result.success, error: result.error });
+
+            if (result.success) {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                router.push({
+                    pathname: '/(user)/booking-success',
+                    params: {
+                        title,
+                        venueName,
+                        zone,
+                        timeSlot,
+                        guestCount: String(guests),
+                        seatIds: seatIds.join(','),
+                        coverImage: cover,
+                        bookingId: result.booking?._id || '',
+                    }
+                });
+            } else if (result.error !== 'Payment cancelled') {
+                showToast(result.error || 'Payment failed', 'error');
+            }
+        } catch (error: any) {
+            setProcessing(false);
+            console.error('[Payment] Unexpected error:', error);
+            showToast(error?.message || 'Payment failed. Please try again.', 'error');
         }
     };
 
@@ -275,10 +300,6 @@ export default function SecureCheckout() {
                     <View style={{ flex: 1 }}>
                         <Text style={styles.eventHost}>{zone.toUpperCase()} GUESTLIST</Text>
                         <Text style={styles.eventTitle}>{title}</Text>
-                        <View style={styles.eventDetailRow}>
-                             <Ionicons name="calendar-outline" size={14} color="rgba(255,255,255,0.4)" />
-                             <Text style={styles.eventDetailTxt}>{timeSlot}</Text>
-                        </View>
                     </View>
                 </View>
 
@@ -409,15 +430,7 @@ export default function SecureCheckout() {
                             <Text style={styles.rowVal}>Reserved</Text>
                         </View>
                     )}
-                    <View style={styles.row}>
-                        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, paddingRight: 16 }}>
-                            <Text style={styles.rowLbl}>Service Charge (10%)</Text>
-                            <View style={{ backgroundColor: 'rgba(251,146,60,0.12)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                                <Text style={{ color: '#F59E0B', fontSize: 8, fontWeight: '900' }}>PLATFORM FEE</Text>
-                            </View>
-                        </View>
-                        <Text style={styles.rowVal}>₹{serviceCharge.toFixed(2)}</Text>
-                    </View>
+
                     {isApplied && (
                         <View style={styles.row}>
                             <Text style={[styles.rowLbl, { color: '#22c55e', flex: 1 }]}>Invite Discount</Text>

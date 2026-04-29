@@ -35,6 +35,7 @@ export default function HostCreateEvent() {
     const [description, setDescription] = useState('');
     const [date, setDate] = useState(''); // stored as DD/MM/YYYY string
     const [startTime, setStartTime] = useState('');
+    const [endDate, setEndDate] = useState('');
     const [endTime, setEndTime] = useState('');
     const [floorCount, setFloorCount] = useState('1');
     const [coverImage, setCoverImage] = useState('');
@@ -53,15 +54,18 @@ export default function HostCreateEvent() {
     // Premium Picker State
     const [pickerVisible, setPickerVisible] = useState(false);
     const [pickerMode, setPickerMode] = useState<'date' | 'time' | 'datetime'>('date');
-    const [pickerType, setPickerType] = useState<'date' | 'start' | 'end' | 'reveal' | 'booking'>('date');
+    const [pickerType, setPickerType] = useState<'date' | 'endDate' | 'start' | 'end' | 'reveal' | 'booking'>('date');
     const [pickerInitialDate, setPickerInitialDate] = useState(new Date());
     const [pickerTitle, setPickerTitle] = useState('Select Date & Time');
 
-    const openPicker = (type: 'date' | 'start' | 'end' | 'reveal' | 'booking') => {
+    const openPicker = (type: 'date' | 'endDate' | 'start' | 'end' | 'reveal' | 'booking') => {
         setPickerType(type);
         if (type === 'date') {
             setPickerMode('date');
-            setPickerTitle('Event Date');
+            setPickerTitle('Start Date');
+        } else if (type === 'endDate') {
+            setPickerMode('date');
+            setPickerTitle('End Date');
         } else if (type === 'start') {
             setPickerMode('time');
             setPickerTitle('Start Time');
@@ -82,6 +86,8 @@ export default function HostCreateEvent() {
     const handlePremiumPickerSelect = (selectedDate: Date) => {
         if (pickerType === 'date') {
             setDate(dayjs(selectedDate).format('DD/MM/YYYY'));
+        } else if (pickerType === 'endDate') {
+            setEndDate(dayjs(selectedDate).format('DD/MM/YYYY'));
         } else if (pickerType === 'start') {
             setStartTime(dayjs(selectedDate).format('hh:mm A'));
         } else if (pickerType === 'end') {
@@ -185,6 +191,7 @@ export default function HostCreateEvent() {
             setTitle(event.title || '');
             setDescription(event.description || '');
             setDate(event.date ? dayjs(event.date).format('DD/MM/YYYY') : '');
+            setEndDate(event.endDate ? dayjs(event.endDate).format('DD/MM/YYYY') : '');
             setStartTime(event.startTime || '');
             setEndTime(event.endTime || '');
             setFloorCount(event.floorCount?.toString() || '1');
@@ -313,6 +320,7 @@ export default function HostCreateEvent() {
             title,
             description,
             date: parsedDate.toISOString(),
+            endDate: endDate ? dayjs(endDate, 'DD/MM/YYYY').toISOString() : undefined,
             startTime,
             endTime,
             floorCount: parseInt(floorCount) || 1,
@@ -433,8 +441,18 @@ export default function HostCreateEvent() {
                         </TouchableOpacity>
                     </View>
 
-                    {/* END TIME + FLOORS ROW */}
+                    {/* END DATE + TIME ROW */}
                     <View style={[styles.row, { marginTop: 16 }]}>
+                        {/* END DATE PICKER */}
+                        <View style={styles.flex1}>
+                            <Text style={styles.pickerLabel}>END DATE</Text>
+                            <TouchableOpacity style={styles.pickerBox} onPress={() => openPicker('endDate')}>
+                                <Ionicons name="calendar-outline" size={16} color={COLORS.primary} />
+                                <Text style={[styles.pickerText, !endDate && styles.pickerPlaceholder]}>
+                                    {endDate || 'Pick date'}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
                         {/* END TIME PICKER */}
                         <View style={styles.flex1}>
                             <Text style={styles.pickerLabel}>EVENT ENDS</Text>
@@ -445,6 +463,10 @@ export default function HostCreateEvent() {
                                 </Text>
                             </TouchableOpacity>
                         </View>
+                    </View>
+
+                    {/* FLOORS ROW */}
+                    <View style={[styles.row, { marginTop: 16 }]}>
                         <View style={styles.flex1}>
                             <Input
                                 label="Total Floors"
@@ -800,7 +822,6 @@ export default function HostCreateEvent() {
                 mode={pickerMode}
                 initialDate={pickerInitialDate}
                 title={pickerTitle}
-                minDate={new Date()}
             />
         </>
     );

@@ -2,8 +2,10 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View, Text, StyleSheet, Dimensions, Platform,
     ScrollView, TouchableOpacity, Modal, TextInput,
-    ActivityIndicator, FlatList, Switch, Keyboard, KeyboardAvoidingView
+    ActivityIndicator, Switch, Keyboard, KeyboardAvoidingView
 } from 'react-native';
+import SafeFlashList from '../../components/SafeFlashList';
+const FlashList = SafeFlashList;
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useRouter } from 'expo-router';
@@ -236,22 +238,25 @@ export default function VenueGiftsScreen() {
                     <ActivityIndicator size="large" color="#8B5CF6" />
                 </View>
             ) : (
-                <FlatList
-                    data={gifts}
-                    keyExtractor={item => item._id}
-                    renderItem={renderGiftCard}
-                    contentContainerStyle={styles.listContent}
-                    showsVerticalScrollIndicator={false}
-                    ListEmptyComponent={
-                        <View style={styles.emptyContainer}>
-                            <MaterialCommunityIcons name="gift-off-outline" size={64} color="rgba(255,255,255,0.2)" />
-                            <Text style={styles.emptyText}>No gifts added yet.</Text>
-                            <Text style={styles.emptySubText}>
-                                Add chocolates, flowers, or other special offerings for your guests.
-                            </Text>
-                        </View>
-                    }
-                />
+                <View style={{ flex: 1, width: '100%' }}>
+                    <FlashList
+                        data={gifts}
+                        keyExtractor={(item: Gift) => item._id}
+                        renderItem={renderGiftCard}
+                        estimatedItemSize={180}
+                        contentContainerStyle={styles.listContent}
+                        showsVerticalScrollIndicator={false}
+                        ListEmptyComponent={
+                            <View style={styles.emptyContainer}>
+                                <MaterialCommunityIcons name="gift-off-outline" size={64} color="rgba(255,255,255,0.2)" />
+                                <Text style={styles.emptyText}>No gifts added yet.</Text>
+                                <Text style={styles.emptySubText}>
+                                    Add chocolates, flowers, or other special offerings for your guests.
+                                </Text>
+                            </View>
+                        }
+                    />
+                </View>
             )}
 
             {/* FAB */}
@@ -275,10 +280,10 @@ export default function VenueGiftsScreen() {
                     <View style={styles.modalOverlay}>
                         <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
-                            <TouchableOpacity onPress={() => setModalVisible(false)} style={{ marginRight: 16 }}>
-                                <Ionicons name="arrow-back" size={24} color="white" />
+                            <Text style={styles.modalTitle}>{formData._id ? 'Edit Offering' : 'Add New Offering'}</Text>
+                            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeBtn}>
+                                <Ionicons name="close" size={24} color="white" />
                             </TouchableOpacity>
-                            <Text style={[styles.modalTitle, { flex: 1 }]}>{formData._id ? 'Edit Offering' : 'Add New Offering'}</Text>
                         </View>
 
                             <ScrollView
@@ -418,7 +423,7 @@ const styles = StyleSheet.create({
     fabGradient: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
 
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },
-    modalContent: { backgroundColor: '#0A0A0A', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24 },
+    modalContent: { backgroundColor: '#0A0A0A', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, maxHeight: '90%', flexShrink: 1 },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
     modalTitle: { color: 'white', fontSize: 22, fontWeight: '800' },
     closeBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },

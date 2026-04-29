@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Alert, Modal, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Modal, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useStrictBack } from '../../hooks/useStrictBack';
@@ -25,40 +25,34 @@ export default function HostProfile() {
     const [loading, setLoading] = useState(true);
     const [previewVisible, setPreviewVisible] = useState(false);
 
-    useFocusEffect(
-        useCallback(() => {
-            fetchProfile();
-        }, [])
-    );
-
-    const fetchProfile = async () => {
+    const fetchProfile = useCallback(async () => {
         setLoading(true);
         try {
             const res = await hostService.getProfile();
-            if (res.success) {
-                setProfile(res.data);
-            }
+            if (res.success) setProfile(res.data);
         } catch (error: any) {
-            showToast('Unable to reach services. Please try again.', 'error');
-            
-            if (error.response?.status === 403) {
-                showToast('Action restricted. Check your role permissions.', 'info');
-            }
+            const is403 = error.response?.status === 403;
+            showToast(
+                is403 ? 'Action restricted. Check your role permissions.' : 'Unable to reach services. Please try again.',
+                is403 ? 'info' : 'error'
+            );
         } finally {
             setLoading(false);
         }
-    };
+    }, [showToast]);
 
-    const handleLogout = () => {
+    useFocusEffect(useCallback(() => { fetchProfile(); }, [fetchProfile]));
+
+    const handleLogout = useCallback(() => {
         showAlert(
-            "Logout Confirmation",
-            "Are you sure you want to sign out from the Host Dashboard? You will need to re-verify for access.",
+            'Logout Confirmation',
+            'Are you sure you want to sign out from the Host Dashboard? You will need to re-verify for access.',
             [
-                { text: "Later", style: "cancel" },
-                { text: "Sign Out", style: "destructive", onPress: async () => await logout(true) }
+                { text: 'Later', style: 'cancel' },
+                { text: 'Sign Out', style: 'destructive', onPress: () => logout(true) },
             ]
         );
-    };
+    }, [showAlert, logout]);
 
     if (loading) {
         return (
@@ -118,19 +112,19 @@ export default function HostProfile() {
 
                     <TouchableOpacity
                         style={styles.menuItem}
-                        onPress={() => router.push('/(host)/payouts')}
+                        onPress={() => router.push('/(host)/payments')}
                     >
-                        <Ionicons name="wallet-outline" size={22} color="white" style={{ marginRight: 16 }} />
-                        <Text style={styles.menuText}>Payout History</Text>
+                        <Ionicons name="receipt-outline" size={22} color="white" style={{ marginRight: 16 }} />
+                        <Text style={styles.menuText}>Payments & Orders</Text>
                         <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.2)" style={{ marginLeft: 'auto' }} />
                     </TouchableOpacity>
 
                     <TouchableOpacity
                         style={styles.menuItem}
-                        onPress={() => router.push('/(host)/staff')}
+                        onPress={() => router.push('/(host)/payouts')}
                     >
-                        <Ionicons name="people-outline" size={22} color="white" style={{ marginRight: 16 }} />
-                        <Text style={styles.menuText}>Staff Management</Text>
+                        <Ionicons name="bar-chart-outline" size={22} color="white" style={{ marginRight: 16 }} />
+                        <Text style={styles.menuText}>Insights & Payouts</Text>
                         <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.2)" style={{ marginLeft: 'auto' }} />
                     </TouchableOpacity>
 

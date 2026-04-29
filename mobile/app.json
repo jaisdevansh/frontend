@@ -48,7 +48,7 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.entryclub.app",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 2,
+      "versionCode": 3,
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
@@ -121,6 +121,7 @@
       "typedRoutes": true
     },
     "extra": {
+      "ENV": "development",
       "router": {},
       "eas": {
         "projectId": "b68beff7-8632-4fad-933d-e7dbe742e313"

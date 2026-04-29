@@ -22,46 +22,61 @@ const { width } = Dimensions.get('window');
 const EventCard = React.memo(({ item, onPress }: { item: any; onPress: (id: string) => void }) => {
     const imgUrl = item.coverImage || item.image || item.imageUrl;
 
-    // Compute a 3-state status:
-    // 1. EXPIRED  — the event date/time has already passed
-    // 2. LIVE     — tickets are open but event hasn't started yet
-    // 3. UPCOMING — tickets not open yet
+    // Use backend status directly, with fallback to date-based calculation
     const getEventStatus = () => {
         const now = dayjs();
-
-        // Check if event date has passed (event over)
-        if (item.date) {
-            // Try to use endTime if available, otherwise treat as expired at end of event day
-            let eventEnd: dayjs.Dayjs;
-            if (item.endTime) {
-                // e.g. endTime = "23:00", combine with date
-                const [endH, endM] = item.endTime.split(':').map(Number);
-                eventEnd = dayjs(item.date).hour(endH || 23).minute(endM || 59);
-            } else if (item.startTime) {
-                // Assume 4-hour event if no endTime provided
-                const [startH, startM] = item.startTime.split(':').map(Number);
-                eventEnd = dayjs(item.date).hour(startH || 20).minute(startM || 0).add(4, 'hour');
-            } else {
-                // Fallback: expired at end of event day
-                eventEnd = dayjs(item.date).endOf('day');
-            }
-
-            if (now.isAfter(eventEnd)) {
-                return 'EXPIRED';
-            }
+        
+        // Priority 1: Check for explicit status overrides (DRAFT, PAUSED)
+        if (item.status) {
+            const status = item.status.toUpperCase();
+            if (status === 'PAUSED') return 'PAUSED';
+            if (status === 'DRAFT') return 'DRAFT';
         }
 
-        // Check if tickets/booking are live
-        const isTicketLive = item.bookingOpenDate ? now.isAfter(dayjs(item.bookingOpenDate)) : true;
-        return isTicketLive ? 'LIVE' : 'UPCOMING';
+        // Priority 2: Calculate temporal status (UPCOMING, LIVE, EXPIRED)
+        if (item.date) {
+            let eventStart: dayjs.Dayjs;
+            let eventEnd: dayjs.Dayjs;
+
+            if (item.startTime) {
+                const [startH, startM] = item.startTime.split(':').map(Number);
+                eventStart = dayjs(item.date).hour(startH || 0).minute(startM || 0);
+            } else {
+                eventStart = dayjs(item.date).startOf('day');
+            }
+
+            if (item.endTime) {
+                const [endH, endM] = item.endTime.split(':').map(Number);
+                eventEnd = dayjs(item.date).hour(endH || 23).minute(endM || 59);
+                // Handle late night events (ends after midnight)
+                if (eventEnd.isBefore(eventStart)) {
+                    eventEnd = eventEnd.add(1, 'day');
+                }
+            } else {
+                // Default 4 hour duration if no end time
+                eventEnd = eventStart.add(4, 'hour');
+            }
+
+            if (now.isBefore(eventStart)) return 'UPCOMING';
+            if (now.isAfter(eventEnd)) return 'EXPIRED';
+            return 'LIVE';
+        }
+
+        return 'UPCOMING';
     };
 
     const eventStatus = getEventStatus();
     const isExpired = eventStatus === 'EXPIRED';
     const isLive = eventStatus === 'LIVE';
+    const isPaused = eventStatus === 'PAUSED';
+    const isDraft = eventStatus === 'DRAFT';
 
     const badgeStyle = isExpired
         ? styles.ticketExpiredBadge
+        : isPaused
+        ? styles.ticketPausedBadge
+        : isDraft
+        ? styles.ticketDraftBadge
         : isLive
         ? styles.ticketLiveBadge
         : styles.ticketUpcomingBadge;
@@ -87,11 +102,14 @@ const EventCard = React.memo(({ item, onPress }: { item: any; onPress: (id: stri
                 )}
                 {/* Status Badge */}
                 <View style={[styles.ticketStatusBadge, badgeStyle]}>
-                    {!isExpired && (
-                        <View style={[styles.ticketStatusDot, styles.liveDot]} />
+                    {(isLive || isPaused) && (
+                        <View style={[styles.ticketStatusDot, isPaused ? styles.pausedDot : styles.liveDot]} />
                     )}
                     {isExpired && (
                         <Ionicons name="time-outline" size={10} color="#fff" />
+                    )}
+                    {isDraft && (
+                        <Ionicons name="create-outline" size={10} color="#fff" />
                     )}
                     <Text style={styles.ticketStatusText}>{eventStatus}</Text>
                 </View>
@@ -109,9 +127,9 @@ const EventCard = React.memo(({ item, onPress }: { item: any; onPress: (id: stri
                         {item.date
                             ? `${dayjs(item.date).format('MMM DD')}${item.startTime ? ` • ${item.startTime}` : ''}`
                             : 'Date TBD'}
-                        {isExpired ? ' • EXPIRED' : ''}
+                        {isExpired ? ' • EXPIRED' : isPaused ? ' • PAUSED' : isDraft ? ' • DRAFT' : ''}
                     </Text>
-                    {item.bookingOpenDate && !isExpired && (
+                    {item.bookingOpenDate && !isExpired && !isPaused && !isDraft && (
                         <Text style={styles.ticketLiveTime}>
                             {isLive
                                 ? `Tickets live since ${dayjs(item.bookingOpenDate).format('MMM DD, hh:mm A')}`
@@ -122,7 +140,7 @@ const EventCard = React.memo(({ item, onPress }: { item: any; onPress: (id: stri
                 </View>
                 <View style={[styles.badge, isExpired && styles.badgeExpired]}>
                     <Text style={[styles.badgeText, isExpired && styles.badgeTextExpired]}>
-                        {isExpired ? 'ENDED' : 'MANAGE'}
+                        {isExpired ? 'ENDED' : isPaused ? 'PAUSED' : isDraft ? 'DRAFT' : 'MANAGE'}
                     </Text>
                 </View>
             </View>
@@ -395,6 +413,11 @@ export default function HostDashboard() {
                             <Text style={styles.menuItemText}>Payments & Orders</Text>
                         </TouchableOpacity>
 
+                        <TouchableOpacity style={styles.menuItem} onPress={() => { setShowProfileMenu(false); router.push('/(host)/payouts' as any); }}>
+                            <Ionicons name="bar-chart-outline" size={24} color="white" />
+                            <Text style={styles.menuItemText}>Insights & Payouts</Text>
+                        </TouchableOpacity>
+
                         <TouchableOpacity style={styles.menuItem} onPress={() => { setShowProfileMenu(false); router.push('/(host)/support' as any); }}>
                             <Ionicons name="chatbubbles-outline" size={24} color="white" />
                             <Text style={styles.menuItemText}>Support (Chat to Admin)</Text>
@@ -464,6 +487,12 @@ const styles = StyleSheet.create({
     ticketExpiredBadge: {
         backgroundColor: 'rgba(100, 100, 120, 0.92)',
     },
+    ticketPausedBadge: {
+        backgroundColor: 'rgba(245, 158, 11, 0.9)',
+    },
+    ticketDraftBadge: {
+        backgroundColor: 'rgba(107, 114, 128, 0.9)',
+    },
     ticketStatusDot: {
         width: 6,
         height: 6,
@@ -471,6 +500,9 @@ const styles = StyleSheet.create({
     },
     liveDot: {
         backgroundColor: '#FFFFFF',
+    },
+    pausedDot: {
+        backgroundColor: '#FFF',
     },
     upcomingDot: {
         backgroundColor: '#FFFFFF',

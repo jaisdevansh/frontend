@@ -2,7 +2,7 @@ import RazorpayCheckout from 'react-native-razorpay';
 import apiClient from './apiClient';
 
 // ── Keys — rzp_test_* = test mode, no real charges ───────────────────────────
-const RAZORPAY_KEY_ID = 'rzp_test_SPXu9raqQAlU2T';
+const RAZORPAY_KEY_ID = 'rzp_test_SZ2UV8QmCtqOFR';
 
 export interface PaymentOptions {
     amount: number;          // in INR (NOT paise – we convert internally)
@@ -56,6 +56,8 @@ export async function initiateRazorpayPayment(
     let backendOrderId = '';
     
     try {
+        console.log('[Razorpay] Creating order with amount:', paymentOptions.amount);
+        
         // 1. Create Razorpay order on our backend
         const orderRes = await apiClient.post('/api/v1/payments/create-order', {
             amount:   paymentOptions.amount,
@@ -63,8 +65,14 @@ export async function initiateRazorpayPayment(
             receipt:  paymentOptions.receipt,
         });
 
+        console.log('[Razorpay] Order creation response:', { 
+            success: orderRes.data.success, 
+            orderId: orderRes.data.data?.id 
+        });
+
         if (!orderRes.data.success) {
-            return { success: false, error: 'Failed to create payment order' };
+            console.error('[Razorpay] Order creation failed:', orderRes.data.message);
+            return { success: false, error: orderRes.data.message || 'Failed to create payment order' };
         }
 
         const order = orderRes.data.data;
@@ -80,15 +88,26 @@ export async function initiateRazorpayPayment(
             name:        'Entry Club',
             order_id:    order.id,
             prefill: {
-                name:    paymentOptions.prefillName    || '',
-                email:   paymentOptions.prefillEmail   || '',
-                contact: paymentOptions.prefillContact || '',
+                ...(paymentOptions.prefillName ? { name: paymentOptions.prefillName } : {}),
+                ...(paymentOptions.prefillEmail ? { email: paymentOptions.prefillEmail } : {}),
+                ...(paymentOptions.prefillContact ? { contact: paymentOptions.prefillContact } : {}),
             },
             notes: paymentOptions.notes || {},
             theme: { color: '#7c4dff' },
         };
 
+        console.log('[Razorpay] Opening checkout with options:', {
+            orderId: rzpOptions.order_id,
+            amount: rzpOptions.amount,
+            key: rzpOptions.key
+        });
+
         const paymentData: any = await RazorpayCheckout.open(rzpOptions);
+
+        console.log('[Razorpay] Payment completed:', {
+            orderId: paymentData.razorpay_order_id,
+            paymentId: paymentData.razorpay_payment_id
+        });
 
         // 3. Verify signature with backend & create booking
         const verifyRes = await apiClient.post('/api/v1/payments/verify-payment', {
@@ -101,12 +120,22 @@ export async function initiateRazorpayPayment(
             },
         });
 
+        console.log('[Razorpay] Verification response:', { success: verifyRes.data.success });
+
         if (verifyRes.data.success) {
             return { success: true, booking: verifyRes.data.data };
         }
         return { success: false, error: verifyRes.data.message || 'Payment verification failed' };
 
     } catch (error: any) {
+        // Change to console.log to avoid massive RedBox in Expo Go for the expected fallback
+        console.log('[Razorpay] Error caught:', {
+            message: error?.message,
+            code: error?.code,
+            description: error?.description,
+            response: error?.response?.data
+        });
+
         // Fallback for Expo Go where NativeModules.RNRazorpayCheckout is null
         if (error?.message?.includes("Cannot read property 'open' of null") || error?.message?.includes("RNRazorpayCheckout")) {
             console.warn('[Razorpay] Native module missing (Expo Go). Falling back to Simulation Mode!');
@@ -133,10 +162,11 @@ export async function initiateRazorpayPayment(
 
         // User dismissed / cancelled the sheet
         if (error?.code === 0 || error?.description?.includes('cancelled')) {
+            console.log('[Razorpay] Payment cancelled by user');
             return { success: false, error: 'Payment cancelled' };
         }
-        console.error('[Razorpay] initiateRazorpayPayment error:', error);
-        return { success: false, error: error?.message || 'Payment failed. Please try again.' };
+        
+        return { success: false, error: error?.description || error?.message || 'Payment failed. Please try again.' };
     }
 }
 
@@ -179,9 +209,9 @@ export async function initiateFoodPayment(
             name:        'Entry Club',
             order_id:    rzpOrder.id,
             prefill: {
-                name:    paymentOptions.prefillName    || '',
-                email:   paymentOptions.prefillEmail   || '',
-                contact: paymentOptions.prefillContact || '',
+                ...(paymentOptions.prefillName ? { name: paymentOptions.prefillName } : {}),
+                ...(paymentOptions.prefillEmail ? { email: paymentOptions.prefillEmail } : {}),
+                ...(paymentOptions.prefillContact ? { contact: paymentOptions.prefillContact } : {}),
             },
             notes: paymentOptions.notes || {},
             theme: { color: '#7c4dff' },

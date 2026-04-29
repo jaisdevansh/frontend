@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Pressable } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 
 interface StaffMember {
@@ -10,6 +11,7 @@ interface StaffMember {
     status?: string;
     phone?: string;
     username?: string;
+    profileImage?: string;
 }
 
 interface StaffCardProps {
@@ -52,7 +54,11 @@ export const StaffCard = React.memo(({ staff, onUpdate, onLongPressDelete }: Sta
             delayLongPress={400}
         >
             <View style={[styles.avatar, { backgroundColor: statusColor + '20' }]}>
-                <Ionicons name={roleIcon} size={24} color={statusColor} />
+                {staff.profileImage ? (
+                    <Image source={{ uri: staff.profileImage }} style={styles.avatarImg} />
+                ) : (
+                    <Ionicons name={roleIcon} size={24} color={statusColor} />
+                )}
             </View>
 
             <View style={styles.info}>
@@ -87,7 +93,8 @@ export const StaffCard = React.memo(({ staff, onUpdate, onLongPressDelete }: Sta
 (prev, next) =>
     prev.staff._id === next.staff._id &&
     prev.staff.isActive === next.staff.isActive &&
-    prev.staff.fullName === next.staff.fullName
+    prev.staff.fullName === next.staff.fullName &&
+    prev.staff.profileImage === next.staff.profileImage
 );
 
 const styles = StyleSheet.create({
@@ -104,6 +111,10 @@ const styles = StyleSheet.create({
     avatar: {
         width: 48, height: 48, borderRadius: 24,
         alignItems: 'center', justifyContent: 'center', marginRight: 14,
+        overflow: 'hidden',
+    },
+    avatarImg: {
+        width: '100%', height: '100%',
     },
     info: { flex: 1 },
     name: { color: 'white', fontSize: 16, fontWeight: '800', letterSpacing: -0.2 },

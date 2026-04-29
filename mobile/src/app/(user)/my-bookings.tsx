@@ -20,6 +20,17 @@ import { useAuth } from '../../context/AuthContext';
 
 type Tab = 'upcoming' | 'past' | 'orders';
 
+/** Returns "Ddd, DD MMM" or "Ddd, DD MMM - Ddd, DD MMM" for multi-day events */
+const formatBookingDateRange = (eventId: any, createdAt: string): string => {
+    if (!eventId?.date) return dayjs(createdAt).format('ddd, DD MMM');
+    const start = dayjs(eventId.date).format('ddd, DD MMM');
+    if (!eventId.endDate) return start;
+    const endFmt = dayjs(eventId.endDate).format('ddd, DD MMM');
+    const startKey = dayjs(eventId.date).format('YYYY-MM-DD');
+    const endKey = dayjs(eventId.endDate).format('YYYY-MM-DD');
+    return startKey !== endKey ? `${start} - ${endFmt}` : start;
+};
+
 const ORDER_STATUS_CONFIG: Record<string, { color: string; bg: string; label: string }> = {
     pending:    { color: '#FBBF24', bg: 'rgba(251,191,36,0.12)',   label: 'PENDING'    },
     confirmed:  { color: '#34D399', bg: 'rgba(52,211,153,0.12)',   label: 'CONFIRMED'  },
@@ -170,7 +181,7 @@ export default function MyBookings() {
                     <Text style={styles.venueName}>{booking.hostId?.name || booking.eventId?.venue?.name || 'Exclusive Club'}</Text>
                     <Text style={styles.eventTitle}>{booking.eventId?.title || booking.ticketType || 'Premium Access'}</Text>
                     <Text style={styles.dateTime}>
-                        {booking.eventId?.date ? dayjs(booking.eventId.date).format('ddd, DD MMM') + ' • ' + booking.eventId.startTime : dayjs(booking.createdAt).format('ddd, DD MMM • hh:mm A')}
+                        {formatBookingDateRange(booking.eventId, booking.createdAt)}
                     </Text>
                 </View>
             </View>
@@ -235,7 +246,7 @@ export default function MyBookings() {
                     <View style={styles.orderCardHeader}>
                         <View>
                             <Text style={styles.orderId}>#{String(item._id).slice(-8).toUpperCase()}</Text>
-                            <Text style={styles.orderTime}>{dayjs(item.createdAt).format('ddd, DD MMM • hh:mm A')}</Text>
+                            <Text style={styles.orderTime}>{dayjs(item.createdAt).format('ddd, DD MMM')}</Text>
                         </View>
                         <View style={[styles.orderStatusBadge, { borderColor: cfg.color }]}>
                             <View style={[styles.orderStatusDot, { backgroundColor: cfg.color }]} />

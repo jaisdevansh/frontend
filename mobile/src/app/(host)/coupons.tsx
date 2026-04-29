@@ -284,7 +284,10 @@ export default function HostCoupons() {
                 transparent={true}
                 onRequestClose={() => setCreateModalVisible(false)}
             >
-                <ScreenWrapper>
+                <KeyboardAvoidingView 
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+                    style={{ flex: 1 }}
+                >
                     <View style={styles.modalOverlay}>
                         <View style={styles.modalContent}>
                             <View style={styles.modalHeader}>
@@ -294,7 +297,11 @@ export default function HostCoupons() {
                                 </TouchableOpacity>
                             </View>
 
-                            <ScrollView style={styles.modalForm} showsVerticalScrollIndicator={false}>
+                            <ScrollView 
+                                style={styles.modalForm} 
+                                showsVerticalScrollIndicator={false}
+                                contentContainerStyle={{ paddingBottom: 40 }}
+                            >
                                 <Input
                                     label="Coupon Title (Optional)"
                                     placeholder="e.g. Weekend Drinks 50% Off"
@@ -359,30 +366,34 @@ export default function HostCoupons() {
                                         keyboardType="numeric"
                                     />
                                 </View>
-                                <TouchableOpacity onPress={() => setShowDatePicker(true)} activeOpacity={0.7}>
+                                <View>
                                     <Input
                                         label="Expiry Date"
                                         placeholder="Select Date"
                                         value={newCoupon.expiryDisplay}
                                         editable={false}
-                                        pointerEvents="none"
                                     />
-                                </TouchableOpacity>
+                                    <TouchableOpacity 
+                                        style={StyleSheet.absoluteFillObject} 
+                                        onPress={() => setShowDatePicker(true)} 
+                                        activeOpacity={0.7}
+                                    />
+                                </View>
 
                                 {showDatePicker && (
-                                    <View style={{ marginBottom: 20, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.card.glassBorder }}>
+                                    <View style={{ marginBottom: 20, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', backgroundColor: 'rgba(255,255,255,0.05)' }}>
                                         <Calendar
                                             onDayPress={onDayPress}
                                             minDate={new Date().toISOString().split('T')[0]}
                                             theme={{
-                                                backgroundColor: COLORS.card.glass,
-                                                calendarBackground: COLORS.card.dark,
-                                                textSectionTitleColor: COLORS.text.muted,
+                                                backgroundColor: 'transparent',
+                                                calendarBackground: 'transparent',
+                                                textSectionTitleColor: 'rgba(255,255,255,0.6)',
                                                 selectedDayBackgroundColor: COLORS.primary,
                                                 selectedDayTextColor: '#ffffff',
                                                 todayTextColor: COLORS.primary,
                                                 dayTextColor: 'white',
-                                                textDisabledColor: 'rgba(255,255,255,0.1)',
+                                                textDisabledColor: 'rgba(255,255,255,0.25)',
                                                 monthTextColor: 'white',
                                                 arrowColor: COLORS.primary,
                                                 textDayFontWeight: '500',
@@ -398,16 +409,18 @@ export default function HostCoupons() {
                                     </View>
                                 )}
 
+                            </ScrollView>
+
+                            <View style={{ paddingTop: 16, borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.05)', backgroundColor: COLORS.card.dark }}>
                                 <Button
                                     title={createLoading ? "Creating..." : "Create Promo Code"}
                                     onPress={handleCreateCoupon}
                                     loading={createLoading}
-                                    style={{ marginTop: 24, marginBottom: 80 }}
                                 />
-                            </ScrollView>
+                            </View>
                         </View>
                     </View>
-                </ScreenWrapper>
+                </KeyboardAvoidingView>
             </Modal>
 
             {/* Delete Confirmation Modal */}

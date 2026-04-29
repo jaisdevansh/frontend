@@ -104,6 +104,13 @@ export const useSmartRefresh = ({
                 console.log('[SmartRefresh] No updates, skipping fetch');
             }
         } catch (error: any) {
+            // Handle 401 errors silently (token refresh will handle it)
+            if (error.response?.status === 401) {
+                console.log('[SmartRefresh] Auth error, skipping check');
+                setRefreshing(false);
+                return;
+            }
+            
             console.error('[SmartRefresh] Error:', error.message);
             // On error, still try to fetch data (fallback)
             try {

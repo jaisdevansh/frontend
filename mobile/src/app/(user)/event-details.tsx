@@ -410,6 +410,9 @@ const EventDetails = () => {
                                         <Text style={styles.timingLabel}>Ends</Text>
                                         <Text style={styles.timingValue}>
                                             {event?.endTime || '--:--'}
+                                            {event?.endDate && event?.date && dayjs(event.endDate).format('YYYYMMDD') !== dayjs(event.date).format('YYYYMMDD')
+                                                ? `\n(${dayjs(event.endDate).format('MMM DD')})`
+                                                : null}
                                         </Text>
                                     </View>
                                 </View>
@@ -484,7 +487,9 @@ const EventDetails = () => {
                                         id: event.hostId?._id || event.hostId || event.venueId?._id || event.venueId,
                                         name: venueName,
                                         image: venueImg,
-                                        type: 'Exclusive Venue'
+                                        type: 'Exclusive Venue',
+                                        locationVisibility: event.locationVisibility || 'public',
+                                        isLocationRevealed: event.isLocationRevealed ? '1' : '0'
                                     }
                                 });
                             }}
@@ -591,7 +596,9 @@ const EventDetails = () => {
                                                 id: event.hostId?._id || event.hostId || event.venueId?._id || event.venueId,
                                                 name: venueName,
                                                 image: img,
-                                                type: 'Exclusive Venue'
+                                                type: 'Exclusive Venue',
+                                                locationVisibility: event.locationVisibility || 'public',
+                                                isLocationRevealed: event.isLocationRevealed ? '1' : '0'
                                             }
                                         });
                                     }}

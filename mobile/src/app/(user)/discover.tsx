@@ -1576,22 +1576,55 @@ await new Promise(resolve => setTimeout(resolve, delay));
             {/* 🎯 Premium Gender Filter Modal */}
             <Modal visible={showFilterModal} animationType="slide" transparent>
                 <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.75)' }}>
-                    <View style={{ backgroundColor: '#0E0E1C', borderTopLeftRadius: 36, borderTopRightRadius: 36, paddingHorizontal: 24, paddingTop: 20, paddingBottom: insets.bottom + 28, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' }}>
+                    <View style={{ backgroundColor: '#0E0E1C', borderTopLeftRadius: 36, borderTopRightRadius: 36, paddingHorizontal: 24, paddingTop: 20, paddingBottom: insets.bottom + 28, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', position: 'relative' }}>
+                        {/* Close Button (X) - Top Right */}
+                        <TouchableOpacity 
+                            onPress={() => setShowFilterModal(false)} 
+                            style={{ 
+                                position: 'absolute',
+                                top: 16,
+                                right: 20,
+                                width: 36, 
+                                height: 36, 
+                                borderRadius: 18, 
+                                backgroundColor: 'rgba(239,68,68,0.15)', 
+                                justifyContent: 'center', 
+                                alignItems: 'center',
+                                borderWidth: 1,
+                                borderColor: 'rgba(239,68,68,0.3)',
+                                zIndex: 10
+                            }}
+                        >
+                            <Ionicons name="close" size={22} color="#EF4444" />
+                        </TouchableOpacity>
+                        
                         {/* Handle Bar */}
                         <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.15)', alignSelf: 'center', marginBottom: 24 }} />
                         
                         {/* Header */}
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
-                            <View>
-                                <Text style={{ color: '#fff', fontSize: 22, fontWeight: '900', letterSpacing: 0.3 }}>Radar Filters</Text>
-                                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginTop: 4 }}>Refine who you see nearby</Text>
-                            </View>
-                            {genderFilter !== 'All' && (
-                                <TouchableOpacity onPress={() => setGenderFilter('All')} style={{ backgroundColor: 'rgba(59,130,246,0.12)', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(59,130,246,0.3)' }}>
-                                    <Text style={{ color: '#3B82F6', fontSize: 12, fontWeight: '800' }}>RESET</Text>
-                                </TouchableOpacity>
-                            )}
+                        <View style={{ marginBottom: 28, paddingRight: 50 }}>
+                            <Text style={{ color: '#fff', fontSize: 22, fontWeight: '900', letterSpacing: 0.3 }}>Radar Filters</Text>
+                            <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginTop: 4 }}>Refine who you see nearby</Text>
                         </View>
+                        
+                        {/* Reset Button (if filter active) */}
+                        {genderFilter !== 'All' && (
+                            <TouchableOpacity 
+                                onPress={() => setGenderFilter('All')} 
+                                style={{ 
+                                    backgroundColor: 'rgba(59,130,246,0.12)', 
+                                    paddingHorizontal: 14, 
+                                    paddingVertical: 8, 
+                                    borderRadius: 20, 
+                                    borderWidth: 1, 
+                                    borderColor: 'rgba(59,130,246,0.3)',
+                                    alignSelf: 'flex-start',
+                                    marginBottom: 20
+                                }}
+                            >
+                                <Text style={{ color: '#3B82F6', fontSize: 12, fontWeight: '800' }}>RESET FILTER</Text>
+                            </TouchableOpacity>
+                        )}
 
                         {/* Section Label */}
                         <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, fontWeight: '800', letterSpacing: 1.5, marginBottom: 16 }}>SHOW ME</Text>

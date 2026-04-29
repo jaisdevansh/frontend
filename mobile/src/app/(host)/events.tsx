@@ -11,10 +11,53 @@ import { useAlert } from '../../context/AlertProvider';
 import { useEvents } from '../../hooks/useEvents';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
+import dayjs from 'dayjs';
+
+// Helper: derive live status from event date & time
+function getEventStatus(event: any): { label: string; color: string; bg: string } {
+    const now = dayjs();
+    
+    // Priority 1: Check for explicit status overrides (DRAFT, PAUSED)
+    if (event.status) {
+        const status = event.status.toUpperCase();
+        if (status === 'PAUSED') return { label: 'PAUSED', color: '#F59E0B', bg: 'rgba(245,158,11,0.15)' };
+        if (status === 'DRAFT') return { label: 'DRAFT', color: 'rgba(255,255,255,0.4)', bg: 'rgba(255,255,255,0.06)' };
+    }
+
+    // Priority 2: Calculate temporal status (UPCOMING, LIVE, ENDED)
+    if (event.date) {
+        let eventStart: dayjs.Dayjs;
+        let eventEnd: dayjs.Dayjs;
+
+        if (event.startTime) {
+            const [startH, startM] = event.startTime.split(':').map(Number);
+            eventStart = dayjs(event.date).hour(startH || 0).minute(startM || 0);
+        } else {
+            eventStart = dayjs(event.date).startOf('day');
+        }
+
+        if (event.endTime) {
+            const [endH, endM] = event.endTime.split(':').map(Number);
+            eventEnd = dayjs(event.date).hour(endH || 23).minute(endM || 59);
+            if (eventEnd.isBefore(eventStart)) {
+                eventEnd = eventEnd.add(1, 'day');
+            }
+        } else {
+            eventEnd = eventStart.add(4, 'hour');
+        }
+
+        if (now.isBefore(eventStart)) return { label: 'UPCOMING', color: '#A78BFA', bg: 'rgba(124,77,255,0.15)' };
+        if (now.isAfter(eventEnd)) return { label: 'ENDED', color: 'rgba(255,255,255,0.4)', bg: 'rgba(255,255,255,0.06)' };
+        return { label: 'LIVE NOW', color: '#34D399', bg: 'rgba(52,211,153,0.15)' };
+    }
+
+    return { label: 'UPCOMING', color: '#A78BFA', bg: 'rgba(124,77,255,0.15)' };
+}
 
 // Optimization: Event Card Component
 const EventCardList = React.memo(({ event, handleDeleteEvent, handleForceReveal, handleEventOptions, formatDate, calculateTotalRevenue, calculateFillPercentage, getTotalSold }: any) => {
     const { day, month } = formatDate(event.date);
+    const status = getEventStatus(event);
     return (
         <TouchableOpacity
             style={styles.eventCard}
@@ -40,7 +83,12 @@ const EventCardList = React.memo(({ event, handleDeleteEvent, handleForceReveal,
                 <View style={styles.titleRow}>
                     <View>
                         <Text style={styles.eventTitle}>{event.title}</Text>
-                        <Text style={styles.eventDetails}>{event.startTime || '11:00 PM'} • {(event.status || 'Active').toUpperCase()}</Text>
+                        <View style={styles.statusRow}>
+                            <Text style={styles.eventDetails}>{event.startTime || '11:00 PM'}</Text>
+                            <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
+                                <Text style={[styles.statusBadgeText, { color: status.color }]}>{status.label}</Text>
+                            </View>
+                        </View>
                     </View>
                     <TouchableOpacity
                         style={styles.editBtn}
@@ -66,13 +114,20 @@ const EventCardList = React.memo(({ event, handleDeleteEvent, handleForceReveal,
                 </View>
 
                 {event.locationVisibility !== 'public' && !event.isLocationRevealed && (
-                    <TouchableOpacity 
-                        style={styles.revealBtn}
-                        onPress={() => handleForceReveal(event._id, event.title)}
-                    >
-                        <Ionicons name="location" size={16} color="#FFF" />
-                        <Text style={styles.revealBtnText}>Reveal Location Now</Text>
-                    </TouchableOpacity>
+                    <View style={styles.revealInfo}>
+                        <TouchableOpacity 
+                            style={styles.revealBtn}
+                            onPress={() => handleForceReveal(event._id, event.title)}
+                        >
+                            <Ionicons name="location" size={16} color="#FFF" />
+                            <Text style={styles.revealBtnText}>Reveal Now</Text>
+                        </TouchableOpacity>
+                        {event.revealTime && (
+                            <Text style={styles.revealTimeText}>
+                                Auto-reveal: {dayjs(event.revealTime).format('MMM DD, hh:mm A')}
+                            </Text>
+                        )}
+                    </View>
                 )}
             </View>
         </TouchableOpacity>
@@ -376,6 +431,22 @@ const styles = StyleSheet.create({
     editBtn: {
         padding: 4,
     },
+    statusRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginTop: 4,
+    },
+    statusBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 8,
+    },
+    statusBadgeText: {
+        fontSize: 10,
+        fontWeight: '800',
+        letterSpacing: 0.5,
+    },
     statsRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -406,14 +477,27 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(124, 77, 255, 0.2)',
         paddingVertical: 12,
         borderRadius: 12,
-        marginTop: 16,
         gap: 8,
         borderWidth: 1,
         borderColor: 'rgba(124, 77, 255, 0.3)',
+        marginRight: 12,
+        flex: 1,
     },
     revealBtnText: {
         color: '#FFFFFF',
         fontSize: 14,
         fontWeight: '700',
+    },
+    revealInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: 16,
+    },
+    revealTimeText: {
+        color: 'rgba(255, 255, 255, 0.4)',
+        fontSize: 11,
+        fontWeight: '600',
+        fontStyle: 'italic',
     },
 });

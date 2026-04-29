@@ -82,9 +82,13 @@ export default function TablePass() {
     const coverImage  = event.coverImage     || host.profileImage   || (params.coverImage ? String(params.coverImage) : '');
     const zone        = booking?.ticketType  || (params.zone        ? String(params.zone)        : 'VIP');
     const timeSlot    = event.startTime      || (params.timeSlot    ? String(params.timeSlot)    : '11:30 PM');
-    const eventDate   = event.date
-        ? dayjs(event.date).format('ddd, DD MMM YYYY')
-        : (params.eventDate ? String(params.eventDate) : 'TBA');
+    const eventDate   = (() => {
+        if (!event.date) return params.eventDate ? String(params.eventDate) : 'TBA';
+        const startFmt = dayjs(event.date).format('ddd, DD MMM YYYY');
+        if (!event.endDate) return startFmt;
+        const isMultiDay = dayjs(event.endDate).format('YYYYMMDD') !== dayjs(event.date).format('YYYYMMDD');
+        return isMultiDay ? `${startFmt} - ${dayjs(event.endDate).format('ddd, DD MMM YYYY')}` : startFmt;
+    })();
 
     const guestCount  = String(booking?.guests || (params.guestCount ? Number(params.guestCount) : 1));
     const numGuests   = booking?.guests || (params.guestCount ? Number(params.guestCount) : 1);
@@ -225,10 +229,6 @@ export default function TablePass() {
                         <View style={styles.detailCell}>
                             <Text style={styles.detailCellLbl}>DATE</Text>
                             <Text style={styles.detailCellVal}>{eventDate}</Text>
-                        </View>
-                        <View style={[styles.detailCell, styles.detailCellRight]}>
-                            <Text style={styles.detailCellLbl}>TIME</Text>
-                            <Text style={styles.detailCellVal}>{timeSlot}</Text>
                         </View>
                         <View style={[styles.detailCell, { borderBottomWidth: 0 }]}>
                             <Text style={styles.detailCellLbl}>GUEST LIST</Text>

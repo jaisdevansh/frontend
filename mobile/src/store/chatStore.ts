@@ -65,7 +65,8 @@ interface ChatState {
     rejectChatRequest: (senderId: string) => void;
     setMessageReceivedCallback: (callback: (senderId: string, senderName: string, content: string) => void) => void;
     setChatRequestCallback: (callback: (senderId: string, senderName: string, content: string, senderImage?: string) => void) => void;
-    fetchPeers: () => Promise<void>; // ← NEW: fetch conversations list from DB
+    fetchPeers: () => Promise<void>; // ← fetch conversations list from DB
+    removeMessage: (peerId: string, messageId: string) => void; // ← Optimistic delete
 }
 
 export const useChatStore = create<ChatState>()(
@@ -114,18 +115,12 @@ export const useChatStore = create<ChatState>()(
         });
 
         socket.on('connect', () => {
-            console.log('🔌 [ChatStore] Socket connected:', socket.id);
-            console.log('🔌 [ChatStore] Socket URL:', socketUrl);
-            console.log('🔌 [ChatStore] Socket transport:', socket.io.engine.transport.name);
+            false && console.log('🔌 [ChatStore] Socket connected:', socket.id);
         });
 
-        socket.on('connect_error', (error) => {
-            console.error('❌ [ChatStore] Socket connection error:', error.message);
-        });
+        socket.on('connect_error', () => {});
 
-        socket.on('disconnect', (reason) => {
-            console.warn('⚠️ [ChatStore] Socket disconnected:', reason);
-        });
+        socket.on('disconnect', () => {});
 
         socket.on('receive_message', (msg) => {
             
@@ -338,8 +333,6 @@ export const useChatStore = create<ChatState>()(
             return;
         }
 
-        console.log('📤 [ChatStore] Sending message:', { receiverId, content: content.substring(0, 50), currentUserId });
-
         const tempId = `temp_${Date.now()}`;
         
         const optimisticMsg: Message = {
@@ -362,7 +355,6 @@ export const useChatStore = create<ChatState>()(
             
             // Auto-accept chat when sending first message
             if (!newAcceptedChats.has(receiverId)) {
-                console.log('✅ [ChatStore] Auto-accepting chat with:', receiverId);
                 newAcceptedChats.add(receiverId);
             }
             
@@ -543,6 +535,19 @@ export const useChatStore = create<ChatState>()(
         } finally {
             set({ peersLoading: false });
         }
+    },
+
+    removeMessage: (peerId: string, messageId: string) => {
+        set((state) => {
+            const msgs = state.messagesByPeer[peerId] || [];
+            const updated = msgs.filter(m => m._id !== messageId && m.tempId !== messageId);
+            return {
+                messagesByPeer: {
+                    ...state.messagesByPeer,
+                    [peerId]: updated,
+                }
+            };
+        });
     },
         }),
         {

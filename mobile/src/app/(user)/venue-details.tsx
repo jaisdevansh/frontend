@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, Image, TouchableOpacity, ActivityIndicator, Linking, Platform, Dimensions, Modal } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, Image, TouchableOpacity, ActivityIndicator, Linking, Platform, Dimensions, Modal, Alert } from 'react-native';
 import { useRouter, useNavigation, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -28,6 +28,11 @@ export default function VenueDetails() {
     const fallbackName = params.name && params.name !== 'undefined' ? String(params.name) : 'Exclusive Venue';
     const fallbackType = params.type && params.type !== 'undefined' ? String(params.type) : 'Nightclub';
     const venueId = params.id ? String(params.id) : null;
+
+    // Read event location privacy from navigation params
+    const locationVisibilityParam = params.locationVisibility ? String(params.locationVisibility) : 'public';
+    const isLocationRevealedParam = params.isLocationRevealed === '1';
+    const isLocationMasked = (locationVisibilityParam === 'hidden' || locationVisibilityParam === 'delayed') && !isLocationRevealedParam;
 
     const [events, setEvents] = useState<any[]>([]);
     const [venueData, setVenueData] = useState<any>(null);
@@ -70,8 +75,13 @@ export default function VenueDetails() {
                 }
                 
                 const eRes = await userService.getEvents();
-                if (eRes.success) {
-                    setEvents(eRes.data);
+                if (eRes.success && Array.isArray(eRes.data)) {
+                    // Filter to only show events that belong to this host
+                    const hostEvents = eRes.data.filter((ev: any) => {
+                        const evHostId = ev.hostId?._id || ev.hostId;
+                        return evHostId && String(evHostId) === String(venueId);
+                    });
+                    setEvents(hostEvents);
                 }
             } catch (err: any) {
                 console.error('[VENUE] Error fetching venue:', err.message);
@@ -376,25 +386,45 @@ export default function VenueDetails() {
                     {/* LOCATION SECTION */}
                     <Text style={styles.sectionTitle}>Location</Text>
                     <View style={styles.mapCard}>
-                        <View style={{ height: 160, overflow: 'hidden' }}>
-                            <Image
-                                source={{ uri: staticMapUrl }}
-                                style={StyleSheet.absoluteFillObject}
-                                resizeMode="cover"
-                            />
-                            <TouchableOpacity style={styles.mapOverlay} activeOpacity={0.8} onPress={openMaps} />
-                        </View>
+                        {isLocationMasked ? (
+                            // Hidden/Delayed: show lock screen instead of real map
+                            <View style={{ height: 160, backgroundColor: '#0a0a14', alignItems: 'center', justifyContent: 'center' }}>
+                                <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(124,77,255,0.1)', alignItems: 'center', justifyContent: 'center', marginBottom: 12, borderWidth: 1, borderColor: 'rgba(124,77,255,0.3)' }}>
+                                    <Ionicons name="lock-closed" size={32} color="#7c4dff" />
+                                </View>
+                                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontWeight: '600' }}>
+                                    {locationVisibilityParam === 'delayed' ? 'Reveals at scheduled time ⏳' : 'Reveals 4 hours before entry'}
+                                </Text>
+                            </View>
+                        ) : (
+                            <View style={{ height: 160, overflow: 'hidden' }}>
+                                <Image
+                                    source={{ uri: staticMapUrl }}
+                                    style={StyleSheet.absoluteFillObject}
+                                    resizeMode="cover"
+                                />
+                                <TouchableOpacity style={styles.mapOverlay} activeOpacity={0.8} onPress={openMaps} />
+                            </View>
+                        )}
                         <View style={{ padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                             <View style={{ flex: 1 }}>
                                 <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '700' }}>{displayName}</Text>
-                                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginTop: 4 }}>
-                                    {displayAddress}
-                                </Text>
+                                {isLocationMasked ? (
+                                    <Text style={{ color: '#7c4dff', fontSize: 13, marginTop: 4 }}>
+                                        {locationVisibilityParam === 'delayed' ? 'Location auto-reveals at event time' : 'Private location — reveals before entry'}
+                                    </Text>
+                                ) : (
+                                    <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginTop: 4 }}>
+                                        {displayAddress}
+                                    </Text>
+                                )}
                             </View>
-                            <TouchableOpacity onPress={openMaps} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 }}>
-                                <Ionicons name="navigate-circle" size={18} color="#fff" style={{ marginRight: 6 }} />
-                                <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Get Directions</Text>
-                            </TouchableOpacity>
+                            {!isLocationMasked && (
+                                <TouchableOpacity onPress={openMaps} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 }}>
+                                    <Ionicons name="navigate-circle" size={18} color="#fff" style={{ marginRight: 6 }} />
+                                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Get Directions</Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
                     </View>
 
@@ -488,6 +518,15 @@ export default function VenueDetails() {
 
                     <View style={styles.sectionHeader}>
                         <Text style={styles.sectionTitle}>Exclusive Events</Text>
+                        {/* Dynamic badge based on location visibility */}
+                        {isLocationMasked && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: locationVisibilityParam === 'delayed' ? 'rgba(251,146,60,0.12)' : 'rgba(124,77,255,0.12)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: locationVisibilityParam === 'delayed' ? 'rgba(251,146,60,0.3)' : 'rgba(124,77,255,0.3)', marginTop: 6 }}>
+                                <Ionicons name={locationVisibilityParam === 'delayed' ? 'time-outline' : 'lock-closed'} size={11} color={locationVisibilityParam === 'delayed' ? '#fb923c' : '#7c4dff'} />
+                                <Text style={{ color: locationVisibilityParam === 'delayed' ? '#fb923c' : '#7c4dff', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 }}>
+                                    {locationVisibilityParam === 'delayed' ? 'AUTO-REVEAL' : 'PRIVATE LOCATION'}
+                                </Text>
+                            </View>
+                        )}
                     </View>
 
                     {loading ? (
@@ -543,10 +582,30 @@ export default function VenueDetails() {
                 <TouchableOpacity 
                     style={[styles.footerBtn, loading && { opacity: 0.7 }]} 
                     onPress={() => {
-                        setLoading(true);
                         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+                        // Pick the first available event for this host
+                        const firstEvent = events.length > 0 ? events[0] : null;
+
+                        if (!firstEvent || !firstEvent._id) {
+                            Alert.alert(
+                                'No Events Available',
+                                'This venue has no upcoming events to book right now. Check back soon!',
+                                [{ text: 'OK', style: 'default' }]
+                            );
+                            return;
+                        }
+
+                        setLoading(true);
                         setTimeout(() => {
-                            router.push('/(user)/event-details');
+                            router.push({
+                                pathname: '/(user)/event-details',
+                                params: {
+                                    eventId: firstEvent._id,
+                                    title: firstEvent.title || '',
+                                    image: firstEvent.coverImage || displayImage
+                                }
+                            });
                             setTimeout(() => setLoading(false), 500);
                         }, 150);
                     }}
@@ -556,7 +615,9 @@ export default function VenueDetails() {
                         {loading ? (
                             <ActivityIndicator size="small" color="#fff" />
                         ) : (
-                            <Text style={styles.footerBtnText}>Book Private Table</Text>
+                            <Text style={styles.footerBtnText}>
+                                {events.length > 0 ? 'Book Private Table' : 'No Events Available'}
+                            </Text>
                         )}
                     </LinearGradient>
                 </TouchableOpacity>

@@ -40,6 +40,7 @@ import { NotificationProvider } from '../context/NotificationContext';
 import { useNotifications } from '../hooks/useNotifications';
 import { useHostProfile } from '../hooks/useHostProfile';
 import { NetworkProvider } from '../context/NetworkProvider';
+import { BackendStatusIndicator } from '../components/BackendStatusIndicator';
 import { QueryClient, QueryClientProvider, QueryCache } from '@tanstack/react-query';
 
 const queryClient = new QueryClient({
@@ -281,6 +282,7 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={DarkTheme}>
+      <BackendStatusIndicator />
       <Stack screenOptions={{ 
         headerShown: false,
         animation: 'fade',

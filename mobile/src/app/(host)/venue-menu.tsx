@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Modal, Dimensions, Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Modal, Dimensions, Keyboard, KeyboardAvoidingView, Platform, TextInput, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useRouter } from 'expo-router';
@@ -12,6 +12,9 @@ import { Button } from '../../components/Button';
 import { hostService } from '../../services/hostService';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadImage } from '../../services/cloudinaryService';
+import { Image } from 'expo-image';
+import SafeFlashList from '../../components/SafeFlashList';
+const FlashList = SafeFlashList;
 
 const { width } = Dimensions.get('window');
 
@@ -172,41 +175,52 @@ export default function HostVenueMenu() {
 
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-                <TouchableOpacity style={styles.backBtn} onPress={() => goBack()}>
-                    <Ionicons name="arrow-back" size={24} color="white" />
-                </TouchableOpacity>
-
-                <View style={styles.header}>
-                    <View style={styles.titleRow}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.title}>Menu Offerings</Text>
-                            <Text style={styles.subtitle}>Curate your drinks and food items</Text>
-                        </View>
-                        {menuItems.length > 0 && (
-                            <TouchableOpacity style={styles.addPill} onPress={handleAddItem}>
-                                <Ionicons name="add" size={18} color={COLORS.background.dark} />
-                                <Text style={styles.addPillText}>New</Text>
+            <View style={{ flex: 1, paddingHorizontal: SPACING.lg }}>
+                <FlashList
+                    data={menuItems}
+                    numColumns={2}
+                    estimatedItemSize={280}
+                    keyExtractor={(item: MenuItem, index: number) => item._id || index.toString()}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingBottom: 140 }}
+                    ListHeaderComponent={() => (
+                        <View>
+                            <TouchableOpacity style={styles.backBtn} onPress={() => goBack()}>
+                                <Ionicons name="arrow-back" size={24} color="white" />
                             </TouchableOpacity>
-                        )}
-                    </View>
-                </View>
-                {menuItems.length === 0 ? (
-                    <View style={styles.emptyState}>
-                        <View style={styles.emptyIconContainer}>
-                            <Ionicons name="wine-outline" size={56} color="rgba(255,255,255,0.1)" />
+
+                            <View style={styles.header}>
+                                <View style={styles.titleRow}>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.title}>Menu Offerings</Text>
+                                        <Text style={styles.subtitle}>Curate your drinks and food items</Text>
+                                    </View>
+                                    {menuItems.length > 0 && (
+                                        <TouchableOpacity style={styles.addPill} onPress={handleAddItem}>
+                                            <Ionicons name="add" size={18} color={COLORS.background.dark} />
+                                            <Text style={styles.addPillText}>New</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                            </View>
                         </View>
-                        <Text style={styles.emptyText}>Your menu is empty</Text>
-                        <TouchableOpacity style={styles.emptyAddBtn} onPress={handleAddItem}>
-                            <Text style={styles.emptyAddText}>+ Create Item</Text>
-                        </TouchableOpacity>
-                    </View>
-                ) : (
-                    <View style={styles.menuGrid}>
-                        {menuItems.map((item, index) => (
-                            <View key={index} style={styles.menuCard}>
+                    )}
+                    ListEmptyComponent={() => (
+                        <View style={styles.emptyState}>
+                            <View style={styles.emptyIconContainer}>
+                                <Ionicons name="wine-outline" size={56} color="rgba(255,255,255,0.1)" />
+                            </View>
+                            <Text style={styles.emptyText}>Your menu is empty</Text>
+                            <TouchableOpacity style={styles.emptyAddBtn} onPress={handleAddItem}>
+                                <Text style={styles.emptyAddText}>+ Create Item</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                    renderItem={({ item, index }: { item: MenuItem, index: number }) => (
+                        <View style={styles.menuCardWrapper}>
+                            <View style={styles.menuCard}>
                                 {item.image ? (
-                                    <Image source={{ uri: item.image }} style={styles.cardImg} />
+                                    <Image source={{ uri: item.image }} style={styles.cardImg} contentFit="cover" cachePolicy="memory-disk" transition={200} />
                                 ) : (
                                     <View style={styles.cardImgPlaceholder}>
                                         <Ionicons name="wine-outline" size={32} color="rgba(255,255,255,0.1)" />
@@ -221,19 +235,19 @@ export default function HostVenueMenu() {
                                     <Text style={styles.itemDesc} numberOfLines={1}>{item.desc}</Text>
 
                                     <View style={styles.cardActions}>
-                                        <TouchableOpacity onPress={() => handleEditItem(index)}>
+                                        <TouchableOpacity onPress={() => handleEditItem(index)} hitSlop={8}>
                                             <Ionicons name="pencil" size={18} color="rgba(255,255,255,0.5)" />
                                         </TouchableOpacity>
-                                        <TouchableOpacity onPress={() => handleDeleteItem(index)}>
+                                        <TouchableOpacity onPress={() => handleDeleteItem(index)} hitSlop={8}>
                                             <Ionicons name="trash-outline" size={18} color="#FF3B30" />
                                         </TouchableOpacity>
                                     </View>
                                 </View>
                             </View>
-                        ))}
-                    </View>
-                )}
-            </ScrollView>
+                        </View>
+                    )}
+                />
+            </View>
 
             <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
                 <Button
@@ -256,10 +270,10 @@ export default function HostVenueMenu() {
                     <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
-                            <TouchableOpacity onPress={() => setModalVisible(false)} style={{ marginRight: 16 }}>
-                                <Ionicons name="arrow-back" size={24} color="white" />
+                            <Text style={styles.modalTitle}>{editIndex !== null ? 'Edit Item' : 'New Offering'}</Text>
+                            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeButton}>
+                                <Ionicons name="close" size={24} color="white" />
                             </TouchableOpacity>
-                            <Text style={[styles.modalTitle, { flex: 1 }]}>{editIndex !== null ? 'Edit Item' : 'New Offering'}</Text>
                         </View>
 
                         <ScrollView
@@ -418,13 +432,12 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
         letterSpacing: 1,
     },
-    menuGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 16,
+    menuCardWrapper: {
+        width: '100%',
+        padding: 6,
     },
     menuCard: {
-        width: (width - SPACING.lg * 2 - 16) / 2,
+        width: '100%',
         backgroundColor: 'rgba(255,255,255,0.02)',
         borderRadius: 24,
         overflow: 'hidden',
@@ -512,6 +525,16 @@ const styles = StyleSheet.create({
         paddingTop: 32,
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.05)',
+        maxHeight: '90%',
+        flexShrink: 1,
+    },
+    closeButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     modalHeader: {
         flexDirection: 'row',

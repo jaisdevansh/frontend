@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
     View, Text, StyleSheet, TextInput, TouchableOpacity,
     KeyboardAvoidingView, Platform, Animated,
-    ActivityIndicator, ScrollView,
+    ActivityIndicator, ScrollView, Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,6 +15,7 @@ import { FlatList } from 'react-native';
 
 import { useChatStore } from '../../../store/chatStore';
 import { useAuth } from '../../../context/AuthContext';
+import apiClient from '../../../services/apiClient';
 
 // Define ChatMessage type for compatibility
 interface ChatMessage {
@@ -23,6 +24,7 @@ interface ChatMessage {
     senderId: string;
     createdAt: string;
     status?: string;
+    isDeleted?: boolean;
 }
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
@@ -132,13 +134,14 @@ const TypingIndicator = ({ name, avatar }: { name: string; avatar?: string }) =>
 
 // ─── Message bubble ───────────────────────────────────────────────────────────
 const MessageBubble = React.memo(({
-    msg, isMe, peerName, peerAvatar, showAvatar,
+    msg, isMe, peerName, peerAvatar, showAvatar, onLongPress,
 }: {
     msg: ChatMessage;
     isMe: boolean;
     peerName: string;
     peerAvatar?: string;
     showAvatar: boolean;
+    onLongPress?: () => void;
 }) => {
     const scale = useRef(new Animated.Value(0.92)).current;
 
@@ -172,27 +175,37 @@ const MessageBubble = React.memo(({
                 </View>
             )}
 
-            {/* Bubble */}
-            <View style={[styles.bubble, isMe ? styles.myBubble : styles.theirBubble]}>
-                {isMe && (
-                    <View style={[StyleSheet.absoluteFill, { borderRadius: 18, overflow: 'hidden' }]}>
-                        <LinearGradient
-                            colors={['#3B82F6', '#1D4ED8']}
-                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                            style={StyleSheet.absoluteFill}
-                        />
-                    </View>
-                )}
-                <Text style={[styles.msgText, isMe ? styles.myText : styles.theirText, isMe && { position: 'relative', zIndex: 2 }]}>
-                    {msg.text}
-                </Text>
-                <View style={[styles.msgFooter, isMe && { position: 'relative', zIndex: 2 }]}>
-                    <Text style={[styles.timeText, isMe ? styles.myTime : styles.theirTime]}>
-                        {fmtTime(msg.createdAt)}
+            {/* Bubble — long pressable only for sender */}
+            <TouchableOpacity
+                onLongPress={isMe ? onLongPress : undefined}
+                activeOpacity={isMe ? 0.8 : 1}
+                delayLongPress={400}
+            >
+                <View style={[styles.bubble, isMe ? styles.myBubble : styles.theirBubble,
+                    msg.isDeleted && { opacity: 0.5 }
+                ]}>
+                    {isMe && (
+                        <View style={[StyleSheet.absoluteFill, { borderRadius: 18, overflow: 'hidden' }]}>
+                            <LinearGradient
+                                colors={msg.isDeleted ? ['#555', '#333'] : ['#3B82F6', '#1D4ED8']}
+                                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                                style={StyleSheet.absoluteFill}
+                            />
+                        </View>
+                    )}
+                    <Text style={[styles.msgText, isMe ? styles.myText : styles.theirText, isMe && { position: 'relative', zIndex: 2 },
+                        msg.isDeleted && { fontStyle: 'italic' }
+                    ]}>
+                        {msg.text}
                     </Text>
-                    {isMe && <StatusIcon status={msg.status} />}
+                    <View style={[styles.msgFooter, isMe && { position: 'relative', zIndex: 2 }]}>
+                        <Text style={[styles.timeText, isMe ? styles.myTime : styles.theirTime]}>
+                            {fmtTime(msg.createdAt)}
+                        </Text>
+                        {isMe && !msg.isDeleted && <StatusIcon status={msg.status} />}
+                    </View>
                 </View>
-            </View>
+            </TouchableOpacity>
         </Animated.View>
     );
 });
@@ -215,6 +228,7 @@ export default function ChatScreen() {
         sendMessage,
         sendTyping,
         markRead,
+        removeMessage,
     } = useChatStore();
 
     const messages = useMemo(() => {
@@ -330,10 +344,40 @@ export default function ChatScreen() {
     const handleTypingStop = useCallback(() => {
         if (isTypingLocal.current) {
             isTypingLocal.current = false;
-            // Note: useChatStore doesn't have sendTypingStop, typing auto-expires
         }
         clearTimeout(typingTimer.current);
     }, []);
+
+    // ── Unsend message ────────────────────────────────────────────────────────
+    const handleUnsend = useCallback((messageId: string) => {
+        Alert.alert(
+            'Message Options',
+            'What would you like to do?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: '🗑️ Delete for me',
+                    onPress: () => {
+                        // Just remove from local store (only you won't see it)
+                        removeMessage?.(peerId || convId, messageId);
+                    }
+                },
+                {
+                    text: '↩️ Unsend for everyone',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await apiClient.delete(`/api/v1/chat/message/${messageId}`);
+                            // Optimistic update: remove from local store
+                            removeMessage?.(peerId || convId, messageId);
+                        } catch (error) {
+                            Alert.alert('Error', 'Could not unsend the message. Please try again.');
+                        }
+                    }
+                },
+            ]
+        );
+    }, [peerId, convId, removeMessage]);
 
     const handleTextChange = useCallback((text: string) => {
         setInputText(text);
@@ -372,16 +416,18 @@ export default function ChatScreen() {
                         ...item,
                         text:      messageText,
                         senderId:  item.sender,
-                        createdAt: item.createdAt || new Date().toISOString()
+                        createdAt: item.createdAt || new Date().toISOString(),
+                        isDeleted: item.isDeleted,
                     }}
                     isMe={isMe}
                     peerName={actualPeerName || item.senderName || 'User'}
                     peerAvatar={actualPeerAvatar || item.senderImage}
                     showAvatar={showAvatar}
+                    onLongPress={() => handleUnsend(item._id)}
                 />
             </View>
         );
-    }, [invertedMessages, myId, actualPeerName, actualPeerAvatar]);
+    }, [invertedMessages, myId, actualPeerName, actualPeerAvatar, handleUnsend]);
 
     return (
         <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>

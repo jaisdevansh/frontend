@@ -121,7 +121,6 @@ export default function BookingSuccess() {
                 {/* Info chips */}
                 <Animated.View style={[styles.infoRow, { opacity: fadeAnim }]}>
                     <View style={styles.infoChip}><Ionicons name="location-sharp" size={12} color="#7c4dff" /><Text style={styles.infoChipTxt}>{zone} Zone</Text></View>
-                    <View style={styles.infoChip}><Ionicons name="time" size={12} color="#7c4dff" /><Text style={styles.infoChipTxt}>{timeSlot}</Text></View>
                     <View style={styles.infoChip}><Ionicons name="people" size={12} color="#7c4dff" /><Text style={styles.infoChipTxt}>{guestCount} Guests</Text></View>
                 </Animated.View>
 

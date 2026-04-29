@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
     View, Text, StyleSheet, TextInput, TouchableOpacity,
-    Animated, Pressable, ActivityIndicator, RefreshControl,
+    Animated, Pressable, ActivityIndicator, RefreshControl, Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -14,6 +14,7 @@ import { Image } from 'expo-image';
 
 import { useChatStore } from '../../store/chatStore';
 import { useAuth } from '../../context/AuthContext';
+import apiClient from '../../services/apiClient';
 
 // Local interfaces
 interface Conversation {
@@ -84,8 +85,8 @@ function avatarColor(name: string): string {
 // ─── ConvCard ─────────────────────────────────────────────────────────────────
 
 const ConvCard = React.memo(({
-    item, isOnline, onPress,
-}: { item: Conversation; isOnline: boolean; onPress: () => void }) => {
+    item, isOnline, onPress, onLongPress
+}: { item: Conversation; isOnline: boolean; onPress: () => void; onLongPress: () => void }) => {
     const scale = useRef(new Animated.Value(1)).current;
 
     const onPressIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 60 }).start();
@@ -99,6 +100,7 @@ const ConvCard = React.memo(({
         <Animated.View style={{ transform: [{ scale }] }}>
             <Pressable
                 onPress={onPress}
+                onLongPress={onLongPress}
                 onPressIn={onPressIn}
                 onPressOut={onPressOut}
                 style={styles.card}
@@ -289,6 +291,30 @@ export default function ConversationsScreen() {
         setRefreshing(false);
     }, [fetchPeers]);
 
+    const deleteConversation = useCallback((peerId: string, name: string) => {
+        Alert.alert(
+            "Delete Chat",
+            `Are you sure you want to delete your conversation with ${name}?`,
+            [
+                { text: "Cancel", style: "cancel" },
+                { 
+                    text: "Delete", 
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            const res = await apiClient.delete(`/api/v1/chat/${peerId}`);
+                            if (res.data.success) {
+                                fetchPeers(); // Refresh the list from backend
+                            }
+                        } catch (error) {
+                            console.error("Delete failed", error);
+                        }
+                    }
+                }
+            ]
+        );
+    }, [fetchPeers]);
+
 
     // ── Local Search ──────────────────────────────────────────────────────────
     const displayData = React.useMemo(() => {
@@ -361,6 +387,7 @@ export default function ConversationsScreen() {
                             item={item}
                             isOnline={onlineUsers.has(item.otherUser._id)}
                             onPress={() => openConversation(item)}
+                            onLongPress={() => deleteConversation(item._id, item.otherUser.name)}
                         />
                     )}
                 ListEmptyComponent={conversationsLoading ? (

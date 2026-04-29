@@ -1,5 +1,5 @@
 import { io, Socket } from 'socket.io-client';
-import { API_BASE_URL } from '../services/apiClient';
+import { API_BASE_URL, SOCKET_ORIGIN, SOCKET_PATH } from '../services/apiClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 let socket: Socket | null = null;
@@ -53,12 +53,8 @@ export const getSocket = async (): Promise<Socket> => {
         throw new Error('Socket not available for staff role');
     }
 
-    // Fix for production AWS reverse proxy:
-    // If API_BASE_URL is 'https://stayin.in/api1', socket should connect to 'https://stayin.in'
-    // with the path '/api1/socket.io' so Nginx proxies it correctly.
-    const isProd = API_BASE_URL.includes('/api1');
-    const socketOrigin = isProd ? API_BASE_URL.replace('/api1', '') : API_BASE_URL;
-    const socketPath = isProd ? '/api1/socket.io' : '/socket.io';
+    const socketOrigin = SOCKET_ORIGIN;
+    const socketPath = SOCKET_PATH;
 
     console.log('[Socket] Connecting to:', socketOrigin, 'with path:', socketPath);
 

@@ -366,8 +366,9 @@ export default function PaymentsScreen() {
 
     const payments: Payment[] = useMemo(() => Array.isArray(paymentsRes) ? paymentsRes : [], [paymentsRes]);
     const orders: Order[] = useMemo(() => Array.isArray(ordersRes) ? ordersRes : [], [ordersRes]);
-    const summary = useMemo(() => payoutsRes?.summary || { totalEarnings: 0, pendingPayout: 0, completedPayout: 0 }, [payoutsRes]);
+    const summary = useMemo(() => payoutsRes?.summary || { totalEarnings: 0, pendingPayout: 0, completedPayout: 0, eventRevenue: [] }, [payoutsRes]);
     const payoutHistory: any[] = useMemo(() => payoutsRes?.history || [], [payoutsRes]);
+    const eventRevenue: any[] = useMemo(() => summary.eventRevenue || [], [summary]);
 
     const totalTicketRevenue = useMemo(() =>
         payments.filter(p => { const s = (p.status || '').toLowerCase(); return s === 'success' || s === 'completed' || s === 'paid' || s === 'pending'; })
@@ -570,27 +571,51 @@ export default function PaymentsScreen() {
                     <SummaryCard label="User Grand Total" value={`₹${userGrandTotal.toLocaleString()}`} icon="people-outline" color={C.blue} sub={`${userTotals.length} Users · Tap to view splits`} style={styles.userTotalCard} />
                 </TouchableOpacity>
             </View>
-            {summary.totalEarnings > 0 && (
-                <View style={styles.earningsBar}>
-                    <LinearGradient colors={['#10B98118', 'transparent']} style={StyleSheet.absoluteFillObject} />
-                    <View style={styles.earningsBarRow}>
-                        <View>
-                            <Text style={styles.earningsBarLabel}>TOTAL EARNINGS</Text>
-                            <Text style={styles.earningsBarValue}>₹{summary.totalEarnings.toLocaleString()}</Text>
+
+            <View style={styles.eventRevenueContainer}>
+                <Text style={[styles.overviewTitle, { marginTop: 16 }]}>Event Revenue</Text>
+                {eventRevenue && eventRevenue.length > 0 ? (
+                    eventRevenue.map((ev, i) => (
+                        <View key={ev.eventId || i} style={styles.eventRevenueCard}>
+                            <View style={styles.eventRevenueHeader}>
+                                <View style={[styles.orderIcon, { backgroundColor: C.primary + '14', marginRight: 12 }]}>
+                                    <Ionicons name="stats-chart" size={18} color={C.primary} />
+                                </View>
+                                <View style={{ flex: 1, marginRight: 12 }}>
+                                    <Text style={styles.eventRevenueName} numberOfLines={1}>{ev.event_name}</Text>
+                                    <Text style={styles.eventRevenueSub} numberOfLines={1}>Tickets: {ev.total_tickets_sold} · Orders: {ev.total_orders}</Text>
+                                </View>
+                                <View style={{ alignItems: 'flex-end' }}>
+                                    <Text style={styles.eventRevenueTotal}>₹{(ev.total_revenue || 0).toLocaleString()}</Text>
+                                    <View style={[styles.statusPill, { backgroundColor: C.green + '18', borderColor: C.green + '30', marginTop: 4 }]}>
+                                        <Text style={[styles.statusText, { color: C.green }]}>Total</Text>
+                                    </View>
+                                </View>
+                            </View>
+                            
+                            <View style={styles.eventRevenueDivider} />
+                            
+                            <View style={styles.eventRevenueBreakdownRow}>
+                                <View style={styles.eventRevenueCol}>
+                                    <Text style={styles.eventRevenueLabel}>Ticket Revenue</Text>
+                                    <Text style={[styles.eventRevenueValue, { color: C.primary }]}>₹{(ev.ticket_revenue || 0).toLocaleString()}</Text>
+                                </View>
+                                <View style={styles.eventRevenueCol}>
+                                    <Text style={styles.eventRevenueLabel}>Order Revenue</Text>
+                                    <Text style={[styles.eventRevenueValue, { color: C.amber }]}>₹{(ev.order_revenue || 0).toLocaleString()}</Text>
+                                </View>
+                            </View>
                         </View>
-                        <View style={styles.earnDivider} />
-                        <View>
-                            <Text style={styles.earningsBarLabel}>SETTLED</Text>
-                            <Text style={[styles.earningsBarValue, { color: C.green }]}>₹{(summary.completedPayout || 0).toLocaleString()}</Text>
-                        </View>
-                        <View style={styles.earnDivider} />
-                        <View>
-                            <Text style={styles.earningsBarLabel}>PENDING</Text>
-                            <Text style={[styles.earningsBarValue, { color: C.amber }]}>₹{(summary.pendingPayout || 0).toLocaleString()}</Text>
-                        </View>
+                    ))
+                ) : (
+                    <View style={[styles.eventRevenueCard, { alignItems: 'center', paddingVertical: 24 }]}>
+                        <Ionicons name="stats-chart-outline" size={32} color={C.textMuted} style={{ marginBottom: 8 }} />
+                        <Text style={[styles.eventRevenueName, { color: C.textSecondary }]}>No Event Data</Text>
+                        <Text style={styles.eventRevenueSub}>No revenue generated for events yet</Text>
                     </View>
-                </View>
-            )}
+                )}
+            </View>
+
         </View>
     ), [totalRevenue, totalTicketRevenue, totalOrderRevenue, summary, pendingPayments, userGrandTotal, userTotals.length, payments, orders, setShowUserTotals]);
 
@@ -760,15 +785,68 @@ const styles = StyleSheet.create({
     summaryValue: { color: '#fff', fontSize: 22, fontWeight: '900', marginBottom: 4, letterSpacing: -0.5 },
     summaryLabel: { color: C.textSecondary, fontSize: 12, fontWeight: '700' },
     summarySub: { fontSize: 11, fontWeight: '700', marginTop: 4 },
-    userTotalCardWrap: { width: '100%', marginTop: 8 },
-    userTotalCard: { width: '100%' },
-
-    // Earnings Bar
-    earningsBar: { backgroundColor: C.card, borderRadius: 20, padding: 20, marginBottom: 24, borderWidth: 1, borderColor: C.green + '18', overflow: 'hidden' },
-    earningsBarRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    earningsBarLabel: { color: C.textSecondary, fontSize: 10, fontWeight: '800', letterSpacing: 1, marginBottom: 4 },
-    earningsBarValue: { color: '#fff', fontSize: 18, fontWeight: '900', letterSpacing: -0.4 },
-    earnDivider: { width: 1, height: 36, backgroundColor: 'rgba(255,255,255,0.08)' },
+    userTotalCardWrap: {
+        width: '100%',
+        marginTop: 12,
+    },
+    userTotalCard: {
+        width: '100%',
+    },
+    eventRevenueContainer: {
+        marginBottom: 24,
+    },
+    eventRevenueCard: {
+        backgroundColor: C.card,
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: C.cardBorder,
+    },
+    eventRevenueHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    eventRevenueName: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: C.textPrimary,
+        marginBottom: 2,
+    },
+    eventRevenueSub: {
+        fontSize: 13,
+        color: C.textSecondary,
+        fontWeight: '500',
+    },
+    eventRevenueTotal: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: C.green,
+    },
+    eventRevenueDivider: {
+        height: 1,
+        backgroundColor: C.cardBorder,
+        marginVertical: 12,
+    },
+    eventRevenueBreakdownRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    eventRevenueCol: {
+        flex: 1,
+    },
+    eventRevenueLabel: {
+        fontSize: 12,
+        color: C.textSecondary,
+        fontWeight: '500',
+        marginBottom: 2,
+    },
+    eventRevenueValue: {
+        fontSize: 15,
+        fontWeight: '600',
+    },
 
     // Section
     sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12, marginTop: 8 },
