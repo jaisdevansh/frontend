@@ -55,6 +55,7 @@ export interface AdminSummary {
     totalRevenue: number;
     ticketRevenue: number;
     orderRevenue: number;
+    adminCut?: number;
     totalOrders: number;
     deliveredOrders: number;
     rejectedOrders: number;
@@ -91,6 +92,7 @@ export interface PendingHost {
     hostStatus: string;
     createdAt: string;
     totalRevenue?: number;
+    adminCut?: number;
 }
 
 export interface RevenueTrend {

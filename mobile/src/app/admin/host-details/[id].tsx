@@ -145,7 +145,7 @@ export default function HostDetailsScreen() {
     const handlePerformance = () => {
         Alert.alert(
             "Host Performance Data",
-            `• Target Name: ${displayName}\n• Fiscal Status: Operational\n• Platform Join Date: ${createdStr}\n• KYC Compliance: ${isKycVerified ? 'Verified' : 'Pending Action'}\n\nNote: Detailed aggregated performance metrics (total revenue, bookings, traffic analytics) are actively recorded and compiled. Granular charts will be reflected once primary events are published.`
+            `• Target Name: ${displayName}\n• Total Revenue: ₹${(host.totalRevenue || 0).toLocaleString()}\n• Platform Fee (10%): ₹${(host.adminCut || 0).toLocaleString()}\n• Platform Join Date: ${createdStr}\n• KYC Compliance: ${isKycVerified ? 'Verified' : 'Pending Action'}\n\nNote: Detailed aggregated performance metrics (total revenue, bookings, traffic analytics) are actively recorded and compiled. Granular charts will be reflected once primary events are published.`
         );
     };
 
@@ -218,7 +218,7 @@ export default function HostDetailsScreen() {
 
                 {/* Stats Row */}
                 <Animated.View style={[styles.statsRow, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-                    <StatCard icon="monetization-on" label="Total Earned" value={`₹${(host.totalRevenue || 0).toLocaleString()}`} color="#10B981" />
+                    <StatCard icon="currency-rupee" label="Total Earned" value={`₹${(host.totalRevenue || 0).toLocaleString()}`} color="#10B981" />
                     <StatCard icon="star" label="Account Tier" value="Host" color="#8b5cf6" />
                     <StatCard icon="verified" label="KYC" value={(host.kyc?.isVerified || host.hostStatus === 'ACTIVE') ? 'Verified' : 'Pending'} color={(host.kyc?.isVerified || host.hostStatus === 'ACTIVE') ? '#10B981' : '#f59e0b'} />
                 </Animated.View>

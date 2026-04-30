@@ -430,13 +430,21 @@ export default function AnalyticsScreen() {
 
     // ── Pie segments ──
     const pieSegments = useMemo(() => {
+        if (isAdmin) {
+            const total = summary?.totalRevenue || 0;
+            const cut = summary?.adminCut || 0;
+            return [
+                { value: total - cut, color: C.primary, name: 'Host Earnings' },
+                { value: cut, color: C.amber, name: 'Platform Fee' },
+            ].filter(s => s.value > 0);
+        }
         const segments = [
             { value: summary?.ticketRevenue || 0, color: C.amber, name: 'Ticket Sales' },
             { value: summary?.orderRevenue || 0, color: C.success, name: 'Food Orders' },
         ];
         // Filter out zero values for cleaner display
         return segments.filter(s => s.value > 0);
-    }, [summary]);
+    }, [summary, isAdmin]);
 
     // ── Conversion ──
     const convRate = useMemo(() => {
@@ -483,6 +491,9 @@ export default function AnalyticsScreen() {
                     <View style={{ flexDirection: 'row', gap: 10 }}>
                         <KpiCard icon="cash-multiple" label="Net Revenue" value={fmt(summary?.totalRevenue)} color={C.success} />
                         <KpiCard icon="ticket-confirmation" label="Tickets" value={fmt(summary?.ticketRevenue)} color={C.amber} />
+                        {isAdmin && (
+                            <KpiCard icon="percent" label="Platform Fee" value={fmt(summary?.adminCut)} color={C.primary} />
+                        )}
                     </View>
                     {/* Only show Food/Staff/Live Orders for Host role */}
                     {!isAdmin && (
