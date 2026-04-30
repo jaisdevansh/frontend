@@ -13,6 +13,20 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import dayjs from 'dayjs';
 
+const parseTimeString = (timeStr: string, baseDate: dayjs.Dayjs, defaultHour: number) => {
+    if (!timeStr) return baseDate.hour(defaultHour).minute(0).second(0);
+    const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+    if (match) {
+        let hours = parseInt(match[1], 10);
+        const minutes = parseInt(match[2], 10);
+        const modifier = match[3] ? match[3].toUpperCase() : null;
+        if (modifier === 'PM' && hours < 12) hours += 12;
+        if (modifier === 'AM' && hours === 12) hours = 0;
+        return baseDate.hour(hours).minute(minutes).second(0);
+    }
+    return baseDate.hour(defaultHour).minute(0).second(0);
+};
+
 // Helper: derive live status from event date & time
 function getEventStatus(event: any): { label: string; color: string; bg: string } {
     const now = dayjs();
@@ -28,17 +42,16 @@ function getEventStatus(event: any): { label: string; color: string; bg: string 
     if (event.date) {
         let eventStart: dayjs.Dayjs;
         let eventEnd: dayjs.Dayjs;
+        const baseDate = dayjs(event.date);
 
         if (event.startTime) {
-            const [startH, startM] = event.startTime.split(':').map(Number);
-            eventStart = dayjs(event.date).hour(startH || 0).minute(startM || 0);
+            eventStart = parseTimeString(event.startTime, baseDate, 0);
         } else {
-            eventStart = dayjs(event.date).startOf('day');
+            eventStart = baseDate.startOf('day');
         }
 
         if (event.endTime) {
-            const [endH, endM] = event.endTime.split(':').map(Number);
-            eventEnd = dayjs(event.date).hour(endH || 23).minute(endM || 59);
+            eventEnd = parseTimeString(event.endTime, baseDate, 23);
             if (eventEnd.isBefore(eventStart)) {
                 eventEnd = eventEnd.add(1, 'day');
             }

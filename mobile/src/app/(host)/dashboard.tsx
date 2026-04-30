@@ -19,6 +19,20 @@ import { useNotification } from '../../context/NotificationContext';
 
 const { width } = Dimensions.get('window');
 
+const parseTimeString = (timeStr: string, baseDate: dayjs.Dayjs, defaultHour: number) => {
+    if (!timeStr) return baseDate.hour(defaultHour).minute(0).second(0);
+    const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+    if (match) {
+        let hours = parseInt(match[1], 10);
+        const minutes = parseInt(match[2], 10);
+        const modifier = match[3] ? match[3].toUpperCase() : null;
+        if (modifier === 'PM' && hours < 12) hours += 12;
+        if (modifier === 'AM' && hours === 12) hours = 0;
+        return baseDate.hour(hours).minute(minutes).second(0);
+    }
+    return baseDate.hour(defaultHour).minute(0).second(0);
+};
+
 const EventCard = React.memo(({ item, onPress }: { item: any; onPress: (id: string) => void }) => {
     const imgUrl = item.coverImage || item.image || item.imageUrl;
 
@@ -37,17 +51,16 @@ const EventCard = React.memo(({ item, onPress }: { item: any; onPress: (id: stri
         if (item.date) {
             let eventStart: dayjs.Dayjs;
             let eventEnd: dayjs.Dayjs;
+            const baseDate = dayjs(item.date);
 
             if (item.startTime) {
-                const [startH, startM] = item.startTime.split(':').map(Number);
-                eventStart = dayjs(item.date).hour(startH || 0).minute(startM || 0);
+                eventStart = parseTimeString(item.startTime, baseDate, 0);
             } else {
-                eventStart = dayjs(item.date).startOf('day');
+                eventStart = baseDate.startOf('day');
             }
 
             if (item.endTime) {
-                const [endH, endM] = item.endTime.split(':').map(Number);
-                eventEnd = dayjs(item.date).hour(endH || 23).minute(endM || 59);
+                eventEnd = parseTimeString(item.endTime, baseDate, 23);
                 // Handle late night events (ends after midnight)
                 if (eventEnd.isBefore(eventStart)) {
                     eventEnd = eventEnd.add(1, 'day');
@@ -177,14 +190,22 @@ export default function HostDashboard() {
         return events.filter((item: any) => {
             if (!item.date) return false;
             let eventEnd: dayjs.Dayjs;
+            const baseDate = dayjs(item.date);
+            let eventStart = baseDate;
+            
+            if (item.startTime) {
+                eventStart = parseTimeString(item.startTime, baseDate, 0);
+            }
+
             if (item.endTime) {
-                const [endH, endM] = item.endTime.split(':').map(Number);
-                eventEnd = dayjs(item.date).hour(endH || 23).minute(endM || 59);
+                eventEnd = parseTimeString(item.endTime, baseDate, 23);
+                if (eventEnd.isBefore(eventStart)) {
+                    eventEnd = eventEnd.add(1, 'day');
+                }
             } else if (item.startTime) {
-                const [startH, startM] = item.startTime.split(':').map(Number);
-                eventEnd = dayjs(item.date).hour(startH || 20).minute(startM || 0).add(4, 'hour');
+                eventEnd = eventStart.add(4, 'hour');
             } else {
-                eventEnd = dayjs(item.date).endOf('day');
+                eventEnd = baseDate.endOf('day');
             }
             return now.isAfter(eventEnd);
         }).length;
