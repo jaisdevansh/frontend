@@ -90,6 +90,7 @@ export interface PendingHost {
     profileImage?: string;
     hostStatus: string;
     createdAt: string;
+    totalRevenue?: number;
 }
 
 export interface RevenueTrend {

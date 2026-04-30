@@ -218,7 +218,7 @@ export default function HostDetailsScreen() {
 
                 {/* Stats Row */}
                 <Animated.View style={[styles.statsRow, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-                    <StatCard icon="monetization-on" label="Fiscal Status" value="Operational" color="#10B981" />
+                    <StatCard icon="monetization-on" label="Total Earned" value={`₹${(host.totalRevenue || 0).toLocaleString()}`} color="#10B981" />
                     <StatCard icon="star" label="Account Tier" value="Host" color="#8b5cf6" />
                     <StatCard icon="verified" label="KYC" value={(host.kyc?.isVerified || host.hostStatus === 'ACTIVE') ? 'Verified' : 'Pending'} color={(host.kyc?.isVerified || host.hostStatus === 'ACTIVE') ? '#10B981' : '#f59e0b'} />
                 </Animated.View>
