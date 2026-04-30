@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity,
     StatusBar, Dimensions, ScrollView, Share, Platform,
@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { userService } from '../../services/userService';
 import dayjs from 'dayjs';
+import QRCode from 'react-native-qrcode-svg';
 import { COLORS } from '../../constants/design-system';
 
 const { width } = Dimensions.get('window');
@@ -74,63 +75,69 @@ export default function TablePass() {
     }, []);
 
     // ── Fallback to params if no live data ──
-    const event = booking?.eventId || {};
-    const host  = booking?.hostId  || {};
+    const event = useMemo(() => booking?.eventId || {}, [booking?.eventId]);
+    const host  = useMemo(() => booking?.hostId  || {}, [booking?.hostId]);
 
-    const eventTitle  = event.title          || (params.title       ? String(params.title)      : 'Exclusive Event');
-    const venueName   = event.venue?.name    || host.name           || (params.venueName  ? String(params.venueName)  : 'The Onyx Lounge');
-    const coverImage  = event.coverImage     || host.profileImage   || (params.coverImage ? String(params.coverImage) : '');
-    const zone        = booking?.ticketType  || (params.zone        ? String(params.zone)        : 'VIP');
-    const timeSlot    = event.startTime      || (params.timeSlot    ? String(params.timeSlot)    : '11:30 PM');
-    const eventDate   = (() => {
+    const eventTitle  = useMemo(() => event.title          || (params.title       ? String(params.title)      : 'Exclusive Event'), [event.title, params.title]);
+    const venueName   = useMemo(() => event.venue?.name    || host.name           || (params.venueName  ? String(params.venueName)  : 'The Onyx Lounge'), [event.venue?.name, host.name, params.venueName]);
+    const coverImage  = useMemo(() => event.coverImage     || host.profileImage   || (params.coverImage ? String(params.coverImage) : ''), [event.coverImage, host.profileImage, params.coverImage]);
+    const zone        = useMemo(() => booking?.ticketType  || (params.zone        ? String(params.zone)        : 'VIP'), [booking?.ticketType, params.zone]);
+    const timeSlot    = useMemo(() => event.startTime      || (params.timeSlot    ? String(params.timeSlot)    : '11:30 PM'), [event.startTime, params.timeSlot]);
+    
+    const eventDate   = useMemo(() => {
         if (!event.date) return params.eventDate ? String(params.eventDate) : 'TBA';
         const startFmt = dayjs(event.date).format('ddd, DD MMM YYYY');
         if (!event.endDate) return startFmt;
         const isMultiDay = dayjs(event.endDate).format('YYYYMMDD') !== dayjs(event.date).format('YYYYMMDD');
         return isMultiDay ? `${startFmt} - ${dayjs(event.endDate).format('ddd, DD MMM YYYY')}` : startFmt;
-    })();
+    }, [event.date, event.endDate, params.eventDate]);
 
-    const guestCount  = String(booking?.guests || (params.guestCount ? Number(params.guestCount) : 1));
-    const numGuests   = booking?.guests || (params.guestCount ? Number(params.guestCount) : 1);
-    const tableId     = booking?.tableId
-        || (params.seatIds ? String(params.seatIds).split(',')[0] : 'TABLE-01');
-    const seatIds     = booking?.seatIds
-        ? booking.seatIds
-        : (params.seatIds ? String(params.seatIds).split(',') : [tableId]);
-    const displayBookingId = bookingId
-        ? 'STX-' + bookingId.substring(0, 6).toUpperCase()
-        : (params.bookingRef ? String(params.bookingRef) : 'STX-000000');
-    const pricePaid   = booking?.pricePaid || 0;
-    const rawStatus   = booking?.status || 'pending';
+    const guestCount  = useMemo(() => String(booking?.guests || (params.guestCount ? Number(params.guestCount) : 1)), [booking?.guests, params.guestCount]);
+    const numGuests   = useMemo(() => booking?.guests || (params.guestCount ? Number(params.guestCount) : 1), [booking?.guests, params.guestCount]);
+    
+    const tableId     = useMemo(() => booking?.tableId || (params.seatIds ? String(params.seatIds).split(',')[0] : 'TABLE-01'), [booking?.tableId, params.seatIds]);
+    const seatIds     = useMemo(() => booking?.seatIds ? booking.seatIds : (params.seatIds ? String(params.seatIds).split(',') : [tableId]), [booking?.seatIds, params.seatIds, tableId]);
+    
+    const displayBookingId = useMemo(() => bookingId ? 'STX-' + bookingId.substring(0, 6).toUpperCase() : (params.bookingRef ? String(params.bookingRef) : 'STX-000000'), [bookingId, params.bookingRef]);
+    const pricePaid   = useMemo(() => booking?.pricePaid || 0, [booking?.pricePaid]);
+    const rawStatus   = useMemo(() => booking?.status || 'pending', [booking?.status]);
 
     // ── Expiration Logic ──
     // Consider event over after its endTime, or 6 AM the day after the event date
-    const isExpired = event.endTime 
-        ? dayjs().isAfter(dayjs(event.endTime))
-        : event.date 
-        ? dayjs().isAfter(dayjs(event.date).add(1, 'day').startOf('day').add(6, 'hour')) 
-        : false;
+    const isExpired = useMemo(() => {
+        return event.endTime 
+            ? dayjs().isAfter(dayjs(event.endTime))
+            : event.date 
+            ? dayjs().isAfter(dayjs(event.date).add(1, 'day').startOf('day').add(6, 'hour')) 
+            : false;
+    }, [event.endTime, event.date]);
 
-    let displayStatus = rawStatus;
-    if (isExpired && rawStatus !== 'checked_in' && rawStatus !== 'cancelled') {
-        displayStatus = 'expired';
-    }
+    const displayStatus = useMemo(() => {
+        if (isExpired && rawStatus !== 'checked_in' && rawStatus !== 'cancelled') {
+            return 'expired';
+        }
+        return rawStatus;
+    }, [isExpired, rawStatus]);
 
-    const statusColor = displayStatus === 'approved' || displayStatus === 'active' ? '#22c55e'
-                      : displayStatus === 'checked_in' ? '#3b82f6'
-                      : displayStatus === 'pending' ? '#f59e0b'
-                      : displayStatus === 'cancelled' ? '#ef4444' 
-                      : displayStatus === 'expired' ? '#6b7280' : '#22c55e'; // gray for expired
+    const statusColor = useMemo(() => {
+        return displayStatus === 'approved' || displayStatus === 'active' ? '#22c55e'
+             : displayStatus === 'checked_in' ? '#3b82f6'
+             : displayStatus === 'pending' ? '#f59e0b'
+             : displayStatus === 'cancelled' ? '#ef4444' 
+             : displayStatus === 'expired' ? '#6b7280' : '#22c55e'; // gray for expired
+    }, [displayStatus]);
 
-    const statusLabel = displayStatus === 'approved' ? 'Confirmed'
-                      : displayStatus === 'active' ? 'Active'
-                      : displayStatus === 'pending' ? 'Pending Approval'
-                      : displayStatus === 'cancelled' ? 'Cancelled'
-                      : displayStatus === 'checked_in' ? 'Checked In'
-                      : displayStatus === 'expired' ? 'Expired'
-                      : 'Confirmed';
+    const statusLabel = useMemo(() => {
+        return displayStatus === 'approved' ? 'Confirmed'
+             : displayStatus === 'active' ? 'Active'
+             : displayStatus === 'pending' ? 'Pending Approval'
+             : displayStatus === 'cancelled' ? 'Cancelled'
+             : displayStatus === 'checked_in' ? 'Checked In'
+             : displayStatus === 'expired' ? 'Expired'
+             : 'Confirmed';
+    }, [displayStatus]);
 
-    const handleShare = async () => {
+    const handleShare = useCallback(async () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         try {
             await Share.share({
@@ -138,7 +145,7 @@ export default function TablePass() {
                 message: `🎟️ I'm going to ${eventTitle} at ${venueName}!\n📅 ${eventDate} • ${timeSlot}\n💜 Booking: ${displayBookingId}`,
             });
         } catch {}
-    };
+    }, [eventTitle, venueName, eventDate, timeSlot, displayBookingId]);
 
     // Removed blocking loader to enable 0-latency perceived performance using params
 
@@ -256,7 +263,6 @@ export default function TablePass() {
                         <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
                             {[...Array(numGuests)].map((_, i) => {
                                 const qrData = `STITCH|${bookingId}|${zone}|${tableId}|Pass${i + 1}of${numGuests}`;
-                                const qrUrl  = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qrData)}&bgcolor=0D0D0D&color=A78BFA&margin=14&ecc=H`;
                                 return (
                                     <View key={i} style={{ width: width - 40, alignItems: 'center' }}>
                                         <View style={styles.qrFrame}>
@@ -276,7 +282,9 @@ export default function TablePass() {
                                                     <Text style={[styles.qrOverlayTxt, { color: '#3b82f6' }]}>CHECKED IN</Text>
                                                 </View>
                                             ) : (
-                                                <Image source={{ uri: qrUrl }} style={styles.qrImage} contentFit="contain" />
+                                                <View style={{ width: 180, height: 180, alignItems: 'center', justifyContent: 'center' }}>
+                                                    <QRCode value={qrData || 'STITCH'} size={180} color="#FFFFFF" backgroundColor="#0d0620" />
+                                                </View>
                                             )}
                                         </View>
                                         <Text style={styles.qrHint}>Show Pass {i + 1} of {numGuests} at entrance</Text>
