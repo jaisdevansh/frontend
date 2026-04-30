@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import {
-    View, Text, StyleSheet, ScrollView, TouchableOpacity,
-    ActivityIndicator, Linking, StatusBar, Animated, Dimensions, Modal, Alert
+    ActivityIndicator, Linking, StatusBar, Animated, Dimensions, Modal, Alert, TextInput
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,6 +32,8 @@ export default function HostDetailsScreen() {
     const insets = useSafeAreaInsets();
     const queryClient = useQueryClient();
     const [isDocsModalVisible, setDocsModalVisible] = useState(false);
+    const [isCommissionModalVisible, setCommissionModalVisible] = useState(false);
+    const [newCommission, setNewCommission] = useState('');
 
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useRef(new Animated.Value(40)).current;
@@ -147,6 +148,27 @@ export default function HostDetailsScreen() {
             "Host Performance Data",
             `• Target Name: ${displayName}\n• Total Revenue: ₹${(host.totalRevenue || 0).toLocaleString()}\n• Platform Fee (10%): ₹${(host.adminCut || 0).toLocaleString()}\n• Platform Join Date: ${createdStr}\n• KYC Compliance: ${isKycVerified ? 'Verified' : 'Pending Action'}\n\nNote: Detailed aggregated performance metrics (total revenue, bookings, traffic analytics) are actively recorded and compiled. Granular charts will be reflected once primary events are published.`
         );
+    };
+
+    const handleSetCommission = () => {
+        setNewCommission(host.commissionRate?.toString() || '10');
+        setCommissionModalVisible(true);
+    };
+
+    const handleUpdateCommission = async () => {
+        try {
+            const rate = parseFloat(newCommission);
+            if (isNaN(rate) || rate < 0 || rate > 100) {
+                Alert.alert('Invalid Input', 'Please enter a percentage between 0 and 100');
+                return;
+            }
+            await adminService.updateHostCommission(host._id, rate);
+            queryClient.invalidateQueries({ queryKey: ['admin-host-detail', id] });
+            setCommissionModalVisible(false);
+            Alert.alert('Success', `Commission rate updated to ${rate}%`);
+        } catch (e) {
+            Alert.alert('Error', 'Failed to update commission rate');
+        }
     };
 
     return (
@@ -267,6 +289,14 @@ export default function HostDetailsScreen() {
                     />
                     <View style={styles.cardDivider} />
                     <ActionRow
+                        iconName="cash-outline"
+                        iconBg="rgba(245,158,11,0.12)"
+                        iconColor="#f59e0b"
+                        label={`Set Commission Rate (${host.commissionRate || 10}%)`}
+                        onPress={handleSetCommission}
+                    />
+                    <View style={styles.cardDivider} />
+                    <ActionRow
                         iconName="ban"
                         iconBg="rgba(244,63,94,0.12)"
                         iconColor="#F43F5E"
@@ -312,6 +342,47 @@ export default function HostDetailsScreen() {
                             <Text style={styles.closeBtnText}>Done</Text>
                         </TouchableOpacity>
                     </ScrollView>
+                </View>
+            </Modal>
+
+            {/* Commission Modal */}
+            <Modal visible={isCommissionModalVisible} transparent animationType="fade" onRequestClose={() => setCommissionModalVisible(false)}>
+                <View style={styles.overlay}>
+                    <View style={styles.alertModal}>
+                        <LinearGradient colors={['#1a1a2e', '#0f0f1a']} style={styles.alertGradient}>
+                            <View style={styles.alertHeader}>
+                                <View style={[styles.alertIconBox, { backgroundColor: 'rgba(245,158,11,0.1)' }]}>
+                                    <Ionicons name="cash-outline" size={24} color="#f59e0b" />
+                                </View>
+                                <Text style={styles.alertTitle}>Platform Commission</Text>
+                                <Text style={styles.alertSub}>Set the percentage the platform takes from each booking for this host.</Text>
+                            </View>
+
+                            <View style={styles.inputContainer}>
+                                <TextInput
+                                    style={styles.commissionInput}
+                                    value={newCommission}
+                                    onChangeText={setNewCommission}
+                                    keyboardType="numeric"
+                                    placeholder="10"
+                                    placeholderTextColor="rgba(255,255,255,0.2)"
+                                    maxLength={3}
+                                />
+                                <Text style={styles.percentSymbol}>%</Text>
+                            </View>
+
+                            <View style={styles.alertActions}>
+                                <TouchableOpacity style={styles.cancelBtn} onPress={() => setCommissionModalVisible(false)}>
+                                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.confirmBtn} onPress={handleUpdateCommission}>
+                                    <LinearGradient colors={['#3b82f6', '#2563eb']} style={styles.confirmGradient}>
+                                        <Text style={styles.confirmBtnText}>Update Rate</Text>
+                                    </LinearGradient>
+                                </TouchableOpacity>
+                            </View>
+                        </LinearGradient>
+                    </View>
                 </View>
             </Modal>
         </View>
@@ -491,4 +562,22 @@ const styles = StyleSheet.create({
     docStatus: { color: 'rgba(255,255,255,0.4)', fontSize: 12, marginTop: 2 },
     closeBtn: { height: 56, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center', marginTop: 32 },
     closeBtnText: { color: '#FFF', fontSize: 15, fontWeight: '800' },
+
+    // Commission Modal
+    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+    alertModal: { width: '100%', maxWidth: 340, borderRadius: 32, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    alertGradient: { padding: 24 },
+    alertHeader: { alignItems: 'center', marginBottom: 24 },
+    alertIconBox: { width: 56, height: 56, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+    alertTitle: { color: '#FFF', fontSize: 20, fontWeight: '900', marginBottom: 8 },
+    alertSub: { color: 'rgba(255,255,255,0.4)', fontSize: 13, textAlign: 'center', lineHeight: 18 },
+    inputContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 20, paddingHorizontal: 20, height: 64, marginBottom: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    commissionInput: { flex: 1, color: '#FFF', fontSize: 24, fontWeight: '800', textAlign: 'center' },
+    percentSymbol: { color: '#f59e0b', fontSize: 20, fontWeight: '900', marginLeft: 8 },
+    alertActions: { flexDirection: 'row', gap: 12 },
+    cancelBtn: { flex: 1, height: 52, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)' },
+    cancelBtnText: { color: 'rgba(255,255,255,0.6)', fontSize: 14, fontWeight: '700' },
+    confirmBtn: { flex: 1.5, height: 52, borderRadius: 16, overflow: 'hidden' },
+    confirmGradient: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    confirmBtnText: { color: '#FFF', fontSize: 14, fontWeight: '800' },
 });
