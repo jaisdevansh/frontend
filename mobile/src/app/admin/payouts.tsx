@@ -258,17 +258,15 @@ export default function AdminPayoutsScreen() {
                             onChangeText={setAdminNote}
                         />
 
-                        {selectedRequest?.bankDetails?.upiId && (
-                            <TouchableOpacity 
-                                style={[styles.actionBtn, { backgroundColor: COLORS.primary, marginBottom: 12 }]}
-                                onPress={handlePayViaUPI}
-                            >
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                    <Ionicons name="phone-portrait-outline" size={20} color="white" />
-                                    <Text style={styles.actionBtnText}>Open UPI App (GPay/PhonePe)</Text>
-                                </View>
-                            </TouchableOpacity>
-                        )}
+                        <TouchableOpacity 
+                            style={[styles.actionBtn, { backgroundColor: COLORS.primary, marginBottom: 12 }]}
+                            onPress={handlePayViaUPI}
+                        >
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <Ionicons name="phone-portrait-outline" size={20} color="white" />
+                                <Text style={styles.actionBtnText}>Open UPI App (GPay/PhonePe)</Text>
+                            </View>
+                        </TouchableOpacity>
 
                         <View style={styles.modalActions}>
                             <TouchableOpacity 
