@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import {
+    View, Text, StyleSheet, ScrollView, TouchableOpacity,
     ActivityIndicator, Linking, StatusBar, Animated, Dimensions, Modal, Alert, TextInput
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -240,8 +241,8 @@ export default function HostDetailsScreen() {
 
                 {/* Stats Row */}
                 <Animated.View style={[styles.statsRow, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-                    <StatCard icon="currency-rupee" label="Total Earned" value={`₹${(host.totalRevenue || 0).toLocaleString()}`} color="#10B981" />
-                    <StatCard icon="star" label="Account Tier" value="Host" color="#8b5cf6" />
+                    <StatCard icon="account-balance-wallet" label="Wallet Balance" value={`₹${(host.wallet?.balance || 0).toLocaleString()}`} color="#10B981" />
+                    <StatCard icon="payments" label="Total Earned" value={`₹${(host.wallet?.totalEarned || 0).toLocaleString()}`} color="#3b82f6" />
                     <StatCard icon="verified" label="KYC" value={(host.kyc?.isVerified || host.hostStatus === 'ACTIVE') ? 'Verified' : 'Pending'} color={(host.kyc?.isVerified || host.hostStatus === 'ACTIVE') ? '#10B981' : '#f59e0b'} />
                 </Animated.View>
 
@@ -267,6 +268,45 @@ export default function HostDetailsScreen() {
                         onPress={handleEmail}
                         disabled={!host.email}
                     />
+                </Animated.View>
+
+                {/* Bank / Payout Details */}
+                <SectionLabel title="PAYOUT DETAILS" />
+                <Animated.View style={[styles.glassCard, { opacity: fadeAnim }]}>
+                    {host.bankDetails?.upiId ? (
+                        <ContactRow
+                            icon="phone-portrait-outline"
+                            iconBg="rgba(16,185,129,0.12)"
+                            iconColor="#10B981"
+                            label="UPI ID"
+                            value={host.bankDetails.upiId}
+                            disabled={true}
+                        />
+                    ) : host.bankDetails?.accountNumber ? (
+                        <>
+                            <ContactRow
+                                icon="card-outline"
+                                iconBg="rgba(59,130,246,0.12)"
+                                iconColor="#3b82f6"
+                                label="Bank Account"
+                                value={host.bankDetails.accountNumber}
+                                disabled={true}
+                            />
+                            <View style={styles.cardDivider} />
+                            <ContactRow
+                                icon="business-outline"
+                                iconBg="rgba(139,92,246,0.12)"
+                                iconColor="#8b5cf6"
+                                label="Bank / IFSC"
+                                value={`${host.bankDetails.bankName || 'Bank'} • ${host.bankDetails.ifscCode}`}
+                                disabled={true}
+                            />
+                        </>
+                    ) : (
+                        <View style={{ padding: 20, alignItems: 'center' }}>
+                            <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>No payout details saved by host.</Text>
+                        </View>
+                    )}
                 </Animated.View>
 
                 {/* Administrative Control */}
