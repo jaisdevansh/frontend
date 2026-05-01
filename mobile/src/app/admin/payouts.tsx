@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, ScrollView,
     ActivityIndicator, Dimensions, Modal, TextInput, Alert,
-    RefreshControl, FlatList
+    RefreshControl, FlatList, Linking
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -112,6 +112,29 @@ export default function AdminPayoutsScreen() {
                 }
             ]
         );
+    };
+
+    const handlePayViaUPI = async () => {
+        if (!selectedRequest?.bankDetails?.upiId) {
+            Alert.alert('No UPI ID', 'This host did not provide a UPI ID. You must use NEFT/IMPS.');
+            return;
+        }
+
+        const upiId = selectedRequest.bankDetails.upiId;
+        const name = encodeURIComponent(selectedRequest.bankDetails.accountHolderName || selectedRequest.hostId.name);
+        const amount = selectedRequest.amount;
+        const upiUrl = `upi://pay?pa=${upiId}&pn=${name}&am=${amount}&cu=INR`;
+
+        try {
+            const supported = await Linking.canOpenURL(upiUrl);
+            if (supported) {
+                await Linking.openURL(upiUrl);
+            } else {
+                Alert.alert('Error', 'No UPI app (GPay, PhonePe, Paytm, etc.) found on this device.');
+            }
+        } catch (error) {
+            Alert.alert('Error', 'Could not open UPI app.');
+        }
     };
 
     const renderRequest = ({ item }: { item: PayoutRequest }) => (
@@ -234,6 +257,18 @@ export default function AdminPayoutsScreen() {
                             value={adminNote}
                             onChangeText={setAdminNote}
                         />
+
+                        {selectedRequest?.bankDetails?.upiId && (
+                            <TouchableOpacity 
+                                style={[styles.actionBtn, { backgroundColor: COLORS.primary, marginBottom: 12 }]}
+                                onPress={handlePayViaUPI}
+                            >
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                    <Ionicons name="phone-portrait-outline" size={20} color="white" />
+                                    <Text style={styles.actionBtnText}>Open UPI App (GPay/PhonePe)</Text>
+                                </View>
+                            </TouchableOpacity>
+                        )}
 
                         <View style={styles.modalActions}>
                             <TouchableOpacity 
