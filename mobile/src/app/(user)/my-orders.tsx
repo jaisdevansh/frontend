@@ -88,9 +88,21 @@ export default function MyOrders() {
                         <Text style={styles.orderId}>#{String(item._id).slice(-8).toUpperCase()}</Text>
                         <Text style={styles.orderTime}>{dayjs(item.createdAt).format('ddd, DD MMM • hh:mm A')}</Text>
                     </View>
-                    <View style={[styles.statusBadge, { backgroundColor: cfg.bg, borderColor: cfg.color }]}>
-                        <View style={[styles.statusDot, { backgroundColor: cfg.color }]} />
-                        <Text style={[styles.statusText, { color: cfg.color }]}>{cfg.label}</Text>
+                    <View style={{ alignItems: 'flex-end' }}>
+                        <View style={[styles.statusBadge, { backgroundColor: cfg.bg, borderColor: cfg.color, marginBottom: 4 }]}>
+                            <View style={[styles.statusDot, { backgroundColor: cfg.color }]} />
+                            <Text style={[styles.statusText, { color: cfg.color }]}>{cfg.label}</Text>
+                        </View>
+                        {item.assignedStaffId && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 9, fontWeight: '700' }}>WAITER:</Text>
+                                <Image 
+                                    source={{ uri: item.assignedStaffId.profileImage || 'https://ui-avatars.com/api/?name=' + item.assignedStaffId.name }} 
+                                    style={{ width: 14, height: 14, borderRadius: 7 }} 
+                                />
+                                <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 10, fontWeight: '800' }}>{item.assignedStaffId.name?.split(' ')[0]}</Text>
+                            </View>
+                        )}
                     </View>
                 </View>
 

@@ -367,7 +367,7 @@ export default function ChatScreen() {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            await apiClient.delete(`/api/v1/chat/message/${messageId}`);
+                            await apiClient.delete(`/api/chat/messages/${messageId}`);
                             // Optimistic update: remove from local store
                             removeMessage?.(peerId || convId, messageId);
                         } catch (error) {
@@ -423,7 +423,6 @@ export default function ChatScreen() {
                     peerName={actualPeerName || item.senderName || 'User'}
                     peerAvatar={actualPeerAvatar || item.senderImage}
                     showAvatar={showAvatar}
-                    onLongPress={() => handleUnsend(item._id)}
                 />
             </View>
         );

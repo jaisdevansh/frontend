@@ -46,11 +46,9 @@ export const getSocket = async (): Promise<Socket> => {
         throw new Error('No authentication token available');
     }
 
-    // Skip socket connection for staff (they use admin backend, socket is on user backend)
+    // Allow staff to connect to socket to receive real-time order updates
     if (userRole === 'staff') {
-        // Silent skip - staff doesn't need socket
-        isAuthFailed = true;
-        throw new Error('Socket not available for staff role');
+        console.log('[Socket] Connecting staff to user socket for real-time updates');
     }
 
     const socketOrigin = SOCKET_ORIGIN;
