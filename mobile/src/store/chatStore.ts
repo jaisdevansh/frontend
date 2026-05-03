@@ -271,6 +271,20 @@ export const useChatStore = create<ChatState>()(
             });
         });
 
+        // ⚡ Real-time message deletion — receiver side
+        socket.on('message_deleted', ({ messageId, senderId }) => {
+            set((state) => {
+                const msgs = state.messagesByPeer[senderId] || [];
+                const updated = msgs.filter(m => m._id !== messageId && m.tempId !== messageId);
+                return {
+                    messagesByPeer: {
+                        ...state.messagesByPeer,
+                        [senderId]: updated,
+                    }
+                };
+            });
+        });
+
         set({ socket });
     },
 
