@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useCallback } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity,
     ActivityIndicator, StatusBar, Dimensions, Animated, RefreshControl
@@ -31,17 +31,31 @@ const C = {
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+/** Safe number: always returns a finite number, never NaN/undefined */
+const safeN = (v: any, fallback = 0): number => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : fallback;
+};
+
 const fmt = (v?: number) => {
-    if (v == null) return '₹0';
-    if (v >= 100000) return `₹${(v / 100000).toFixed(1)}L`;
-    if (v >= 1000) return `₹${(v / 1000).toFixed(1)}K`;
-    return `₹${v.toLocaleString()}`;
+    const n = safeN(v);
+    if (n >= 100000) return `₹${(n / 100000).toFixed(1)}L`;
+    if (n >= 1000)   return `₹${(n / 1000).toFixed(1)}K`;
+    return `₹${n.toLocaleString()}`;
 };
 
 const fmtShort = (v: number) => {
-    if (v >= 100000) return `${(v / 100000).toFixed(1)}L`;
-    if (v >= 1000) return `${(v / 1000).toFixed(1)}K`;
-    return `${Math.round(v)}`;
+    const n = safeN(v);
+    if (n >= 100000) return `${(n / 100000).toFixed(1)}L`;
+    if (n >= 1000)   return `${(n / 1000).toFixed(1)}K`;
+    return `${Math.round(n)}`;
+};
+
+/** Derive gross platform revenue from adminCut (10% fee) — works with ALL backend versions */
+const deriveGross = (cut: number, tRev: number, oRev: number, total: number): number => {
+    if (cut > 0) return cut / 0.10;
+    if (tRev + oRev > 0) return tRev + oRev;
+    return total;
 };
 
 // ─── Pulse Dot ───────────────────────────────────────────────────────────────
@@ -381,16 +395,30 @@ export default function AnalyticsScreen() {
 
     const isFetching = sumLoading || trendLoading || usersLoading || itemsLoading;
 
-    const handleRefresh = async () => {
+    const handleRefresh = useCallback(async () => {
         setRefreshing(true);
-        await Promise.all([
-            queryClient.invalidateQueries({ queryKey: ['admin-summary'] }),
-            queryClient.invalidateQueries({ queryKey: ['admin-revenue-trend'] }),
-            queryClient.invalidateQueries({ queryKey: ['admin-top-users'] }),
-            queryClient.invalidateQueries({ queryKey: ['admin-top-items'] }),
-        ]);
-        setRefreshing(false);
-    };
+        try {
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ['admin-summary'] }),
+                queryClient.invalidateQueries({ queryKey: ['admin-revenue-trend'] }),
+                queryClient.invalidateQueries({ queryKey: ['admin-top-users'] }),
+                queryClient.invalidateQueries({ queryKey: ['admin-top-items'] }),
+            ]);
+        } finally {
+            setRefreshing(false);
+        }
+    }, [queryClient]);
+
+    // ── Centralized admin revenue (single source of truth) ──
+    const adminRevenue = useMemo(() => {
+        const cut   = safeN(summary?.adminCut);
+        const tRev  = safeN(summary?.ticketRevenue);
+        const oRev  = safeN(summary?.orderRevenue);
+        const total = safeN(summary?.totalRevenue);
+        const gross = deriveGross(cut, tRev, oRev, total);
+        const host  = Math.max(gross - cut, 0);
+        return { gross, cut, host, tRev, oRev };
+    }, [summary]);
 
     // ── Trend data ──
     const trendData = useMemo(() => {
@@ -420,25 +448,22 @@ export default function AnalyticsScreen() {
     // ── Pie segments ──
     const pieSegments = useMemo(() => {
         if (isAdmin) {
-            // Always compute gross from ticket+food — works with both old and new backend
-            const gross = (summary?.ticketRevenue || 0) + (summary?.orderRevenue || 0);
-            const cut = summary?.adminCut || 0;
             return [
-                { value: Math.max(gross - cut, 0), color: C.primary, name: 'Host Earnings' },
-                { value: cut, color: C.amber, name: 'Platform Fee' },
+                { value: adminRevenue.host, color: C.primary, name: 'Host Earnings' },
+                { value: adminRevenue.cut,  color: C.amber,   name: 'Platform Fee' },
             ].filter(s => s.value > 0);
         }
         return [
-            { value: summary?.ticketRevenue || 0, color: C.amber, name: 'Ticket Sales' },
-            { value: summary?.orderRevenue || 0, color: C.success, name: 'Food Orders' },
+            { value: safeN(summary?.ticketRevenue), color: C.amber,   name: 'Ticket Sales' },
+            { value: safeN(summary?.orderRevenue),  color: C.success, name: 'Food Orders'  },
         ].filter(s => s.value > 0);
-    }, [summary, isAdmin]);
+    }, [summary, isAdmin, adminRevenue]);
 
     // ── Conversion ──
     const convRate = useMemo(() => {
-        const d = summary?.deliveredOrders || 0;
-        const t = summary?.totalOrders || 1;
-        return Math.round((d / t) * 100);
+        const d = safeN(summary?.deliveredOrders);
+        const t = safeN(summary?.totalOrders, 1);
+        return Math.min(Math.round((d / Math.max(t, 1)) * 100), 100);
     }, [summary]);
 
     if (sumLoading && !summary) {
@@ -478,21 +503,25 @@ export default function AnalyticsScreen() {
                 <View style={{ gap: 10, marginBottom: 20 }}>
                     <View style={{ flexDirection: 'row', gap: 10 }}>
                         <KpiCard icon="cash-multiple" label="Net Revenue"
-                            value={fmt(isAdmin
-                                ? (summary?.ticketRevenue || 0) + (summary?.orderRevenue || 0)
-                                : summary?.totalRevenue)}
+                            value={fmt(isAdmin ? adminRevenue.gross : safeN(summary?.totalRevenue))}
                             color={C.success} />
-                        <KpiCard icon="ticket-confirmation" label="Tickets" value={fmt(summary?.ticketRevenue)} color={C.amber} />
+                        {isAdmin ? (
+                            <KpiCard icon="account-cash" label="Host Earnings"
+                                value={fmt(adminRevenue.host)} color={C.primary} />
+                        ) : (
+                            <KpiCard icon="ticket-confirmation" label="Tickets"
+                                value={fmt(safeN(summary?.ticketRevenue))} color={C.amber} />
+                        )}
                         {isAdmin && (
-                            <KpiCard icon="percent" label="Platform Fee" value={fmt(summary?.adminCut)} color={C.primary} />
+                            <KpiCard icon="percent" label="Platform Fee"
+                                value={fmt(adminRevenue.cut)} color={C.amber} />
                         )}
                     </View>
-                    {/* Only show Food/Staff/Live Orders for Host role */}
                     {!isAdmin && (
                         <View style={{ flexDirection: 'row', gap: 10 }}>
-                            <KpiCard icon="food" label="Food Rev" value={fmt(summary?.orderRevenue)} color={C.primary} />
-                            <KpiCard icon="account-group" label="Staff" value={`${summary?.activeStaff || 0}`} color={C.accent} />
-                            <KpiCard icon="clock-fast" label="Live Orders" value={`${summary?.liveOrders || 0}`} color={C.cyan} />
+                            <KpiCard icon="food" label="Food Rev" value={fmt(safeN(summary?.orderRevenue))} color={C.primary} />
+                            <KpiCard icon="account-group" label="Staff" value={`${safeN(summary?.activeStaff)}`} color={C.accent} />
+                            <KpiCard icon="clock-fast" label="Live Orders" value={`${safeN(summary?.liveOrders)}`} color={C.cyan} />
                         </View>
                     )}
                 </View>
