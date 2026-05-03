@@ -199,6 +199,9 @@ const MessageBubble = React.memo(({
                         {msg.text}
                     </Text>
                     <View style={[styles.msgFooter, isMe && { position: 'relative', zIndex: 2 }]}>
+                        {(msg as any).isEdited && (
+                            <Text style={[styles.timeText, { color: 'rgba(255,255,255,0.35)', marginRight: 4 }]}>edited</Text>
+                        )}
                         <Text style={[styles.timeText, isMe ? styles.myTime : styles.theirTime]}>
                             {fmtTime(msg.createdAt)}
                         </Text>
@@ -229,6 +232,7 @@ export default function ChatScreen() {
         sendTyping,
         markRead,
         removeMessage,
+        updateMessage,
     } = useChatStore();
 
     const messages = useMemo(() => {
@@ -273,7 +277,10 @@ export default function ChatScreen() {
     const isUserTyping = isTyping[peerId || convId] || false;
 
     const [inputText, setInputText]   = useState('');
+    const [editingMsg, setEditingMsg] = useState<{ id: string; originalText: string } | null>(null);
+    const [editText, setEditText]     = useState('');
     const listRef                     = useRef<FlatList>(null);
+    const editInputRef                = useRef<any>(null);
     const typingTimer                 = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const isTypingLocal               = useRef(false);
     const headerScale                 = useRef(new Animated.Value(1)).current;
@@ -348,9 +355,41 @@ export default function ChatScreen() {
         clearTimeout(typingTimer.current);
     }, []);
 
-    // ── Unsend message ────────────────────────────────────────────────────────
-    const handleUnsend = useCallback((messageId: string) => {
+    // ── Edit message ──────────────────────────────────────────────────────────
+    const startEdit = useCallback((messageId: string, currentText: string) => {
+        setEditingMsg({ id: messageId, originalText: currentText });
+        setEditText(currentText);
+        setTimeout(() => editInputRef.current?.focus(), 100);
+    }, []);
+
+    const cancelEdit = useCallback(() => {
+        setEditingMsg(null);
+        setEditText('');
+    }, []);
+
+    const submitEdit = useCallback(async () => {
+        if (!editingMsg || !editText.trim()) return;
+        if (editText.trim() === editingMsg.originalText) { cancelEdit(); return; }
+
+        const { id, originalText } = editingMsg;
+        cancelEdit();
+
+        // Optimistic update in local store
+        updateMessage(peerId || convId, id, editText.trim());
+
+        try {
+            await apiClient.patch(`/api/v1/chat/messages/${id}`, { content: editText.trim() });
+        } catch {
+            // Revert on failure
+            updateMessage(peerId || convId, id, originalText);
+            Alert.alert('Error', 'Could not edit the message. Please try again.');
+        }
+    }, [editingMsg, editText, peerId, convId, cancelEdit, updateMessage]);
+
+    // ── Unsend / options ─────────────────────────────────────────────────────
+    const handleUnsend = useCallback((messageId: string, messageText: string) => {
         if (!messageId || messageId === 'undefined') return;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
         Alert.alert(
             'Message Options',
@@ -358,32 +397,30 @@ export default function ChatScreen() {
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
-                    text: 'Delete for me',
-                    onPress: () => {
-                        // Just remove from local store (only you won't see it)
-                        removeMessage?.(peerId || convId, messageId);
-                    }
+                    text: '✏️  Edit',
+                    onPress: () => startEdit(messageId, messageText),
+                },
+                {
+                    text: '🗑️  Delete for me',
+                    onPress: () => removeMessage?.(peerId || convId, messageId),
                 },
                 {
                     text: 'Unsend for everyone',
                     style: 'destructive',
                     onPress: async () => {
+                        removeMessage?.(peerId || convId, messageId);
                         try {
-                            // Optimistic: remove locally first for instant feedback
-                            removeMessage?.(peerId || convId, messageId);
                             await apiClient.delete(`/api/v1/chat/messages/${messageId}`);
                         } catch (error: any) {
-                            const status = error?.response?.status;
-                            // 404 means message already deleted — that's fine
-                            if (status !== 404) {
-                                Alert.alert('Error', 'Could not unsend the message. Please try again.');
+                            if (error?.response?.status !== 404) {
+                                Alert.alert('Error', 'Could not unsend the message.');
                             }
                         }
                     }
                 },
             ]
         );
-    }, [peerId, convId, removeMessage]);
+    }, [peerId, convId, removeMessage, startEdit]);
 
     const handleTextChange = useCallback((text: string) => {
         setInputText(text);
@@ -429,7 +466,7 @@ export default function ChatScreen() {
                     peerName={actualPeerName || item.senderName || 'User'}
                     peerAvatar={actualPeerAvatar || item.senderImage}
                     showAvatar={showAvatar}
-                    onLongPress={() => handleUnsend(item._id || item.tempId)}
+                    onLongPress={() => handleUnsend(item._id || item.tempId, item.content || item.text || '')}
                 />
             </View>
         );
@@ -507,23 +544,43 @@ export default function ChatScreen() {
                     />
                 )}
 
+                {/* ─── Edit Bar (shown when editing) ──────────────────── */}
+                {editingMsg && (
+                    <View style={styles.editBar}>
+                        <View style={styles.editBarLeft}>
+                            <Ionicons name="create-outline" size={16} color="#3B82F6" />
+                            <Text style={styles.editBarLabel}>Editing message</Text>
+                        </View>
+                        <TouchableOpacity onPress={cancelEdit} hitSlop={12}>
+                            <Ionicons name="close" size={18} color={C.muted} />
+                        </TouchableOpacity>
+                    </View>
+                )}
+
                 {/* ─── Input Bar ─────────────────────────────────────────── */}
                 <View style={styles.inputBar}>
-                    {/* Send Gift Button */}
-                    <TouchableOpacity 
-                        style={styles.attachBtn}
-                        onPress={() => router.push(`/(user)/menu?hostId=${peerId || convId}&venueName=${encodeURIComponent(actualPeerName || 'User')}`)}
-                    >
-                        <Ionicons name="gift-outline" size={24} color={C.sub} />
-                    </TouchableOpacity>
+                    {/* Gift / Cancel-edit Button */}
+                    {editingMsg ? (
+                        <TouchableOpacity style={styles.attachBtn} onPress={cancelEdit}>
+                            <Ionicons name="close-circle" size={24} color="#EF4444" />
+                        </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity 
+                            style={styles.attachBtn}
+                            onPress={() => router.push(`/(user)/menu?hostId=${peerId || convId}&venueName=${encodeURIComponent(actualPeerName || 'User')}`)}
+                        >
+                            <Ionicons name="gift-outline" size={24} color={C.sub} />
+                        </TouchableOpacity>
+                    )}
 
-                    {/* Text input */}
+                    {/* Text input — switches between send & edit mode */}
                     <View style={styles.inputWrap}>
                         <TextInput
+                            ref={editingMsg ? editInputRef : undefined}
                             style={styles.input}
-                            value={inputText}
-                            onChangeText={handleTextChange}
-                            placeholder="Message…"
+                            value={editingMsg ? editText : inputText}
+                            onChangeText={editingMsg ? setEditText : handleTextChange}
+                            placeholder={editingMsg ? 'Edit your message…' : 'Message…'}
                             placeholderTextColor={C.muted}
                             multiline
                             maxLength={2000}
@@ -531,26 +588,30 @@ export default function ChatScreen() {
                         />
                     </View>
 
-                    {/* Send */}
+                    {/* Send / Save */}
                     <Animated.View style={{ transform: [{ scale: headerScale }] }}>
                         <TouchableOpacity
-                            style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]}
-                            onPress={handleSend}
-                            disabled={!inputText.trim()}
+                            style={[styles.sendBtn,
+                                editingMsg
+                                    ? (!editText.trim() && styles.sendBtnDisabled)
+                                    : (!inputText.trim() && styles.sendBtnDisabled)
+                            ]}
+                            onPress={editingMsg ? submitEdit : handleSend}
+                            disabled={editingMsg ? !editText.trim() : !inputText.trim()}
                             activeOpacity={0.8}
                         >
-                            {inputText.trim() ? (
+                            {(editingMsg ? editText.trim() : inputText.trim()) ? (
                                 <View style={[StyleSheet.absoluteFill, { borderRadius: 22, overflow: 'hidden' }]}>
                                     <LinearGradient
-                                        colors={['#3B82F6', '#1D4ED8']}
+                                        colors={editingMsg ? ['#22C55E', '#16A34A'] : ['#3B82F6', '#1D4ED8']}
                                         style={StyleSheet.absoluteFill}
                                     />
                                 </View>
                             ) : null}
                             <Ionicons
-                                name={inputText.trim() ? 'send' : 'mic-outline'}
-                                size={18}
-                                color={inputText.trim() ? '#fff' : C.muted}
+                                name={editingMsg ? 'checkmark' : (inputText.trim() ? 'send' : 'mic-outline')}
+                                size={editingMsg ? 20 : 18}
+                                color={(editingMsg ? editText.trim() : inputText.trim()) ? '#fff' : C.muted}
                             />
                         </TouchableOpacity>
                     </Animated.View>
@@ -667,4 +728,13 @@ const styles = StyleSheet.create({
         marginBottom: 0,
     },
     sendBtnDisabled: { backgroundColor: '#141414' },
+    // Edit bar
+    editBar: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        paddingHorizontal: 16, paddingVertical: 8,
+        backgroundColor: 'rgba(37,99,235,0.08)',
+        borderTopWidth: 1, borderTopColor: 'rgba(37,99,235,0.2)',
+    },
+    editBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    editBarLabel: { color: '#3B82F6', fontSize: 13, fontWeight: '600' },
 });

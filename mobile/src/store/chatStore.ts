@@ -67,6 +67,7 @@ interface ChatState {
     setChatRequestCallback: (callback: (senderId: string, senderName: string, content: string, senderImage?: string) => void) => void;
     fetchPeers: () => Promise<void>; // ← fetch conversations list from DB
     removeMessage: (peerId: string, messageId: string) => void; // ← Optimistic delete
+    updateMessage: (peerId: string, messageId: string, newContent: string) => void; // ← Optimistic edit
 }
 
 export const useChatStore = create<ChatState>()(
@@ -541,6 +542,24 @@ export const useChatStore = create<ChatState>()(
         set((state) => {
             const msgs = state.messagesByPeer[peerId] || [];
             const updated = msgs.filter(m => m._id !== messageId && m.tempId !== messageId);
+            return {
+                messagesByPeer: {
+                    ...state.messagesByPeer,
+                    [peerId]: updated,
+                }
+            };
+        });
+    },
+
+    updateMessage: (peerId: string, messageId: string, newContent: string) => {
+        set((state) => {
+            const msgs = state.messagesByPeer[peerId] || [];
+            const updated = msgs.map(m => {
+                if (m._id === messageId || m.tempId === messageId) {
+                    return { ...m, content: newContent, isEdited: true } as any;
+                }
+                return m;
+            });
             return {
                 messagesByPeer: {
                     ...state.messagesByPeer,
