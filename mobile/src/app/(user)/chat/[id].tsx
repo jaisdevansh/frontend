@@ -350,6 +350,8 @@ export default function ChatScreen() {
 
     // ── Unsend message ────────────────────────────────────────────────────────
     const handleUnsend = useCallback((messageId: string) => {
+        if (!messageId || messageId === 'undefined') return;
+
         Alert.alert(
             'Message Options',
             'What would you like to do?',
@@ -367,11 +369,15 @@ export default function ChatScreen() {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            await apiClient.delete(`/api/chat/messages/${messageId}`);
-                            // Optimistic update: remove from local store
+                            // Optimistic: remove locally first for instant feedback
                             removeMessage?.(peerId || convId, messageId);
-                        } catch (error) {
-                            Alert.alert('Error', 'Could not unsend the message. Please try again.');
+                            await apiClient.delete(`/api/v1/chat/messages/${messageId}`);
+                        } catch (error: any) {
+                            const status = error?.response?.status;
+                            // 404 means message already deleted — that's fine
+                            if (status !== 404) {
+                                Alert.alert('Error', 'Could not unsend the message. Please try again.');
+                            }
                         }
                     }
                 },
