@@ -7,7 +7,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStrictBack } from '../../hooks/useStrictBack';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, Typography } from '../../constants/design-system';
+import { COLORS, SPACING } from '../../constants/design-system';
 import { hostService } from '../../services/hostService';
 import dayjs from 'dayjs';
 

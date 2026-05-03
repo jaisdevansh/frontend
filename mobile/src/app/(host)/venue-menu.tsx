@@ -70,19 +70,23 @@ export default function HostVenueMenu() {
         }
     };
 
+    const [imageUploading, setImageUploading] = useState(false);
+
     const pickImage = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ['images'],
             allowsEditing: true,
             aspect: [1, 1],
             quality: 0.3,
-            base64: true, // Absolute hydration for faster transfers
+            base64: true,
         });
 
         if (!result.canceled) {
             const asset = result.assets[0];
             const imgUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+            setImageUploading(true);
             setItemImage(imgUri);
+            setImageUploading(false);
         }
     };
 
@@ -271,7 +275,11 @@ export default function HostVenueMenu() {
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
                             <Text style={styles.modalTitle}>{editIndex !== null ? 'Edit Item' : 'New Offering'}</Text>
-                            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeButton}>
+                            <TouchableOpacity
+                                onPress={() => !saving && setModalVisible(false)}
+                                style={[styles.closeButton, saving && { opacity: 0.4 }]}
+                                disabled={saving}
+                            >
                                 <Ionicons name="close" size={24} color="white" />
                             </TouchableOpacity>
                         </View>
@@ -281,8 +289,17 @@ export default function HostVenueMenu() {
                             contentContainerStyle={{ paddingBottom: 40 }}
                             keyboardShouldPersistTaps="handled"
                         >
-                            <TouchableOpacity style={styles.modalImagePicker} onPress={pickImage}>
-                                {itemImage ? (
+                            <TouchableOpacity
+                                style={[styles.modalImagePicker, imageUploading && { opacity: 0.6 }]}
+                                onPress={pickImage}
+                                disabled={saving}
+                            >
+                                {imageUploading ? (
+                                    <View style={styles.imagePlaceholder}>
+                                        <ActivityIndicator size="small" color={COLORS.primary} />
+                                        <Text style={styles.uploadText}>Processing...</Text>
+                                    </View>
+                                ) : itemImage ? (
                                     <Image source={{ uri: itemImage }} style={styles.modalPreviewImg} />
                                 ) : (
                                     <View style={styles.imagePlaceholder}>
@@ -330,7 +347,32 @@ export default function HostVenueMenu() {
                                 multiline
                             />
 
-                            <Button title="Save Item to List" onPress={handleSaveItem} style={{ marginTop: 12 }} />
+                            {/* Save Button with Loader */}
+                            <TouchableOpacity
+                                onPress={handleSaveItem}
+                                disabled={saving}
+                                style={[
+                                    styles.saveBtn,
+                                    saving && styles.saveBtnLoading,
+                                ]}
+                                activeOpacity={0.85}
+                            >
+                                {saving ? (
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                        <ActivityIndicator size="small" color="#000" />
+                                        <Text style={styles.saveBtnText}>
+                                            {editIndex !== null ? 'Updating...' : 'Adding Item...'}
+                                        </Text>
+                                    </View>
+                                ) : (
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                        <Ionicons name={editIndex !== null ? 'checkmark-circle' : 'add-circle'} size={20} color="#000" />
+                                        <Text style={styles.saveBtnText}>
+                                            {editIndex !== null ? 'Update Item' : 'Save Item to List'}
+                                        </Text>
+                                    </View>
+                                )}
+                            </TouchableOpacity>
                             </ScrollView>
                     </View>
                     </View>
@@ -613,5 +655,29 @@ const styles = StyleSheet.create({
     activeChipText: {
         color: COLORS.background.dark,
         fontWeight: '700',
-    }
+    },
+    saveBtn: {
+        marginTop: 16,
+        backgroundColor: COLORS.primary,
+        borderRadius: 16,
+        paddingVertical: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexDirection: 'row',
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
+        elevation: 6,
+    },
+    saveBtnLoading: {
+        opacity: 0.75,
+        shadowOpacity: 0,
+    },
+    saveBtnText: {
+        color: '#000',
+        fontSize: 16,
+        fontWeight: '800',
+        letterSpacing: 0.3,
+    },
 });

@@ -9,7 +9,6 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import adminService from '../../services/adminService';
-import dayjs from 'dayjs';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -34,7 +33,7 @@ interface PayoutRequest {
         profileImage: string;
     };
     amount: number;
-    status: 'PENDING' | 'APPROVED' | 'PAID' | 'REJECTED';
+    status: 'PENDING' | 'COMPLETED' | 'REJECTED';
     bankDetails: {
         accountNumber: string;
         ifscCode: string;
@@ -59,12 +58,8 @@ export default function AdminPayoutsScreen() {
 
     const fetchRequests = useCallback(async () => {
         try {
-            // We need to add this to adminService, but for now we'll use a direct fetch or mock
-            // I'll add the service method in the next step
-            const res = await (adminService as any).getPayoutRequests();
-            if (res.success) {
-                setRequests(res.data);
-            }
+            const res = await adminService.getPayoutRequests('PENDING');
+            setRequests(res as any);
         } catch (error) {
             console.error('Admin Payout Fetch Error:', error);
         } finally {
@@ -80,11 +75,11 @@ export default function AdminPayoutsScreen() {
         fetchRequests();
     };
 
-    const handleProcess = async (status: 'PAID' | 'REJECTED') => {
+    const handleProcess = async (status: 'COMPLETED' | 'REJECTED') => {
         if (!selectedRequest) return;
 
         Alert.alert(
-            `${status === 'PAID' ? 'Confirm Payment' : 'Reject Request'}`,
+            `${status === 'COMPLETED' ? 'Confirm Payment' : 'Reject Request'}`,
             `Are you sure you want to mark this request as ${status.toLowerCase()}?`,
             [
                 { text: 'Cancel', style: 'cancel' },
@@ -92,10 +87,10 @@ export default function AdminPayoutsScreen() {
                     text: 'Confirm',
                     onPress: async () => {
                         try {
-                            const res = await (adminService as any).processPayoutRequest(selectedRequest._id, {
+                            const res = await adminService.processPayoutRequest(selectedRequest._id, {
                                 status,
-                                adminNote,
-                                payoutId
+                                transactionId: payoutId,
+                                note: adminNote,
                             });
                             if (res.success) {
                                 Alert.alert('Success', `Request marked as ${status.toLowerCase()}`);
@@ -152,7 +147,7 @@ export default function AdminPayoutsScreen() {
                 />
                 <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text style={styles.hostName}>{item.hostId.name}</Text>
-                    <Text style={styles.requestDate}>{dayjs(item.createdAt).format('MMM DD, YYYY • hh:mm A')}</Text>
+                    <Text style={styles.requestDate}>{new Date(item.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</Text>
                 </View>
                 <View style={styles.amountBadge}>
                     <Text style={styles.amountText}>₹{item.amount.toLocaleString()}</Text>
@@ -277,7 +272,7 @@ export default function AdminPayoutsScreen() {
                             </TouchableOpacity>
                             <TouchableOpacity 
                                 style={[styles.actionBtn, { backgroundColor: COLORS.success, flex: 2 }]}
-                                onPress={() => handleProcess('PAID')}
+                                onPress={() => handleProcess('COMPLETED')}
                             >
                                 <Text style={styles.actionBtnText}>Confirm Payment</Text>
                             </TouchableOpacity>

@@ -111,55 +111,40 @@ export default function VenueGiftsScreen() {
             return;
         }
 
-        // --- STAGE 1: HYPER-FAST UI DISCHARGE (Sub-2ms) ---
-        setModalVisible(false);
-
-        // --- STAGE 2: OPTIMISTIC STATE HYDRATION ---
-        const tempId = formData._id || `temp_${Date.now()}`;
-        const tempGift: Gift = {
-            _id: tempId,
-            name: formData.name.trim(),
-            description: formData.description,
-            price: Number(formData.price),
-            category: formData.category,
-            image: formData.image || undefined,
-            inStock: formData.inStock,
-        };
-
-        if (!formData._id) {
-            setGifts(p => [tempGift, ...p]);
-        }
-
-        // --- STAGE 3: BACKGROUND ASYNC PERSISTENCE ---
-        setTimeout(async () => {
-             const imageToUpload = formData.image;
-             if (imageToUpload) {
-                localAssetCache.current[tempId] = imageToUpload;
-             }
-             
-             try {
-                // If it's a local URI, upload it first to get the URL
-                let finalImageUrl = imageToUpload;
-                if (imageToUpload && !imageToUpload.startsWith('http')) {
-                    finalImageUrl = await uploadImage(imageToUpload);
-                }
-
-                const payload = { ...tempGift, image: finalImageUrl || undefined };
-                const res = formData._id 
-                    ? await hostService.updateGift(formData._id, payload)
-                    : await hostService.createGift(payload);
-
-                if (res.success) {
-                    if (!formData._id && res.data?._id && imageToUpload) {
-                        localAssetCache.current[res.data._id] = imageToUpload;
-                    }
-                    showToast(formData._id ? 'Updated' : 'Added', 'success');
-                    fetchGifts(); 
-                }
-            } catch (err) {
-                showToast('Sync paused. Retrying...', 'warning');
+        setSaving(true);
+        try {
+            // Upload image if it's a local URI
+            let finalImageUrl = formData.image;
+            if (formData.image && !formData.image.startsWith('http')) {
+                finalImageUrl = await uploadImage(formData.image);
             }
-        }, 100);
+
+            const payload = {
+                name: formData.name.trim(),
+                description: formData.description,
+                price: Number(formData.price),
+                category: formData.category,
+                image: finalImageUrl || undefined,
+                inStock: formData.inStock,
+            };
+
+            const res = formData._id
+                ? await hostService.updateGift(formData._id, payload)
+                : await hostService.createGift(payload);
+
+            if (res.success) {
+                showToast(formData._id ? 'Gift updated! 🎁' : 'Gift added! 🎁', 'success');
+                setModalVisible(false);
+                setFormData(EMPTY_FORM);
+                fetchGifts();
+            } else {
+                showToast(res.message || 'Failed to save gift', 'error');
+            }
+        } catch (err: any) {
+            showToast(err?.response?.data?.message || 'Failed to save gift', 'error');
+        } finally {
+            setSaving(false);
+        }
     };
 
     // ─── Delete ────────────────────────────────────────────────────────────────
@@ -280,7 +265,11 @@ export default function VenueGiftsScreen() {
                         <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
                             <Text style={styles.modalTitle}>{formData._id ? 'Edit Offering' : 'Add New Offering'}</Text>
-                            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeBtn}>
+                            <TouchableOpacity
+                                onPress={() => !saving && setModalVisible(false)}
+                                style={[styles.closeBtn, saving && { opacity: 0.4 }]}
+                                disabled={saving}
+                            >
                                 <Ionicons name="close" size={24} color="white" />
                             </TouchableOpacity>
                         </View>
@@ -372,14 +361,25 @@ export default function VenueGiftsScreen() {
                             </View>
 
                             <TouchableOpacity
-                                style={[styles.saveBtn, saving && { opacity: 0.7 }]}
+                                style={[styles.saveBtn, saving && styles.saveBtnLoading]}
                                 onPress={handleSave}
                                 disabled={saving}
+                                activeOpacity={0.85}
                             >
                                 {saving ? (
-                                    <ActivityIndicator color="white" />
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                        <ActivityIndicator size="small" color="white" />
+                                        <Text style={styles.saveBtnText}>
+                                            {formData._id ? 'Updating Gift...' : 'Adding Gift...'}
+                                        </Text>
+                                    </View>
                                 ) : (
-                                    <Text style={styles.saveBtnText}>{formData._id ? 'Update Offering' : 'Add Offering'}</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                        <Ionicons name={formData._id ? 'checkmark-circle' : 'gift'} size={20} color="white" />
+                                        <Text style={styles.saveBtnText}>
+                                            {formData._id ? 'Update Offering' : 'Add Offering'}
+                                        </Text>
+                                    </View>
                                 )}
                             </TouchableOpacity>
                             </ScrollView>
@@ -447,6 +447,7 @@ const styles = StyleSheet.create({
     catText: { color: 'rgba(255,255,255,0.6)', fontWeight: '600', fontSize: 14 },
     catTextActive: { color: COLORS.primary },
 
-    saveBtn: { backgroundColor: COLORS.primary, height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: 10, shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+    saveBtn: { backgroundColor: COLORS.primary, height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: 10, shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 6, flexDirection: 'row' },
+    saveBtnLoading: { opacity: 0.75, shadowOpacity: 0 },
     saveBtnText: { color: 'white', fontSize: 16, fontWeight: '700' },
 });
