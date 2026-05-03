@@ -382,9 +382,21 @@ const EventDetails = () => {
                                 </View>
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.timingLabel}>Event Date</Text>
-                                    <Text style={styles.timingValue}>
-                                        {event?.date ? dayjs(event.date).format('MMM DD, YYYY') : 'TBD'}
-                                    </Text>
+                                    {event?.endDate && event?.date && dayjs(event.endDate).format('YYYYMMDD') !== dayjs(event.date).format('YYYYMMDD') ? (
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                            <Text style={styles.timingValue}>
+                                                {dayjs(event.date).format('MMM DD')}
+                                            </Text>
+                                            <Ionicons name="arrow-forward" size={13} color="rgba(255,255,255,0.4)" />
+                                            <Text style={styles.timingValue}>
+                                                {dayjs(event.endDate).format('MMM DD')}
+                                            </Text>
+                                        </View>
+                                    ) : (
+                                        <Text style={styles.timingValue}>
+                                            {event?.date ? dayjs(event.date).format('MMM DD, YYYY') : 'TBD'}
+                                        </Text>
+                                    )}
                                 </View>
                             </View>
 
@@ -412,8 +424,8 @@ const EventDetails = () => {
                                             {event?.endTime || '--:--'}
                                         </Text>
                                         {event?.endDate && event?.date && dayjs(event.endDate).format('YYYYMMDD') !== dayjs(event.date).format('YYYYMMDD') && (
-                                            <Text style={[styles.timingValue, { color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 1 }]} numberOfLines={1} adjustsFontSizeToFit>
-                                                (Next Day, {dayjs(event.endDate).format('MMM DD')})
+                                            <Text style={[styles.timingValue, { color: '#ef4444', fontSize: 12, fontWeight: '700', marginTop: 2 }]} numberOfLines={1}>
+                                                {dayjs(event.endDate).format('MMM DD')}
                                             </Text>
                                         )}
                                     </View>
