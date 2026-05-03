@@ -43,9 +43,9 @@ export const securityService = {
         return response.data;
     },
 
-    // Step 2: Confirm Entry
-    confirmEntry: async (bookingId: string) => {
-        const response = await apiClient.post('/api/v1/security/confirm-entry', { bookingId });
+    // Step 2: Confirm Entry — count = how many guests entering now (default 1)
+    confirmEntry: async (bookingId: string, count: number = 1) => {
+        const response = await apiClient.post('/api/v1/security/confirm-entry', { bookingId, count });
         return response.data;
     }
 };
