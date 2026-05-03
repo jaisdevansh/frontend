@@ -8,7 +8,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../constants/design-system';
 import { useToast } from '../../context/ToastContext';
-import apiClient from '../../services/apiClient';
+import apiClient, { API_BASE_URL } from '../../services/apiClient';
 import SafeFlashList from '../../components/SafeFlashList';
 import * as Haptics from 'expo-haptics';
 import { useWallet } from '../../hooks/economics';
@@ -129,7 +129,8 @@ export default function ReferralScreen() {
 
         const isAvailable = await SMS.isAvailableAsync();
         if (isAvailable) {
-            const message = `Join me on Entry Club! Use my code ${referralCode} to get 50 bonus points. Download here: https://entry-user-backend-mpft.onrender.com/invite/${referralCode}`;
+            const shareLink = `${API_BASE_URL.replace('/api/v1', '')}/invite/${referralCode}`;
+            const message = `Join me on Entry Club! Use my code ${referralCode} to get 50 bonus points. Download here: ${shareLink}`;
             const { result } = await SMS.sendSMSAsync([phoneNumber], message);
             const contactId = (contact as any).id || (contact as any).contactId || '';
             if (result === 'sent' && contactId) {
@@ -170,8 +171,9 @@ export default function ReferralScreen() {
 
     const handleShare = async () => {
         try {
+            const shareLink = `${API_BASE_URL.replace('/api/v1', '')}/invite/${referralCode}`;
             await Share.share({
-                message: `Join Entry Club and discover the best nightlife! Use my referral code: ${referralCode} to get 50 bonus points on signup. https://entry-user-backend-mpft.onrender.com/invite/${referralCode}`,
+                message: `Join Entry Club and discover the best nightlife! Use my referral code: ${referralCode} to get 50 bonus points on signup. ${shareLink}`,
             });
         } catch (error: any) {
             showToast(error.message, 'error');
@@ -179,7 +181,8 @@ export default function ReferralScreen() {
     };
 
     const handleWhatsAppShare = () => {
-        const message = `Join Entry Club and discover the best nightlife! Use my referral code: ${referralCode} to get 50 bonus points on signup. https://entry-user-backend-mpft.onrender.com/invite/${referralCode}`;
+        const shareLink = `${API_BASE_URL.replace('/api/v1', '')}/invite/${referralCode}`;
+        const message = `Join Entry Club and discover the best nightlife! Use my referral code: ${referralCode} to get 50 bonus points on signup. ${shareLink}`;
         Linking.openURL(`whatsapp://send?text=${encodeURIComponent(message)}`).catch(() => {
             showToast('WhatsApp is not installed on this device', 'error');
         });

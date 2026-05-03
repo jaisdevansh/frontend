@@ -115,7 +115,8 @@ export default function FloorPlan() {
     ), [selectedSeats, zonesMetadata, targetZone, toggleSeat, guests]);
 
     const handleProceed = () => {
-        if (selectedSeats.size !== guests) {
+        // Only validate seat count if there are actual physical seats available to select
+        if (seats.length > 0 && selectedSeats.size !== guests) {
             showAlert('Wait', `Please select exactly ${guests} seats.`);
             return;
         }

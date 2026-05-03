@@ -47,19 +47,6 @@ export default function TablePass() {
             userService.getBookingById(bookingId).then(res => {
                 if (res?.success && res.data) {
                     setBooking(res.data);
-                    // hostIdRaw = plain string ObjectId injected by backend (always reliable)
-                    const resolvedHostId =
-                        res.data.hostIdRaw ||                                            // ✅ raw string (best)
-                        res.data.hostId?._id?.toString() ||                             // populated object
-                        (typeof res.data.hostId === 'string' ? res.data.hostId : null); // plain string
-                    console.log('✅ [table-pass] Booking loaded:', JSON.stringify({
-                        bookingId: res.data._id,
-                        hostIdRaw: res.data.hostIdRaw,
-                        resolvedHostId,
-                        status: res.data.status,
-                    }));
-                } else {
-                    console.warn('⚠️ [table-pass] No booking data');
                 }
             }).finally(() => setLoading(false));
         }
@@ -196,10 +183,32 @@ export default function TablePass() {
                     {displayStatus === 'cancelled' ? 'Booking Cancelled' : displayStatus === 'expired' ? 'Booking Expired' : 'Reservation Confirmed'}
                 </Text>
                 <Text style={styles.tableIdLabel}>
-                    {seatIds.length > 1
-                        ? `SEATS: ${seatIds.map(formatSeatId).join(' · ')}`
-                        : `TABLE: ${formatSeatId(tableId)}`
-                    }
+                    {(() => {
+                        const isGeneral = zone.toLowerCase().includes('general') || zone.toLowerCase().includes('guest') || zone.toLowerCase().includes('floor');
+                        const formattedTable = formatSeatId(tableId);
+                        
+                        if (isGeneral || formattedTable.toLowerCase().includes('floor')) {
+                            return `${zone.toUpperCase()} PASS`;
+                        }
+                        
+                        if (seatIds.length > 1) {
+                            return `SEATS: ${seatIds.map(formatSeatId).join(' · ')}`;
+                        }
+                        
+                        // If they booked multiple people but only have 1 "Seat", extrapolate the sequence
+                        if (numGuests > 1 && formattedTable.toLowerCase().includes('seat')) {
+                            const match = formattedTable.match(/(\D+)(\d+)/);
+                            if (match) {
+                                const prefix = match[1]; // e.g., "Seat "
+                                const startNum = parseInt(match[2], 10);
+                                const generatedSeats = Array.from({ length: numGuests }, (_, i) => `${prefix}${startNum + i}`);
+                                return `SEATS: ${generatedSeats.join(' · ')}`;
+                            }
+                            return `GROUP RESERVATION`;
+                        }
+                        
+                        return `TABLE: ${formattedTable}`;
+                    })()}
                 </Text>
 
                 {/* Status badge */}
