@@ -1,233 +1,128 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, ScrollView,
-    ActivityIndicator, Dimensions,
+    ActivityIndicator, Dimensions, Modal, TextInput, Alert,
+    RefreshControl
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStrictBack } from '../../hooks/useStrictBack';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING } from '../../constants/design-system';
+import { COLORS, SPACING, Typography } from '../../constants/design-system';
 import { hostService } from '../../services/hostService';
 import dayjs from 'dayjs';
-import Svg, { Rect, Text as SvgText, Line, Defs, LinearGradient, Stop } from 'react-native-svg';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CHART_WIDTH = SCREEN_WIDTH - 48;
-const CHART_HEIGHT = 200;
-const BAR_RADIUS = 7;
-const PLATFORM_FEE = 0.10;
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface EventRevenue {
-    eventId: string;
-    event_name: string;
-    total_revenue: number;
-    ticket_revenue: number;
-    order_revenue: number;
-    total_tickets_sold: number;
-    total_orders: number;
-}
-
-interface Summary {
-    totalEarnings: number;
-    completedPayout: number;
-    eventRevenue: EventRevenue[];
-}
-
-interface Payment {
-    id: string;
-    memberName: string;
-    plan: string;
+// ─── TYPES ───────────────────────────────────────────────────────────────────
+interface Transaction {
+    _id: string;
     amount: number;
-    status: 'Success' | 'Pending';
-    date: string;
+    type: 'CREDIT' | 'DEBIT';
+    description: string;
+    createdAt: string;
 }
 
-// ─── Bar Chart ────────────────────────────────────────────────────────────────
-const EarningsBarChart = React.memo(({ eventRevenue }: { eventRevenue: EventRevenue[] }) => {
-    if (!eventRevenue.length) {
-        return (
-            <View style={chartStyles.empty}>
-                <Ionicons name="bar-chart-outline" size={40} color="rgba(255,255,255,0.1)" />
-                <Text style={chartStyles.emptyText}>No event revenue data yet</Text>
-            </View>
-        );
-    }
+interface WalletData {
+    balance: number;
+    totalEarned: number;
+    pendingWithdrawal: number;
+}
 
-    const data = eventRevenue.slice(0, 6);
-    const maxRevenue = Math.max(...data.map(e => e.total_revenue), 1);
-    const barCount = data.length;
-    const BAR_GROUP_W = CHART_WIDTH / barCount;
-    const HALF_BAR = Math.min(BAR_GROUP_W * 0.26, 18);
-    const GAP = 3;
-    const BOTTOM_H = 36;
-    const GRAPH_H = CHART_HEIGHT - BOTTOM_H;
-    const Y_LINES = 4;
+interface BankDetails {
+    accountNumber: string;
+    ifscCode: string;
+    accountHolderName: string;
+    upiId: string;
+    bankName: string;
+}
 
-    return (
-        <View>
-            <View style={chartStyles.legend}>
-                <View style={chartStyles.legendItem}>
-                    <View style={[chartStyles.legendDot, { backgroundColor: 'rgba(124,77,255,0.7)' }]} />
-                    <Text style={chartStyles.legendText}>Gross</Text>
-                </View>
-                <View style={chartStyles.legendItem}>
-                    <View style={[chartStyles.legendDot, { backgroundColor: COLORS.emerald }]} />
-                    <Text style={chartStyles.legendText}>Net (after 10% fee)</Text>
-                </View>
-            </View>
-
-            <Svg width={CHART_WIDTH} height={CHART_HEIGHT + 10}>
-                <Defs>
-                    <LinearGradient id="gG" x1="0" y1="0" x2="0" y2="1">
-                        <Stop offset="0" stopColor="#7C4DFF" stopOpacity="0.9" />
-                        <Stop offset="1" stopColor="#7C4DFF" stopOpacity="0.2" />
-                    </LinearGradient>
-                    <LinearGradient id="nG" x1="0" y1="0" x2="0" y2="1">
-                        <Stop offset="0" stopColor="#10B981" stopOpacity="0.95" />
-                        <Stop offset="1" stopColor="#10B981" stopOpacity="0.3" />
-                    </LinearGradient>
-                </Defs>
-
-                {/* Horizontal guide lines */}
-                {Array.from({ length: Y_LINES + 1 }).map((_, i) => {
-                    const y = (GRAPH_H / Y_LINES) * i;
-                    const val = maxRevenue - (maxRevenue / Y_LINES) * i;
-                    return (
-                        <React.Fragment key={i}>
-                            <Line x1={0} y1={y} x2={CHART_WIDTH} y2={y}
-                                stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
-                            <SvgText x={2} y={y - 3} fill="rgba(255,255,255,0.25)"
-                                fontSize={9} fontWeight="500">
-                                {val >= 1000 ? `₹${Math.round(val / 1000)}k` : `₹${Math.round(val)}`}
-                            </SvgText>
-                        </React.Fragment>
-                    );
-                })}
-
-                {/* Bars per event */}
-                {data.map((ev, i) => {
-                    const cx = BAR_GROUP_W * i + BAR_GROUP_W / 2;
-                    const grossH = Math.max((ev.total_revenue / maxRevenue) * GRAPH_H, 4);
-                    const netH = Math.max((ev.total_revenue * 0.9 / maxRevenue) * GRAPH_H, 4);
-                    const grossX = cx - HALF_BAR - GAP / 2 - HALF_BAR;
-                    const netX = cx + GAP / 2;
-                    const label = ev.event_name?.split(' ')[0]?.substring(0, 7) ?? `E${i + 1}`;
-                    const netVal = Math.round(ev.total_revenue * 0.9);
-
-                    return (
-                        <React.Fragment key={ev.eventId || i}>
-                            <Rect x={grossX} y={GRAPH_H - grossH} width={HALF_BAR}
-                                height={grossH} fill="url(#gG)" rx={BAR_RADIUS} ry={BAR_RADIUS} />
-                            <Rect x={netX} y={GRAPH_H - netH} width={HALF_BAR}
-                                height={netH} fill="url(#nG)" rx={BAR_RADIUS} ry={BAR_RADIUS} />
-                            <SvgText x={cx} y={GRAPH_H + 16} fill="rgba(255,255,255,0.4)"
-                                fontSize={9} fontWeight="600" textAnchor="middle">
-                                {label}
-                            </SvgText>
-                            {netH > 22 && (
-                                <SvgText x={netX + HALF_BAR / 2} y={GRAPH_H - netH - 5}
-                                    fill="#10B981" fontSize={8} fontWeight="700" textAnchor="middle">
-                                    {netVal >= 1000 ? `${Math.round(netVal / 1000)}k` : `${netVal}`}
-                                </SvgText>
-                            )}
-                        </React.Fragment>
-                    );
-                })}
-            </Svg>
-        </View>
-    );
-});
-
-EarningsBarChart.displayName = 'EarningsBarChart';
-
-const chartStyles = StyleSheet.create({
-    legend: { flexDirection: 'row', gap: 20, marginBottom: 14 },
-    legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    legendDot: { width: 10, height: 10, borderRadius: 5 },
-    legendText: { color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: '600' },
-    empty: { height: 160, alignItems: 'center', justifyContent: 'center', gap: 10 },
-    emptyText: { color: 'rgba(255,255,255,0.2)', fontSize: 13 },
-});
-
-// ─── Tab Type ─────────────────────────────────────────────────────────────────
-type Tab = 'All' | 'Success' | 'Pending';
-const TABS: Tab[] = ['All', 'Success', 'Pending'];
-
-// ─── Main Screen ──────────────────────────────────────────────────────────────
-export default function InsightsPayouts() {
+export default function HostWalletScreen() {
     const insets = useSafeAreaInsets();
     const goBack = useStrictBack('/(host)/profile');
 
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(false);
-    const [activeTab, setActiveTab] = useState<Tab>('All');
-    const [summary, setSummary] = useState<Summary>({
-        totalEarnings: 0,
-        completedPayout: 0,
-        eventRevenue: [],
+    const [refreshing, setRefreshing] = useState(false);
+    const [wallet, setWallet] = useState<WalletData>({ balance: 0, totalEarned: 0, pendingWithdrawal: 0 });
+    const [bankDetails, setBankDetails] = useState<BankDetails>({
+        accountNumber: '', ifscCode: '', accountHolderName: '', upiId: '', bankName: ''
     });
-    const [payments, setPayments] = useState<Payment[]>([]);
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [pendingRequests, setPendingRequests] = useState<any[]>([]);
 
-    const fetchData = useCallback(async () => {
-        setError(false);
-        setLoading(true);
+    const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+    const [showBankModal, setShowBankModal] = useState(false);
+    const [withdrawAmount, setWithdrawAmount] = useState('');
+
+    const fetchWalletData = useCallback(async () => {
         try {
-            const [payoutRes, paymentRes] = await Promise.all([
-                hostService.getPayouts(),
-                hostService.getPayments(),
-            ]);
-            if (payoutRes.success) setSummary(payoutRes.data.summary);
-            if (paymentRes.success) setPayments(paymentRes.data);
-        } catch {
-            setError(true);
+            const res = await hostService.getWalletDetails();
+            if (res.success) {
+                setWallet(res.data.wallet || { balance: 0, totalEarned: 0, pendingWithdrawal: 0 });
+                setBankDetails(res.data.bankDetails || {
+                    accountNumber: '', ifscCode: '', accountHolderName: '', upiId: '', bankName: ''
+                });
+                setTransactions(res.data.transactions || []);
+                setPendingRequests(res.data.pendingWithdrawals || []);
+            }
+        } catch (error) {
+            console.error('Wallet Fetch Error:', error);
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     }, []);
 
-    useEffect(() => { fetchData(); }, [fetchData]);
+    useEffect(() => { fetchWalletData(); }, [fetchWalletData]);
 
-    // Derived values – computed once on summary change
-    const { gross, fee, net, pending } = useMemo(() => {
-        const g = summary.totalEarnings;
-        const f = g * PLATFORM_FEE;
-        return {
-            gross: g,
-            fee: f,
-            net: g - f,
-            pending: Math.max(0, (g - f) - summary.completedPayout),
-        };
-    }, [summary]);
+    const onRefresh = () => {
+        setRefreshing(true);
+        fetchWalletData();
+    };
 
-    const filteredPayments = useMemo(() =>
-        activeTab === 'All' ? payments : payments.filter(p => p.status === activeTab),
-        [payments, activeTab]
-    );
+    const handleWithdraw = async () => {
+        const amount = parseFloat(withdrawAmount);
+        if (!amount || amount <= 0) return Alert.alert('Invalid Amount', 'Please enter a valid amount to withdraw.');
+        if (amount > wallet.balance) return Alert.alert('Insufficient Balance', 'You cannot withdraw more than your current balance.');
+        
+        if (!bankDetails.upiId && !bankDetails.accountNumber) {
+            return Alert.alert('Bank Details Missing', 'Please add your Bank or UPI details before withdrawing.', [
+                { text: 'Add Now', onPress: () => setShowBankModal(true) },
+                { text: 'Cancel' }
+            ]);
+        }
 
-    const fmt = (n: number) => `₹${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+        try {
+            const res = await hostService.requestWithdrawal(amount);
+            if (res.success) {
+                Alert.alert('Success 🎉', 'Withdrawal request submitted! Admin will process it shortly.');
+                setWithdrawAmount('');
+                setShowWithdrawModal(false);
+                fetchWalletData();
+            }
+        } catch (error: any) {
+            Alert.alert('Error', error.response?.data?.message || 'Failed to submit request');
+        }
+    };
 
-    // ── Loading ──
+    const handleSaveBankDetails = async () => {
+        try {
+            const res = await hostService.updateBankDetails(bankDetails);
+            if (res.success) {
+                Alert.alert('Success', 'Bank details updated successfully.');
+                setShowBankModal(false);
+                fetchWalletData();
+            }
+        } catch (error) {
+            Alert.alert('Error', 'Failed to update bank details');
+        }
+    };
+
+    const fmt = (n: number) => `₹${Math.abs(n).toLocaleString()}`;
+
     if (loading) {
         return (
-            <View style={[styles.center, { paddingTop: insets.top, backgroundColor: COLORS.background.dark }]}>
+            <View style={[styles.center, { backgroundColor: COLORS.background.dark }]}>
                 <ActivityIndicator size="large" color={COLORS.primary} />
-            </View>
-        );
-    }
-
-    // ── Error ──
-    if (error) {
-        return (
-            <View style={[styles.center, { paddingTop: insets.top, backgroundColor: COLORS.background.dark }]}>
-                <Ionicons name="cloud-offline-outline" size={56} color="rgba(255,255,255,0.15)" />
-                <Text style={{ color: 'rgba(255,255,255,0.5)', marginTop: 12 }}>Failed to load insights</Text>
-                <TouchableOpacity
-                    style={{ marginTop: 20, backgroundColor: COLORS.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
-                    onPress={fetchData}
-                >
-                    <Text style={{ color: '#fff', fontWeight: '700' }}>Retry</Text>
-                </TouchableOpacity>
             </View>
         );
     }
@@ -239,138 +134,166 @@ export default function InsightsPayouts() {
                 <TouchableOpacity style={styles.backBtn} onPress={goBack}>
                     <Ionicons name="arrow-back" size={24} color="white" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Insights & Payouts</Text>
-                <TouchableOpacity style={styles.backBtn} onPress={fetchData}>
-                    <Ionicons name="refresh-outline" size={20} color="rgba(255,255,255,0.5)" />
-                </TouchableOpacity>
+                <Text style={styles.headerTitle}>My Wallet</Text>
+                <View style={{ width: 44 }} />
             </View>
 
-            <ScrollView
+            <ScrollView 
                 contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-                removeClippedSubviews
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
             >
-                {/* ── Hero: Net Earnings ── */}
-                <View style={styles.heroCard}>
-                    <View style={styles.heroRow}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.heroLabel}>NET EARNINGS</Text>
-                            <Text style={styles.heroValue}>{fmt(net)}</Text>
-                            <Text style={styles.heroSub}>After 10% platform fee deduction</Text>
+                {/* Main Balance Card */}
+                <View style={styles.balanceCard}>
+                    <Text style={styles.balanceLabel}>AVAILABLE BALANCE</Text>
+                    <Text style={styles.balanceValue}>{fmt(wallet.balance)}</Text>
+                    
+                    <View style={styles.balanceStats}>
+                        <View style={styles.miniStat}>
+                            <Text style={styles.miniLabel}>Total Earned</Text>
+                            <Text style={styles.miniValue}>{fmt(wallet.totalEarned)}</Text>
                         </View>
-                        <View style={styles.feeBox}>
-                            <Ionicons name="remove-circle" size={14} color="#ef4444" />
-                            <Text style={styles.feeText}>{fmt(fee)}</Text>
-                            <Text style={styles.feeLabel}>Platform Fee</Text>
+                        <View style={styles.miniDivider} />
+                        <View style={styles.miniStat}>
+                            <Text style={styles.miniLabel}>Pending</Text>
+                            <Text style={[styles.miniValue, { color: COLORS.gold }]}>{fmt(wallet.pendingWithdrawal)}</Text>
                         </View>
                     </View>
+
+                    <TouchableOpacity 
+                        style={styles.withdrawBtn}
+                        onPress={() => setShowWithdrawModal(true)}
+                    >
+                        <Text style={styles.withdrawBtnText}>Withdraw Money</Text>
+                    </TouchableOpacity>
                 </View>
 
-                {/* ── Stats Row ── */}
-                <View style={styles.statsRow}>
-                    <View style={styles.statCard}>
-                        <Text style={styles.statLabel}>Gross Revenue</Text>
-                        <Text style={styles.statValue}>{fmt(gross)}</Text>
-                    </View>
-                    <View style={[styles.statCard, { borderColor: 'rgba(212,175,55,0.4)' }]}>
-                        <Text style={styles.statLabel}>Pending</Text>
-                        <Text style={[styles.statValue, { color: COLORS.gold }]}>{fmt(pending)}</Text>
-                    </View>
-                    <View style={[styles.statCard, { borderColor: 'rgba(16,185,129,0.4)' }]}>
-                        <Text style={styles.statLabel}>Paid Out</Text>
-                        <Text style={[styles.statValue, { color: COLORS.emerald }]}>{fmt(summary.completedPayout)}</Text>
-                    </View>
-                </View>
+                {/* Bank Details Shortcut */}
+                <TouchableOpacity style={styles.bankShortcut} onPress={() => setShowBankModal(true)}>
+                    <Ionicons name="card-outline" size={20} color={COLORS.primary} />
+                    <Text style={styles.bankShortcutText}>
+                        {bankDetails.upiId || bankDetails.accountNumber ? 'Manage Payout Details' : 'Add Bank/UPI Details'}
+                    </Text>
+                    <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.3)" />
+                </TouchableOpacity>
 
-                {/* ── Revenue Chart ── */}
-                <View style={styles.card}>
-                    <Text style={styles.sectionTitle}>Revenue by Event</Text>
-                    <Text style={styles.sectionSub}>Purple = Gross · Green = Real Income</Text>
-                    <EarningsBarChart eventRevenue={summary.eventRevenue} />
-                </View>
-
-                {/* ── Per-Event Table ── */}
-                {summary.eventRevenue.length > 0 && (
-                    <View style={styles.card}>
-                        <Text style={styles.sectionTitle}>Per-Event Breakdown</Text>
-                        {summary.eventRevenue.slice(0, 8).map((ev, i) => (
-                            <View
-                                key={ev.eventId || i}
-                                style={[
-                                    styles.tableRow,
-                                    i === Math.min(summary.eventRevenue.length, 8) - 1 && { borderBottomWidth: 0 }
-                                ]}
-                            >
-                                <View style={{ flex: 1, marginRight: 8 }}>
-                                    <Text style={styles.tableEventName} numberOfLines={1}>{ev.event_name}</Text>
-                                    <Text style={styles.tableSubInfo}>
-                                        {ev.total_tickets_sold} tickets · {ev.total_orders} orders
-                                    </Text>
-                                </View>
-                                <View style={{ alignItems: 'flex-end' }}>
-                                    <Text style={styles.tableNet}>{fmt(ev.total_revenue * 0.9)}</Text>
-                                    <Text style={styles.tableGross}>Gross {fmt(ev.total_revenue)}</Text>
-                                </View>
+                {/* Transactions Ledger */}
+                <Text style={styles.sectionTitle}>Recent History</Text>
+                {transactions.length === 0 ? (
+                    <View style={styles.emptyContainer}>
+                        <Ionicons name="receipt-outline" size={48} color="rgba(255,255,255,0.05)" />
+                        <Text style={styles.emptyText}>No transactions yet</Text>
+                    </View>
+                ) : (
+                    transactions.map((tx) => (
+                        <View key={tx._id} style={styles.txItem}>
+                            <View style={[styles.txIcon, { backgroundColor: tx.type === 'CREDIT' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)' }]}>
+                                <Ionicons 
+                                    name={tx.type === 'CREDIT' ? 'arrow-down' : 'arrow-up'} 
+                                    size={18} 
+                                    color={tx.type === 'CREDIT' ? COLORS.emerald : '#ef4444'} 
+                                />
                             </View>
-                        ))}
-                    </View>
-                )}
-
-                {/* ── Filter Tabs ── */}
-                <View style={styles.tabBar}>
-                    {TABS.map((tab) => (
-                        <TouchableOpacity
-                            key={tab}
-                            style={[styles.tab, activeTab === tab && styles.activeTab]}
-                            onPress={() => setActiveTab(tab)}
-                            activeOpacity={0.8}
-                        >
-                            <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{tab}</Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-
-                {/* ── Payments List ── */}
-                <View style={styles.listContainer}>
-                    <Text style={styles.sectionTitle}>Member Payments</Text>
-                    {filteredPayments.length === 0 ? (
-                        <View style={styles.emptyState}>
-                            <Ionicons name="receipt-outline" size={44} color="rgba(255,255,255,0.08)" />
-                            <Text style={styles.emptyText}>No transactions found</Text>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.txDesc} numberOfLines={1}>{tx.description}</Text>
+                                <Text style={styles.txDate}>{dayjs(tx.createdAt).format('MMM DD, YYYY • hh:mm A')}</Text>
+                            </View>
+                            <Text style={[styles.txAmount, { color: tx.type === 'CREDIT' ? COLORS.emerald : '#ef4444' }]}>
+                                {tx.type === 'CREDIT' ? '+' : '-'} {fmt(tx.amount)}
+                            </Text>
                         </View>
-                    ) : (
-                        filteredPayments.map((item, index) => {
-                            const netPay = Math.round(item.amount * 0.9);
-                            const isSuccess = item.status === 'Success';
-                            return (
-                                <View key={item.id || index} style={styles.paymentCard}>
-                                    <View style={styles.paymentMain}>
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={styles.memberName}>{item.memberName}</Text>
-                                            <Text style={styles.planName}>{item.plan}</Text>
-                                        </View>
-                                        <View style={{ alignItems: 'flex-end' }}>
-                                            <Text style={styles.amountGross}>₹{item.amount}</Text>
-                                            <Text style={styles.amountNet}>₹{netPay}</Text>
-                                            <View style={[
-                                                styles.statusBadge,
-                                                { backgroundColor: isSuccess ? 'rgba(16,185,129,0.1)' : 'rgba(212,175,55,0.1)' }
-                                            ]}>
-                                                <Text style={[styles.statusText, { color: isSuccess ? COLORS.emerald : COLORS.gold }]}>
-                                                    {item.status}
-                                                </Text>
-                                            </View>
-                                        </View>
-                                    </View>
-                                    <Text style={styles.date}>{dayjs(item.date).format('MMM DD, YYYY • hh:mm A')}</Text>
-                                </View>
-                            );
-                        })
-                    )}
-                </View>
+                    ))
+                )}
 
                 <View style={{ height: 40 }} />
             </ScrollView>
+
+            {/* WITHDRAW MODAL */}
+            <Modal visible={showWithdrawModal} animationType="slide" transparent>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Request Withdrawal</Text>
+                            <TouchableOpacity onPress={() => setShowWithdrawModal(false)}>
+                                <Ionicons name="close" size={24} color="white" />
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text style={styles.inputLabel}>Enter Amount (Max {fmt(wallet.balance)})</Text>
+                        <TextInput
+                            style={styles.modalInput}
+                            placeholder="₹ 0.00"
+                            placeholderTextColor="rgba(255,255,255,0.2)"
+                            keyboardType="numeric"
+                            value={withdrawAmount}
+                            onChangeText={setWithdrawAmount}
+                            autoFocus
+                        />
+
+                        <TouchableOpacity style={styles.submitBtn} onPress={handleWithdraw}>
+                            <Text style={styles.submitBtnText}>Confirm Withdrawal</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* BANK DETAILS MODAL */}
+            <Modal visible={showBankModal} animationType="slide" transparent>
+                <View style={styles.modalOverlay}>
+                    <ScrollView contentContainerStyle={styles.modalContent} style={{ maxHeight: '80%' }}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Payout Details</Text>
+                            <TouchableOpacity onPress={() => setShowBankModal(false)}>
+                                <Ionicons name="close" size={24} color="white" />
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text style={styles.inputLabel}>UPI ID (Preferred)</Text>
+                        <TextInput
+                            style={styles.modalInput}
+                            placeholder="example@okaxis"
+                            placeholderTextColor="rgba(255,255,255,0.2)"
+                            value={bankDetails.upiId}
+                            onChangeText={(t) => setBankDetails({...bankDetails, upiId: t})}
+                        />
+
+                        <View style={styles.modalDivider} />
+                        <Text style={styles.modalOr}>OR BANK ACCOUNT</Text>
+
+                        <Text style={styles.inputLabel}>Account Holder Name</Text>
+                        <TextInput
+                            style={styles.modalInput}
+                            placeholder="Legal Name"
+                            placeholderTextColor="rgba(255,255,255,0.2)"
+                            value={bankDetails.accountHolderName}
+                            onChangeText={(t) => setBankDetails({...bankDetails, accountHolderName: t})}
+                        />
+
+                        <Text style={styles.inputLabel}>Account Number</Text>
+                        <TextInput
+                            style={styles.modalInput}
+                            placeholder="0000 0000 0000"
+                            placeholderTextColor="rgba(255,255,255,0.2)"
+                            keyboardType="numeric"
+                            value={bankDetails.accountNumber}
+                            onChangeText={(t) => setBankDetails({...bankDetails, accountNumber: t})}
+                        />
+
+                        <Text style={styles.inputLabel}>IFSC Code</Text>
+                        <TextInput
+                            style={styles.modalInput}
+                            placeholder="SBIN0001234"
+                            placeholderTextColor="rgba(255,255,255,0.2)"
+                            autoCapitalize="characters"
+                            value={bankDetails.ifscCode}
+                            onChangeText={(t) => setBankDetails({...bankDetails, ifscCode: t})}
+                        />
+
+                        <TouchableOpacity style={styles.submitBtn} onPress={handleSaveBankDetails}>
+                            <Text style={styles.submitBtnText}>Save Details</Text>
+                        </TouchableOpacity>
+                    </ScrollView>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -390,77 +313,72 @@ const styles = StyleSheet.create({
     headerTitle: { color: 'white', fontSize: 18, fontWeight: '700' },
     scrollContent: { padding: 20 },
 
-    // Hero
-    heroCard: {
-        backgroundColor: 'rgba(16,185,129,0.07)',
-        borderRadius: 20, borderWidth: 1.5,
-        borderColor: 'rgba(16,185,129,0.25)',
-        padding: 20, marginBottom: 14,
+    // Balance Card
+    balanceCard: {
+        backgroundColor: COLORS.primary,
+        borderRadius: 24, padding: 24,
+        alignItems: 'center', marginBottom: 20,
+        elevation: 8, shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20,
     },
-    heroRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
-    heroLabel: { color: COLORS.emerald, fontSize: 11, fontWeight: '800', letterSpacing: 1.5, marginBottom: 4 },
-    heroValue: { color: '#fff', fontSize: 32, fontWeight: '900', marginBottom: 4 },
-    heroSub: { color: 'rgba(255,255,255,0.35)', fontSize: 11 },
-    feeBox: {
-        alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.08)',
-        padding: 12, borderRadius: 12, borderWidth: 1,
-        borderColor: 'rgba(239,68,68,0.15)', gap: 2,
+    balanceLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '800', letterSpacing: 2, marginBottom: 8 },
+    balanceValue: { color: 'white', fontSize: 42, fontWeight: '900', marginBottom: 24 },
+    balanceStats: { flexDirection: 'row', alignItems: 'center', gap: 20, marginBottom: 24 },
+    miniStat: { alignItems: 'center' },
+    miniLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 10, fontWeight: '700', textTransform: 'uppercase', marginBottom: 4 },
+    miniValue: { color: 'white', fontSize: 15, fontWeight: '800' },
+    miniDivider: { width: 1, height: 30, backgroundColor: 'rgba(255,255,255,0.1)' },
+    withdrawBtn: {
+        backgroundColor: 'white', paddingHorizontal: 32, paddingVertical: 14,
+        borderRadius: 14, width: '100%', alignItems: 'center'
     },
-    feeText: { color: '#ef4444', fontSize: 15, fontWeight: '800' },
-    feeLabel: { color: 'rgba(239,68,68,0.55)', fontSize: 9, fontWeight: '700', textTransform: 'uppercase' },
+    withdrawBtnText: { color: COLORS.primary, fontSize: 16, fontWeight: '800' },
 
-    // Stats
-    statsRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
-    statCard: {
-        flex: 1, backgroundColor: 'rgba(255,255,255,0.03)',
-        borderRadius: 14, padding: 12,
+    bankShortcut: {
+        flexDirection: 'row', alignItems: 'center', gap: 12,
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        padding: 16, borderRadius: 16, marginBottom: 32,
         borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
     },
-    statLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 9, fontWeight: '700', textTransform: 'uppercase', marginBottom: 6, letterSpacing: 0.5 },
-    statValue: { color: 'white', fontSize: 13, fontWeight: '800' },
+    bankShortcutText: { flex: 1, color: 'white', fontSize: 14, fontWeight: '600' },
 
-    // Cards
-    card: {
-        backgroundColor: 'rgba(255,255,255,0.02)',
-        borderRadius: 20, borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.06)',
-        padding: 20, marginBottom: 14,
+    // History
+    sectionTitle: { color: 'white', fontSize: 18, fontWeight: '800', marginBottom: 16 },
+    txItem: {
+        flexDirection: 'row', alignItems: 'center', gap: 12,
+        marginBottom: 16, backgroundColor: 'rgba(255,255,255,0.02)',
+        padding: 12, borderRadius: 16,
     },
-    sectionTitle: { color: 'white', fontSize: 16, fontWeight: '800', marginBottom: 4 },
-    sectionSub: { color: 'rgba(255,255,255,0.3)', fontSize: 11, marginBottom: 18 },
+    txIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+    txDesc: { color: 'white', fontSize: 14, fontWeight: '700', marginBottom: 2 },
+    txDate: { color: 'rgba(255,255,255,0.3)', fontSize: 11 },
+    txAmount: { fontSize: 15, fontWeight: '800' },
+    emptyContainer: { alignItems: 'center', paddingVertical: 40, opacity: 0.5 },
+    emptyText: { color: 'white', fontSize: 14, marginTop: 12 },
 
-    // Table
-    tableRow: {
-        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-        paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)',
+    // Modals
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' },
+    modalContent: { 
+        backgroundColor: '#1A1A1A', borderTopLeftRadius: 30, borderTopRightRadius: 30,
+        padding: 24, paddingBottom: 40,
     },
-    tableEventName: { color: 'white', fontSize: 13, fontWeight: '700', marginBottom: 2 },
-    tableSubInfo: { color: 'rgba(255,255,255,0.35)', fontSize: 11 },
-    tableNet: { color: COLORS.emerald, fontSize: 14, fontWeight: '800' },
-    tableGross: { color: 'rgba(255,255,255,0.3)', fontSize: 10, marginTop: 2 },
-
-    // Tabs
-    tabBar: { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: 4, marginBottom: 14 },
-    tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
-    activeTab: { backgroundColor: COLORS.primary },
-    tabText: { color: 'rgba(255,255,255,0.4)', fontSize: 14, fontWeight: '600' },
-    activeTabText: { color: 'white' },
-
-    // Payment cards
-    listContainer: { gap: 10 },
-    paymentCard: {
-        backgroundColor: 'rgba(255,255,255,0.02)',
-        borderRadius: 16, padding: 16,
-        borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)',
+    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+    modalTitle: { color: 'white', fontSize: 20, fontWeight: '800' },
+    inputLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: '700', marginBottom: 10, marginTop: 16 },
+    modalInput: {
+        backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14,
+        padding: 16, color: 'white', fontSize: 16, fontWeight: '600',
+        borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
     },
-    paymentMain: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
-    memberName: { color: 'white', fontSize: 15, fontWeight: '700' },
-    planName: { color: 'rgba(255,255,255,0.4)', fontSize: 12, marginTop: 2 },
-    amountGross: { color: 'rgba(255,255,255,0.35)', fontSize: 11, fontWeight: '500', textDecorationLine: 'line-through' },
-    amountNet: { color: '#fff', fontSize: 17, fontWeight: '800' },
-    statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, marginTop: 4 },
-    statusText: { fontSize: 9, fontWeight: '800', textTransform: 'uppercase' },
-    date: { color: 'rgba(255,255,255,0.3)', fontSize: 11 },
-    emptyState: { alignItems: 'center', paddingVertical: 40 },
-    emptyText: { color: 'rgba(255,255,255,0.2)', marginTop: 12, fontSize: 14 },
+    submitBtn: {
+        backgroundColor: COLORS.primary, borderRadius: 14,
+        padding: 18, alignItems: 'center', marginTop: 32,
+    },
+    submitBtnText: { color: 'white', fontSize: 16, fontWeight: '800' },
+    modalDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.1)', marginVertical: 24 },
+    modalOr: { 
+        textAlign: 'center', color: 'rgba(255,255,255,0.2)', fontSize: 10,
+        fontWeight: '800', letterSpacing: 2, position: 'absolute',
+        top: '47.5%', left: '40%', backgroundColor: '#1A1A1A', paddingHorizontal: 10
+    }
 });

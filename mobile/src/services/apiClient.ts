@@ -17,18 +17,18 @@ const getBaseUrl = () => {
     const env = Constants.expoConfig?.extra?.ENV || 'production';
 
     if (env === 'development') {
-        return `http://${LOCAL_IP}:3001`;   // Local dev
+        return `http://${LOCAL_IP}:3001`;   // Local dev fallback
     }
-    return 'https://stayin.in/api1';        // ✅ Production (AWS Nginx)
+    return 'https://stayin.in/api1';        // 🚀 Production (AWS Nginx)
 };
 
 const getAdminBaseUrl = () => {
     const env = Constants.expoConfig?.extra?.ENV || 'production';
 
     if (env === 'development') {
-        return `http://${LOCAL_IP}:3002`;   // Local dev
+        return `http://${LOCAL_IP}:3002`;   // Local dev fallback
     }
-    return 'https://stayin.in/api2';        // ✅ Production (AWS Nginx)
+    return 'https://stayin.in/api2';        // 🚀 Production (AWS Nginx)
 };
 
 export const API_BASE_URL = getBaseUrl();
@@ -122,6 +122,8 @@ apiClient.interceptors.request.use(
                 'api/v1/waiter',
                 'api/v1/security',
                 'api/chat',        // 🆕 Production Chat System
+                'api/v1/host',     // 🆕 Host Wallet & Bank Details
+                'api/v1/admin',    // 🆕 Admin Wallet
             ];
 
             if (adminPrefixes.some(prefix => normalizedUrl.startsWith(prefix))) {

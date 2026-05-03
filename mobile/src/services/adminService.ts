@@ -94,6 +94,18 @@ export interface PendingHost {
     createdAt: string;
     totalRevenue?: number;
     adminCut?: number;
+    wallet?: {
+        balance: number;
+        totalEarned: number;
+        pendingWithdrawal: number;
+    };
+    bankDetails?: {
+        accountNumber: string;
+        ifscCode: string;
+        accountHolderName: string;
+        upiId: string;
+        bankName: string;
+    };
 }
 
 export interface RevenueTrend {
@@ -265,6 +277,16 @@ const adminService = {
 
     updateProfile: async (data: { name?: string, profileImage?: string }) => {
         const response = await apiClient.put('/admin/profile/update', data);
+        return response.data;
+    },
+
+    // 💰 Payout Management (NEW)
+    getPayoutRequests: async () => {
+        const response = await apiClient.get('/api/v1/admin/wallet/requests');
+        return response.data;
+    },
+    processPayoutRequest: async (requestId: string, data: { status: 'PAID' | 'REJECTED', adminNote?: string, payoutId?: string }) => {
+        const response = await apiClient.put(`/api/v1/admin/wallet/requests/${requestId}`, data);
         return response.data;
     },
 };

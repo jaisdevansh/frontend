@@ -9,6 +9,7 @@ import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import adminService, { AdminHost, AdminStaff } from '../../services/adminService';
 import { DashboardSkeleton } from '../../components/admin/AdminSkeleton';
 
@@ -61,7 +62,11 @@ const StaffRow = React.memo(({ staff, isLast, onAction }: { staff: AdminStaff; i
         <View style={[styles.staffRow, isLast && styles.staffRowLast]}>
             {/* Avatar */}
             <View style={[styles.staffAvatar, { backgroundColor: rc.bg, borderColor: rc.color + '20' }]}>
-                <MaterialIcons name={rc.icon as any} size={16} color={rc.color} />
+                {staff.profileImage ? (
+                    <Image source={{ uri: staff.profileImage }} style={styles.staffAvatarImg} />
+                ) : (
+                    <MaterialIcons name={rc.icon as any} size={16} color={rc.color} />
+                )}
             </View>
 
             {/* Info */}
@@ -190,7 +195,11 @@ const HostCard = React.memo(({ host, index }: { host: AdminHost; index: number }
                         colors={['rgba(108,99,255,0.4)', 'rgba(108,99,255,0.05)']}
                         style={styles.hostAvatar}
                     >
-                        <Text style={styles.hostInitials}>{initials}</Text>
+                        {host.profileImage ? (
+                            <Image source={{ uri: host.profileImage }} style={styles.hostAvatarImg} />
+                        ) : (
+                            <Text style={styles.hostInitials}>{initials}</Text>
+                        )}
                         <View style={styles.hostAvatarRing} />
                     </LinearGradient>
 
@@ -500,7 +509,10 @@ const styles = StyleSheet.create({
         width: 40, height: 40, borderRadius: 14,
         justifyContent: 'center', alignItems: 'center',
         borderWidth: 1,
+        overflow: 'hidden',
     },
+    staffAvatarImg: { width: '100%', height: '100%' },
+    hostAvatarImg: { width: '100%', height: '100%', borderRadius: 18 },
     staffInfo: { flex: 1, gap: 4 },
     staffNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     statusContainerSmall: { position: 'relative', width: 6, height: 6, justifyContent: 'center', alignItems: 'center' },

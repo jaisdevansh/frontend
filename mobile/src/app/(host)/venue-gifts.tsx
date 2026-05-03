@@ -54,14 +54,7 @@ export default function VenueGiftsScreen() {
     // STAGE 4: PRODUCTION-GRADE ASSET CACHE
     const localAssetCache = React.useRef<Record<string, string>>({});
 
-    // 🔍 DEBUG: Keyboard tracker — remove after testing
-    const [keyboardHeight, setKeyboardHeight] = useState(0);
-    useEffect(() => {
-        const screenH = Dimensions.get('window').height;
-        const show = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
-        const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
-        return () => { show.remove(); hide.remove(); };
-    }, []);
+    // Removed debug keyboard tracker that was causing flickering
 
     // ─── Fetch gifts from standalone Gift collection ───────────────────────────
     const fetchGifts = useCallback(async () => {
@@ -86,9 +79,9 @@ export default function VenueGiftsScreen() {
             quality: 0.3,
             base64: true, // Absolute hydration for backend background sync
         });
-        if (!result.canceled && result.assets && result.assets[0].base64) {
-            const base64Img = `data:image/jpeg;base64,${result.assets[0].base64}`;
-            setFormData(f => ({ ...f, image: base64Img }));
+        if (!result.canceled && result.assets && result.assets[0].uri) {
+            const imgUri = result.assets[0].uri;
+            setFormData(f => ({ ...f, image: imgUri }));
         }
     };
 
@@ -139,20 +132,26 @@ export default function VenueGiftsScreen() {
 
         // --- STAGE 3: BACKGROUND ASYNC PERSISTENCE ---
         setTimeout(async () => {
-             if (formData.image) {
-                localAssetCache.current[tempId] = formData.image;
+             const imageToUpload = formData.image;
+             if (imageToUpload) {
+                localAssetCache.current[tempId] = imageToUpload;
              }
              
              try {
-                // Sending the full Base64 payload for backend background upload 
-                const payload = { ...tempGift, image: formData.image || undefined };
+                // If it's a local URI, upload it first to get the URL
+                let finalImageUrl = imageToUpload;
+                if (imageToUpload && !imageToUpload.startsWith('http')) {
+                    finalImageUrl = await uploadImage(imageToUpload);
+                }
+
+                const payload = { ...tempGift, image: finalImageUrl || undefined };
                 const res = formData._id 
                     ? await hostService.updateGift(formData._id, payload)
                     : await hostService.createGift(payload);
 
                 if (res.success) {
-                    if (!formData._id && res.data?._id && formData.image) {
-                        localAssetCache.current[res.data._id] = formData.image;
+                    if (!formData._id && res.data?._id && imageToUpload) {
+                        localAssetCache.current[res.data._id] = imageToUpload;
                     }
                     showToast(formData._id ? 'Updated' : 'Added', 'success');
                     fetchGifts(); 
@@ -160,7 +159,7 @@ export default function VenueGiftsScreen() {
             } catch (err) {
                 showToast('Sync paused. Retrying...', 'warning');
             }
-        }, 300);
+        }, 100);
     };
 
     // ─── Delete ────────────────────────────────────────────────────────────────
@@ -294,7 +293,7 @@ export default function VenueGiftsScreen() {
                             {/* Image Picker */}
                             <TouchableOpacity style={styles.imagePicker} onPress={pickImage} activeOpacity={0.8}>
                                 {formData.image ? (
-                                    <Image source={{ uri: formData.image }} style={styles.pickedImage} contentFit="cover" transition={200} />
+                                    <Image source={{ uri: formData.image }} style={styles.pickedImage} contentFit="cover" />
                                 ) : (
                                     <View style={styles.imagePlaceholder}>
                                         <Ionicons name="camera-outline" size={32} color="rgba(255,255,255,0.5)" />

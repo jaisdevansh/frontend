@@ -156,11 +156,17 @@ const OrderCard = memo(({ order, activeTab, onAccept, onReject, onUpdateStatus }
                         })()}
                     </Text>
                 </View>
-                <View style={[styles.infoChip, { borderColor: 'rgba(255,255,255,0.07)', flex: 1.2 }]}>
+                <View style={[styles.infoChip, { borderColor: 'rgba(255,255,255,0.07)', flex: 1.5 }]}>
                     <Text style={styles.infoChipLabel}>GUEST</Text>
-                    <Text style={[styles.infoChipValue, { textAlign: 'center' }]} numberOfLines={isExpanded ? undefined : 2}>
-                        {isGift ? (order.receiverId?.name || 'Guest') : (order.userId?.name || 'Guest')}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Image 
+                            source={{ uri: (isGift ? order.receiverId?.profileImage : order.userId?.profileImage) || 'https://ui-avatars.com/api/?name=' + (isGift ? order.receiverId?.name : order.userId?.name) }} 
+                            style={{ width: 18, height: 18, borderRadius: 9 }} 
+                        />
+                        <Text style={[styles.infoChipValue, { flex: 1 }]} numberOfLines={1}>
+                            {isGift ? (order.receiverId?.name || 'Guest') : (order.userId?.name || 'Guest')}
+                        </Text>
+                    </View>
                 </View>
             </View>
 

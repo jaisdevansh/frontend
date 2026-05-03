@@ -49,6 +49,26 @@ export const hostService = {
         return response.data;
     },
 
+    // 💰 Wallet & Withdrawals (NEW)
+    getWalletDetails: async () => {
+        const response = await apiClient.get('/api/v1/host/wallet/details');
+        return response.data;
+    },
+    updateBankDetails: async (data: {
+        accountNumber: string;
+        ifscCode: string;
+        accountHolderName: string;
+        upiId: string;
+        bankName: string;
+    }) => {
+        const response = await apiClient.put('/api/v1/host/wallet/bank-details', data);
+        return response.data;
+    },
+    requestWithdrawal: async (amount: number) => {
+        const response = await apiClient.post('/api/v1/host/wallet/withdraw', { amount });
+        return response.data;
+    },
+
     // Staff
     getStaff: async () => {
         const response = await apiClient.get('/host/staff');

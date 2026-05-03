@@ -181,7 +181,7 @@ const result = await initiateFoodPayment(
             {
                 amount: total,
                 receipt: `food_${Date.now()}`.substring(0, 40),
-                description: `Drink Order — ${cartItems.length} item(s)`,
+                description: `Drink Order — ${cartCount} item(s)`,
                 prefillName: profile?.name || '',
                 prefillEmail: profile?.email || '',
                 prefillContact: profile?.phone || '',

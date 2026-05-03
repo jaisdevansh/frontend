@@ -107,6 +107,7 @@ export default function HostsScreen() {
     const total = data?.pages[0]?.total || 0;
 
     const handleHostPress = useCallback((id: string) => {
+        if (!id) return;
         router.push(`/admin/host-details/${id}` as any);
     }, [router]);
 

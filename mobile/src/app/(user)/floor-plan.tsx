@@ -57,10 +57,10 @@ export default function FloorPlan() {
 
     const goBack = useStrictBack('/(user)/ticket-selection');
 
-    // 🚀 Clean Start: Always clear selection when entering a new floor plan session
+    // 🚀 Clean Start: Always clear selection when entering a new session or changing parameters
     useEffect(() => {
         clearSelection();
-    }, [eventId]);
+    }, [eventId, targetZone, guests]);
 
     // Use React Query for instant prefetched loads
     const { data: floorPlanData, isLoading, refetch } = useFloorPlanQuery(eventId);
