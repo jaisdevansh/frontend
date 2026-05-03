@@ -360,13 +360,22 @@ export default function EditProfile() {
                     
                     {isStaff ? (
                         <View style={styles.staffHeader}>
-                            <View style={styles.staffIconCircle}>
-                                <Ionicons 
-                                    name={role?.toLowerCase() === 'security' ? 'shield-checkmark' : 'cafe'} 
-                                    size={40} 
-                                    color={COLORS.primary} 
-                                />
-                            </View>
+                            <TouchableOpacity onPress={handlePickImage} activeOpacity={0.9}>
+                                <View style={styles.staffIconCircle}>
+                                    {profileImage ? (
+                                        <Image source={{ uri: profileImage }} style={{ width: '100%', height: '100%', borderRadius: 29 }} />
+                                    ) : (
+                                        <Ionicons 
+                                            name={role?.toLowerCase() === 'security' ? 'shield-checkmark' : 'cafe'} 
+                                            size={40} 
+                                            color={COLORS.primary} 
+                                        />
+                                    )}
+                                    <View style={[styles.cameraIcon, { width: 26, height: 26, borderRadius: 13, bottom: -5, right: -5 }]}>
+                                        <Ionicons name="camera" size={14} color="white" />
+                                    </View>
+                                </View>
+                            </TouchableOpacity>
                             <View style={styles.roleBadge}>
                                 <Text style={styles.roleBadgeText}>{role?.toUpperCase() || 'STAFF'}</Text>
                             </View>
