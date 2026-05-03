@@ -86,7 +86,7 @@ const RefreshBtn = ({ onPress, loading }: { onPress: () => void; loading: boolea
 
 // ─── SVG Line+Area Chart (Stock Market Style) ────────────────────────────────
 const LineAreaChart = ({ data }: { data: { value: number; label: string }[] }) => {
-    const W = Math.max(width - 48, data.length * 24);
+    const W = width - 48;
     const H = 150;
     const padL = 45, padR = 16, padT = 16, padB = 36;
     const chartW = W - padL - padR;
@@ -131,129 +131,127 @@ const LineAreaChart = ({ data }: { data: { value: number; label: string }[] }) =
     const lastNonZeroIdx = pts.map((p, i) => ({ ...p, i })).reverse().find(p => p.value > 0)?.i ?? pts.length - 1;
 
     return (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <Svg width={W} height={H}>
-                <Defs>
-                    <LinearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-                        <Stop offset="0" stopColor={C.primary} stopOpacity={0.3} />
-                        <Stop offset="0.5" stopColor={C.primary} stopOpacity={0.15} />
-                        <Stop offset="1" stopColor={C.primary} stopOpacity={0} />
-                    </LinearGradient>
-                </Defs>
+        <Svg width={W} height={H}>
+            <Defs>
+                <LinearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                    <Stop offset="0" stopColor={C.primary} stopOpacity={0.3} />
+                    <Stop offset="0.5" stopColor={C.primary} stopOpacity={0.15} />
+                    <Stop offset="1" stopColor={C.primary} stopOpacity={0} />
+                </LinearGradient>
+            </Defs>
 
-                {/* Grid lines */}
-                {ticks.map((t, i) => (
-                    <G key={i}>
-                        <Line x1={padL} y1={t.y} x2={W - padR} y2={t.y} stroke={C.muted + '30'} strokeWidth={1} />
-                        <SvgText x={padL - 6} y={t.y + 4} fontSize={10} fill={C.dim} textAnchor="end">{t.label}</SvgText>
-                    </G>
-                ))}
+            {/* Grid lines */}
+            {ticks.map((t, i) => (
+                <G key={i}>
+                    <Line x1={padL} y1={t.y} x2={W - padR} y2={t.y} stroke={C.muted + '30'} strokeWidth={1} />
+                    <SvgText x={padL - 6} y={t.y + 4} fontSize={10} fill={C.dim} textAnchor="end">{t.label}</SvgText>
+                </G>
+            ))}
 
-                {/* Gradient fill under line */}
-                {areaPath ? <Path d={areaPath} fill="url(#areaGrad)" /> : null}
+            {/* Gradient fill under line */}
+            {areaPath ? <Path d={areaPath} fill="url(#areaGrad)" /> : null}
 
-                {/* Solid line */}
-                {linePath ? (
-                    <Path 
-                        d={linePath} 
-                        stroke={C.primary} 
-                        strokeWidth={3} 
-                        fill="none" 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round"
-                    />
-                ) : null}
+            {/* Solid line */}
+            {linePath ? (
+                <Path 
+                    d={linePath} 
+                    stroke={C.primary} 
+                    strokeWidth={3} 
+                    fill="none" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                />
+            ) : null}
 
-                {/* Data points */}
-                {pts.map((p, i) => (
-                    <G key={i}>
-                        {(i % every === 0 || i === pts.length - 1) && (
-                            <SvgText x={p.x} y={H - 4} fontSize={9} fill={C.dim} textAnchor="middle">
-                                {data[i].label}
-                            </SvgText>
-                        )}
-                        {p.value > 0 && (
-                            <>
-                                <Circle cx={p.x} cy={p.y} r={i === lastNonZeroIdx ? 7 : 4} fill={C.card} />
-                                <Circle cx={p.x} cy={p.y} r={i === lastNonZeroIdx ? 5 : 2.5} fill={i === lastNonZeroIdx ? C.accent : C.primary} />
-                                {i === lastNonZeroIdx && (
-                                    <Circle cx={p.x} cy={p.y} r={10} fill={C.accent} opacity={0.2} />
-                                )}
-                            </>
-                        )}
-                    </G>
-                ))}
-            </Svg>
-        </ScrollView>
+            {/* Data points + day labels */}
+            {pts.map((p, i) => (
+                <G key={i}>
+                    {(i % every === 0 || i === pts.length - 1) && (
+                        <SvgText x={p.x} y={H - 4} fontSize={9} fill={C.dim} textAnchor="middle">
+                            {data[i].label}
+                        </SvgText>
+                    )}
+                    {p.value > 0 && (
+                        <>
+                            <Circle cx={p.x} cy={p.y} r={i === lastNonZeroIdx ? 7 : 4} fill={C.card} />
+                            <Circle cx={p.x} cy={p.y} r={i === lastNonZeroIdx ? 5 : 2.5} fill={i === lastNonZeroIdx ? C.accent : C.primary} />
+                            {i === lastNonZeroIdx && (
+                                <Circle cx={p.x} cy={p.y} r={10} fill={C.accent} opacity={0.2} />
+                            )}
+                        </>
+                    )}
+                </G>
+            ))}
+        </Svg>
     );
 };
 
 // ─── SVG Bar Chart ─────────────────────────────────────────────────────────────
 const BarChartSvg = ({ data }: { data: { value: number; label: string }[] }) => {
-    const barW = 20;
-    const gap = 10;
+    const n = data.length || 1;
+    const availW = width - 40;
+    const barW = Math.max(Math.floor((availW - 50 - 20) / n) - 4, 8);
+    const gap = Math.max(Math.floor((availW - 50 - 20 - n * barW) / Math.max(n - 1, 1)), 2);
     const padL = 50, padR = 20, padT = 20, padB = 40;
     const H = 160;
-    const W = Math.max(width - 40, padL + data.length * (barW + gap) + padR);
+    const W = availW;
     const chartH = H - padT - padB;
     const maxVal = Math.max(...data.map(d => d.value), 100);
-    const every = Math.max(Math.floor(data.length / 6), 1);
+    const every = Math.max(Math.floor(n / 6), 1);
 
     return (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <Svg width={W} height={H}>
-                <Defs>
-                    <LinearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
-                        <Stop offset="0" stopColor="#6366f1" stopOpacity={1} />
-                        <Stop offset="1" stopColor="#818cf8" stopOpacity={0.9} />
-                    </LinearGradient>
-                </Defs>
+        <Svg width={W} height={H}>
+            <Defs>
+                <LinearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+                    <Stop offset="0" stopColor="#6366f1" stopOpacity={1} />
+                    <Stop offset="1" stopColor="#818cf8" stopOpacity={0.9} />
+                </LinearGradient>
+            </Defs>
 
-                {/* Y-axis labels */}
-                {[0, 0.5, 1].map((f, i) => {
-                    const y = padT + chartH - f * chartH;
-                    return (
-                        <G key={i}>
-                            <Line x1={padL} y1={y} x2={W - padR} y2={y} stroke="#383850" strokeWidth={1} opacity={0.3} />
-                            <SvgText x={padL - 8} y={y + 4} fontSize={11} fill="#8890a6" textAnchor="end">
-                                {fmtShort(f * maxVal)}
+            {/* Y-axis labels */}
+            {[0, 0.5, 1].map((f, i) => {
+                const y = padT + chartH - f * chartH;
+                return (
+                    <G key={i}>
+                        <Line x1={padL} y1={y} x2={W - padR} y2={y} stroke="#383850" strokeWidth={1} opacity={0.3} />
+                        <SvgText x={padL - 8} y={y + 4} fontSize={11} fill="#8890a6" textAnchor="end">
+                            {fmtShort(f * maxVal)}
+                        </SvgText>
+                    </G>
+                );
+            })}
+
+            {/* Bars */}
+            {data.map((d, i) => {
+                const x = padL + i * (barW + gap);
+                const barHeight = d.value > 0 ? Math.max((d.value / maxVal) * chartH, 5) : 2;
+                const y = padT + chartH - barHeight;
+                
+                return (
+                    <G key={i}>
+                        <Rect 
+                            x={x} 
+                            y={y} 
+                            width={barW} 
+                            height={barHeight} 
+                            rx={4} 
+                            fill="url(#barGrad)" 
+                        />
+                        {(i % every === 0 || i === data.length - 1) && (
+                            <SvgText 
+                                x={x + barW / 2} 
+                                y={H - 8} 
+                                fontSize={10} 
+                                fill="#8890a6" 
+                                textAnchor="middle"
+                            >
+                                {d.label}
                             </SvgText>
-                        </G>
-                    );
-                })}
-
-                {/* Bars */}
-                {data.map((d, i) => {
-                    const x = padL + i * (barW + gap);
-                    const barHeight = d.value > 0 ? Math.max((d.value / maxVal) * chartH, 5) : 2;
-                    const y = padT + chartH - barHeight;
-                    
-                    return (
-                        <G key={i}>
-                            <Rect 
-                                x={x} 
-                                y={y} 
-                                width={barW} 
-                                height={barHeight} 
-                                rx={4} 
-                                fill="url(#barGrad)" 
-                            />
-                            {(i % every === 0 || i === data.length - 1) && (
-                                <SvgText 
-                                    x={x + barW / 2} 
-                                    y={H - 8} 
-                                    fontSize={10} 
-                                    fill="#8890a6" 
-                                    textAnchor="middle"
-                                >
-                                    {d.label}
-                                </SvgText>
-                            )}
-                        </G>
-                    );
-                })}
-            </Svg>
-        </ScrollView>
+                        )}
+                    </G>
+                );
+            })}
+        </Svg>
     );
 };
 
@@ -396,35 +394,26 @@ export default function AnalyticsScreen() {
 
     // ── Trend data ──
     const trendData = useMemo(() => {
-        if (!trend || trend.length === 0) {
-            // No data - return empty array
-            return [];
-        }
-        
-        // Create array from April 1st to today
-        const today = new Date();
-        const startDate = new Date(today.getFullYear(), 3, 1); // April 1st (month is 0-indexed, so 3 = April)
-        
-        const fullData: { value: number; label: string; date: string }[] = [];
+        if (!trend || trend.length === 0) return [];
+
         const trendMap = new Map((trend as RevenueTrend[]).map(t => [t.date, t.revenue || 0]));
-        
-        // Calculate number of days from April 1st to today
-        const daysDiff = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-        
-        // Start from April 1st to today
-        for (let i = 0; i < daysDiff; i++) {
-            const date = new Date(startDate);
-            date.setDate(startDate.getDate() + i);
-            const dateStr = date.toISOString().split('T')[0];
-            const revenue = trendMap.get(dateStr) || 0;
-            
+
+        // Current month: 1st to today
+        const today = new Date();
+        const since = new Date(today.getFullYear(), today.getMonth(), 1);
+        const daysCount = today.getDate();
+
+        const fullData: { value: number; label: string; date: string }[] = [];
+        for (let i = 0; i < daysCount; i++) {
+            const d = new Date(since);
+            d.setDate(since.getDate() + i);
+            const dateStr = d.toISOString().split('T')[0];
             fullData.push({
-                value: revenue,
-                label: `${date.getDate()}/${date.getMonth() + 1}`,
-                date: dateStr
+                value: trendMap.get(dateStr) || 0,
+                label: `${d.getDate()}`,   // "1", "2", ... "31"
+                date: dateStr,
             });
         }
-        
         return fullData;
     }, [trend]);
 
