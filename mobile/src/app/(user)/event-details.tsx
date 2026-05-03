@@ -396,7 +396,7 @@ const EventDetails = () => {
                                     </View>
                                     <View style={{ flex: 1 }}>
                                         <Text style={styles.timingLabel}>Starts</Text>
-                                        <Text style={styles.timingValue}>
+                                        <Text style={styles.timingValue} numberOfLines={1} adjustsFontSizeToFit>
                                             {event?.startTime || '--:--'}
                                         </Text>
                                     </View>
@@ -408,12 +408,14 @@ const EventDetails = () => {
                                     </View>
                                     <View style={{ flex: 1 }}>
                                         <Text style={styles.timingLabel}>Ends</Text>
-                                        <Text style={styles.timingValue}>
+                                        <Text style={styles.timingValue} numberOfLines={1} adjustsFontSizeToFit>
                                             {event?.endTime || '--:--'}
-                                            {event?.endDate && event?.date && dayjs(event.endDate).format('YYYYMMDD') !== dayjs(event.date).format('YYYYMMDD')
-                                                ? `\n(${dayjs(event.endDate).format('MMM DD')})`
-                                                : null}
                                         </Text>
+                                        {event?.endDate && event?.date && dayjs(event.endDate).format('YYYYMMDD') !== dayjs(event.date).format('YYYYMMDD') && (
+                                            <Text style={[styles.timingValue, { color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 1 }]} numberOfLines={1} adjustsFontSizeToFit>
+                                                (Next Day, {dayjs(event.endDate).format('MMM DD')})
+                                            </Text>
+                                        )}
                                     </View>
                                 </View>
                             </View>
