@@ -73,18 +73,15 @@ export default function SecureCheckout() {
 
     const goBack = useCallback(() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        if (router.canGoBack()) {
-            router.back();
-        } else {
-            router.replace({
-                pathname: '/(user)/floor-plan',
-                params: { 
-                    eventId, hostId, title, venueName, coverImage: cover, 
-                    guests: String(guests), zone, timeSlot, 
-                    seatIds: seatIds.join(',') 
-                }
-            });
-        }
+        // Always force-replace to floor-plan — router.back() in tab layout goes to Home tab
+        router.replace({
+            pathname: '/(user)/floor-plan',
+            params: {
+                eventId, hostId, title, venueName, coverImage: cover,
+                guests: String(guests), zone, timeSlot,
+                seatIds: seatIds.join(',')
+            }
+        });
     }, [router, eventId, hostId, title, venueName, cover, guests, zone, timeSlot, seatIds]);
 
     useEffect(() => {
