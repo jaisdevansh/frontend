@@ -292,6 +292,11 @@ export default function ConversationsScreen() {
     }, [fetchPeers]);
 
     const deleteConversation = useCallback((peerId: string, name: string) => {
+        if (!peerId || peerId === 'undefined') {
+            Alert.alert("Error", "Cannot delete this conversation (invalid ID).");
+            return;
+        }
+
         Alert.alert(
             "Delete Chat",
             `Are you sure you want to delete your conversation with ${name}?`,
@@ -306,8 +311,14 @@ export default function ConversationsScreen() {
                             if (res.data.success) {
                                 fetchPeers(); // Refresh the list from backend
                             }
-                        } catch (error) {
-                            console.error("Delete failed", error);
+                        } catch (error: any) {
+                            console.error("Delete failed", error?.response?.status, error?.response?.data, error?.config?.url);
+                            const msg = error?.response?.data?.message || 'Server error';
+                            if (error?.response?.status === 404) {
+                                Alert.alert("Failed", "Delete route not found on server or invalid ID. Ensure backend is deployed.");
+                            } else {
+                                Alert.alert("Failed to delete", msg);
+                            }
                         }
                     }
                 }

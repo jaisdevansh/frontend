@@ -69,7 +69,7 @@ function initials(name: string): string {
 
 // ─── Status tick icon ─────────────────────────────────────────────────────────
 const StatusIcon = ({ status }: { status?: string }) => {
-    if (!status || status === 'sending') {
+    if (status === 'sending') {
         return <ActivityIndicator size={10} color="rgba(255,255,255,0.4)" style={{ marginLeft: 4 }} />;
     }
     if (status === 'failed') {
@@ -81,7 +81,7 @@ const StatusIcon = ({ status }: { status?: string }) => {
     if (status === 'delivered') {
         return <Ionicons name="checkmark-done" size={13} color="rgba(255,255,255,0.5)" style={{ marginLeft: 4 }} />;
     }
-    // sent
+    // Default fallback for fetched history: sent
     return <Ionicons name="checkmark" size={13} color="rgba(255,255,255,0.5)" style={{ marginLeft: 4 }} />;
 };
 
@@ -356,14 +356,14 @@ export default function ChatScreen() {
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
-                    text: '🗑️ Delete for me',
+                    text: 'Delete for me',
                     onPress: () => {
                         // Just remove from local store (only you won't see it)
                         removeMessage?.(peerId || convId, messageId);
                     }
                 },
                 {
-                    text: '↩️ Unsend for everyone',
+                    text: 'Unsend for everyone',
                     style: 'destructive',
                     onPress: async () => {
                         try {
@@ -423,6 +423,7 @@ export default function ChatScreen() {
                     peerName={actualPeerName || item.senderName || 'User'}
                     peerAvatar={actualPeerAvatar || item.senderImage}
                     showAvatar={showAvatar}
+                    onLongPress={() => handleUnsend(item._id || item.tempId)}
                 />
             </View>
         );
@@ -433,7 +434,7 @@ export default function ChatScreen() {
             {/* ─── Header ────────────────────────────────────────────────── */}
             <BlurView intensity={80} tint="dark" style={styles.header}>
                 {/* Back */}
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
+                <TouchableOpacity onPress={() => router.navigate('/(user)/conversations')} style={styles.backBtn} hitSlop={12}>
                     <Ionicons name="chevron-back" size={26} color={C.text} />
                 </TouchableOpacity>
 
