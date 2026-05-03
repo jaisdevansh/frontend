@@ -192,16 +192,25 @@ export default function TablePass() {
                         }
                         
                         if (seatIds.length > 1) {
+                            if (seatIds.length > 3) {
+                                return `SEATS: ${seatIds.length} ASSIGNED`;
+                            }
                             return `SEATS: ${seatIds.map(formatSeatId).join(' · ')}`;
                         }
                         
-                        // If they booked multiple people but only have 1 "Seat", extrapolate the sequence
+                        // If they booked multiple people but only have 1 "Seat", extrapolate the sequence cleanly
                         if (numGuests > 1 && formattedTable.toLowerCase().includes('seat')) {
                             const match = formattedTable.match(/(\D+)(\d+)/);
                             if (match) {
-                                const prefix = match[1]; // e.g., "Seat "
+                                const prefix = match[1].trim(); // e.g., "Seat"
                                 const startNum = parseInt(match[2], 10);
-                                const generatedSeats = Array.from({ length: numGuests }, (_, i) => `${prefix}${startNum + i}`);
+                                
+                                // Prevent UI overflow for large groups
+                                if (numGuests > 2) {
+                                    return `SEATS: ${prefix} ${startNum} - ${startNum + numGuests - 1}`;
+                                }
+                                
+                                const generatedSeats = Array.from({ length: numGuests }, (_, i) => `${prefix} ${startNum + i}`);
                                 return `SEATS: ${generatedSeats.join(' · ')}`;
                             }
                             return `GROUP RESERVATION`;
