@@ -51,10 +51,9 @@ export default function VenueGiftsScreen() {
     const [isModalVisible, setModalVisible] = useState(false);
     const [formData, setFormData] = useState(EMPTY_FORM);
     const scrollViewRef = useRef<KeyboardAwareScrollView>(null);
+    const imageUploadRef = useRef<Promise<string> | null>(null);
     // STAGE 4: PRODUCTION-GRADE ASSET CACHE
     const localAssetCache = React.useRef<Record<string, string>>({});
-
-    // Removed debug keyboard tracker that was causing flickering
 
     // ─── Fetch gifts from standalone Gift collection ───────────────────────────
     const fetchGifts = useCallback(async () => {
@@ -76,12 +75,12 @@ export default function VenueGiftsScreen() {
             mediaTypes: ['images'], 
             allowsEditing: true,
             aspect: [1, 1],
-            quality: 0.3,
-            base64: true, // Absolute hydration for backend background sync
+            quality: 0.7,
         });
         if (!result.canceled && result.assets && result.assets[0].uri) {
             const imgUri = result.assets[0].uri;
             setFormData(f => ({ ...f, image: imgUri }));
+            imageUploadRef.current = uploadImage(imgUri);
         }
     };
 
@@ -115,8 +114,12 @@ export default function VenueGiftsScreen() {
         try {
             // Upload image if it's a local URI
             let finalImageUrl = formData.image;
-            if (formData.image && !formData.image.startsWith('http')) {
-                finalImageUrl = await uploadImage(formData.image);
+            if (imageUploadRef.current) {
+                showToast('Uploading image...', 'info');
+                finalImageUrl = await imageUploadRef.current;
+                imageUploadRef.current = null;
+            } else if (finalImageUrl && !finalImageUrl.startsWith('http')) {
+                finalImageUrl = await uploadImage(finalImageUrl);
             }
 
             const payload = {

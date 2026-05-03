@@ -7,6 +7,7 @@ import { COLORS, SPACING, BORDER_RADIUS } from '../../constants/design-system';
 import { useToast } from '../../context/ToastContext';
 import apiClient from '../../services/apiClient';
 import * as ImagePicker from 'expo-image-picker';
+import { uploadImage } from '../../services/cloudinaryService';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import dayjs from 'dayjs';
@@ -43,6 +44,7 @@ export default function ReportIncidentScreen() {
     const [images, setImages] = useState<string[]>([]);
     const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+    const imageUploadsRef = React.useRef<Record<string, Promise<string>>>({});
 
     // Context for currently active event to enable/disable reporting
     const [hasActiveEvent, setHasActiveEvent] = useState<boolean | null>(null);
@@ -90,15 +92,18 @@ export default function ReportIncidentScreen() {
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsMultipleSelection: true,
             selectionLimit: 5,
-            quality: 0.6,
-            base64: true,
+            quality: 0.7,
         });
 
         if (!result.canceled && result.assets) {
-            const newImgs = result.assets
-                .filter(a => a.base64)
-                .map(a => `data:image/jpeg;base64,${a.base64}`);
-            setImages(prev => [...prev, ...newImgs].slice(0, 5)); // max 5 images
+            const newUris = result.assets.map(a => a.uri);
+            const toAdd = newUris.slice(0, 5 - images.length);
+            
+            toAdd.forEach(uri => {
+                imageUploadsRef.current[uri] = uploadImage(uri);
+            });
+            
+            setImages(prev => [...prev, ...toAdd]);
         }
     };
 
@@ -136,12 +141,22 @@ export default function ReportIncidentScreen() {
                 eventId = bookingContext.eventId?._id || bookingContext.eventId;
                 hostId = bookingContext.hostId?._id || bookingContext.hostId;
             }
+
+            let finalImages: string[] = [];
+            if (images.length > 0) {
+                showToast('Uploading images...', 'info');
+                finalImages = await Promise.all(
+                    images.map(uri => 
+                        imageUploadsRef.current[uri] || (uri.startsWith('http') ? uri : uploadImage(uri))
+                    )
+                );
+            }
             
             const res = await apiClient.post('/user/report-incident', {
                 type: selectedType,
                 message: description.trim(),
                 title: title.trim(),
-                images,
+                images: finalImages,
                 tableId,
                 zone,
                 eventId,

@@ -9,6 +9,7 @@ import SafeFlashList from '../../components/SafeFlashList';
 import apiClient from '../../services/apiClient';
 import dayjs from 'dayjs';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 
 const FlashList = SafeFlashList;
 
@@ -30,9 +31,12 @@ export default function MyOrders() {
     const [orders, setOrders] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [errorMsg, setErrorMsg] = useState('');
+    const { showToast } = useToast();
 
     const fetchOrders = useCallback(async (isRefresh = false) => {
         try {
+            setErrorMsg('');
             if (isRefresh) setRefreshing(true);
             else if (orders.length === 0) setLoading(true);
             
@@ -41,8 +45,16 @@ export default function MyOrders() {
                 const payload = res.data.data;
                 const newOrders = Array.isArray(payload) ? payload : (payload?.orders || []);
                 setOrders(newOrders);
+            } else {
+                setErrorMsg(res.data?.message || 'Failed to load');
+                showToast(res.data?.message || 'Failed to load', 'error');
             }
-        } catch { /* silent */ }
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || err?.response?.data?.stack || err.message;
+            setErrorMsg(msg);
+            showToast('API Error: ' + msg, 'error');
+            console.warn('[Orders Error]', err?.response?.data || err.message);
+        }
         finally {
             setLoading(false);
             setRefreshing(false);
@@ -159,10 +171,10 @@ export default function MyOrders() {
             ) : orders.length === 0 ? (
                 <View style={styles.center}>
                     <View style={styles.emptyIconBox}>
-                        <Ionicons name="fast-food-outline" size={40} color="rgba(255,255,255,0.2)" />
+                        <Ionicons name={errorMsg ? "warning-outline" : "fast-food-outline"} size={40} color={errorMsg ? "#FF4D4F" : "rgba(255,255,255,0.2)"} />
                     </View>
-                    <Text style={styles.emptyTitle}>No orders yet</Text>
-                    <Text style={styles.emptySub}>Your food & drink orders from events will appear here.</Text>
+                    <Text style={styles.emptyTitle}>{errorMsg ? 'Error Loading Orders' : 'No orders yet'}</Text>
+                    <Text style={styles.emptySub}>{errorMsg || 'Your food & drink orders from events will appear here.'}</Text>
                 </View>
             ) : (
                 <FlashList

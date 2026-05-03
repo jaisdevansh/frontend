@@ -1,81 +1,67 @@
-import axios from 'axios';
-
 // --- CLOUDINARY CONFIGURATION ---
-// Cloud name from your Cloudinary dashboard
 const CLOUD_NAME = 'dxkjmvbuz';
 const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
 const UPLOAD_PRESET = 'After-app';
-const API_KEY = '998818242228497';
-
-// Create dedicated axios instance for Cloudinary with proper timeout
-const cloudinaryClient = axios.create({
-    timeout: 30000, // 30 seconds for image upload
-    headers: {
-        'Content-Type': 'multipart/form-data',
-    },
-});
+const TIMEOUT_MS = 45000;
+const MAX_RETRIES = 2;
 
 /**
- * Uploads a local image (file:// or base64 data URI) to Cloudinary and returns the secure URL.
- * @param imageUri Local path from ImagePicker or a base64 data URI
- * @returns Production-ready HTTPS URL
+ * Upload a local image URI (file://) to Cloudinary.
+ * Returns the secure URL on success, or the original URI on failure (graceful fallback).
+ * 
+ * ✅ Always use file URI — never pass base64 strings. They are 33% larger and slow.
  */
 export const uploadImage = async (imageUri: string): Promise<string> => {
     // Already a remote URL — skip upload
     if (!imageUri || imageUri.startsWith('http')) return imageUri;
 
-    try {
-        false && console.log('[Cloudinary] Starting upload...');
-        
-        // ── Base64 path (ImagePicker with base64: true) ────────────────────────
-        if (imageUri.startsWith('data:')) {
-            false && console.log('[Cloudinary] Uploading base64 data');
+    let attempt = 0;
+    while (attempt <= MAX_RETRIES) {
+        try {
+            const rawName = imageUri.split('/').pop() || 'upload.jpg';
+            const uniqueId = Math.random().toString(36).substring(2, 10) + '-' + Date.now();
+            const fileName = uniqueId + '-' + (rawName.replace(/[/\\?%*:|"<>]/g, '-').replace(/^-+|-+$/g, '') || 'upload.jpg');
+            const fileType = fileName.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+
             const data = new FormData();
-            data.append('file', imageUri);
+            data.append('file', { uri: imageUri, type: fileType, name: fileName } as any);
             data.append('upload_preset', UPLOAD_PRESET);
-            data.append('api_key', API_KEY);
 
-            const res = await cloudinaryClient.post(CLOUDINARY_URL, data);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-            if (res.data?.secure_url) {
-                false && console.log('✅ Image uploaded successfully');
-                return res.data.secure_url;
+            const res = await fetch(CLOUDINARY_URL, {
+                method: 'POST',
+                body: data,
+                signal: controller.signal,
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!res.ok) {
+                const errorText = await res.text();
+                throw new Error(`Cloudinary error ${res.status}: ${errorText}`);
             }
-            throw new Error('Upload failed: No secure_url in response');
+
+            const json = await res.json();
+            
+            if (json.secure_url) return json.secure_url;
+            throw new Error(json.error?.message || 'No secure_url in Cloudinary response');
+
+        } catch (error: any) {
+            attempt++;
+            if (attempt > MAX_RETRIES) {
+                console.warn('[Cloudinary] Upload failed after max retries:', error?.message || error);
+                return imageUri; // graceful fallback
+            }
+            console.log(`[Cloudinary] Upload attempt ${attempt} failed, retrying in ${attempt * 2}s...`, error?.message);
+            await new Promise(resolve => setTimeout(resolve, attempt * 2000));
         }
-
-        // ── File URI path (file://) ────────────────────────────────────────────
-        false && console.log('[Cloudinary] Uploading file URI');
-        const data = new FormData();
-        const rawName = imageUri.split('/').pop() || 'upload.jpg';
-        const fileName = rawName.replace(/[/\\?%*:|"<>]/g, '-').replace(/^-+|-+$/g, '') || 'upload.jpg';
-        const fileType = fileName.endsWith('.png') ? 'image/png' : 'image/jpeg';
-
-        data.append('file', {
-            uri: imageUri,
-            type: fileType,
-            name: fileName,
-        } as any);
-        data.append('upload_preset', UPLOAD_PRESET);
-        data.append('api_key', API_KEY);
-
-        const res = await cloudinaryClient.post(CLOUDINARY_URL, data);
-
-        if (res.data?.secure_url) {
-            false && console.log('✅ Image uploaded successfully');
-            return res.data.secure_url;
-        }
-
-        throw new Error('Upload failed: No secure_url in response');
-    } catch (error: any) {
-        const msg = error?.response?.data?.error?.message || error.message || 'Unknown error';
-        false && console.error('[Cloudinary] Upload failed:', msg);
-
-        // Return original URI as fallback instead of throwing
-        false && console.warn('[Cloudinary] Using original URI as fallback');
-        return imageUri;
     }
+    return imageUri;
 };
+
+
 
 /**
  * ─── CLOUDINARY IMAGE OPTIMIZATION ─────────────────────────────────────────

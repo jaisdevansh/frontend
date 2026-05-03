@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import PremiumToast, { ToastRef } from '../../components/PremiumToast';
 import { useAuth } from '../../context/AuthContext';
 import adminService from '../../services/adminService';
+import { uploadImage } from '../../services/cloudinaryService';
 
 const { width } = Dimensions.get('window');
 
@@ -51,6 +52,7 @@ export default function AdminSettings() {
     const [editName, setEditName] = useState((user as any)?.fullName || (user as any)?.name || '');
     const [editPic, setEditPic] = useState((user as any)?.profileImage || '');
     const [isUpdating, setIsUpdating] = useState(false);
+    const picUploadRef = React.useRef<Promise<string> | null>(null);
 
     const handleLogout = useCallback(async () => {
         toastRef.current?.show({ title: 'Signing Out', message: 'Securing session...', type: 'info' });
@@ -73,11 +75,13 @@ export default function AdminSettings() {
             allowsEditing: true,
             aspect: [1, 1],
             quality: 0.7,
-            base64: true,
         });
 
-        if (!result.canceled && result.assets[0].base64) {
-            setEditPic(`data:image/jpeg;base64,${result.assets[0].base64}`);
+        if (!result.canceled && result.assets[0].uri) {
+            const localUri = result.assets[0].uri;
+            setEditPic(localUri); // 🚀 show preview instantly
+            // Start upload in background immediately
+            picUploadRef.current = uploadImage(localUri);
         }
     };
 
@@ -85,17 +89,19 @@ export default function AdminSettings() {
         if (!editName.trim()) return toastRef.current?.show({ title: 'Error', message: 'Name cannot be empty', type: 'error' });
         setIsUpdating(true);
         try {
-            const response = await adminService.updateProfile({ name: editName, profileImage: editPic });
-            
-            // Critical for UI Update
-            if (response.success && response.data) {
-                await updateUser({
-                    ...response.data,
-                    name: response.data.name // Use 'name' from response
-                });
+            let finalPic = editPic;
+            // If a background upload is pending, await it; else upload now if local URI
+            if (picUploadRef.current) {
+                finalPic = await picUploadRef.current;
+                picUploadRef.current = null;
+            } else if (finalPic && !finalPic.startsWith('http')) {
+                finalPic = await uploadImage(finalPic);
             }
-
-            toastRef.current?.show({ title: 'Success', message: 'Profile directives synchronized successfully.', type: 'success' });
+            const response = await adminService.updateProfile({ name: editName, profileImage: finalPic });
+            if (response.success && response.data) {
+                await updateUser({ ...response.data, name: response.data.name });
+            }
+            toastRef.current?.show({ title: 'Success', message: 'Profile updated successfully.', type: 'success' });
             setIsEditModal(false);
         } catch (err: any) {
             toastRef.current?.show({ title: 'Upload Fault', message: err.response?.data?.message || 'Check connection', type: 'error' });

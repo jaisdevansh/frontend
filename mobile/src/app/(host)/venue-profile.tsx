@@ -15,6 +15,7 @@ import { hostService } from '../../services/hostService';
 import { userService } from '../../services/userService';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+import { uploadImage } from '../../services/cloudinaryService';
 import dayjs from 'dayjs';
 import { Platform } from 'react-native';
 import { PremiumDateTimePicker } from '../../components/PremiumDateTimePicker';
@@ -46,6 +47,9 @@ export default function HostVenueProfile() {
         name: authUser?.name || '',
         profileImage: authUser?.profileImage || ''
     });
+
+    const heroUploadRef = useRef<Promise<string> | null>(null);
+    const curatorUploadRef = useRef<Promise<string> | null>(null);
 
     // Premium Picker State
     const [pickerVisible, setPickerVisible] = useState(false);
@@ -155,16 +159,17 @@ export default function HostVenueProfile() {
             mediaTypes: ['images'],
             allowsEditing: true,
             aspect: type === 'curator' ? [1, 1] : [16, 9],
-            quality: 0.5,
-            base64: true,
+            quality: 0.7,
         });
 
-        if (!result.canceled && result.assets[0].base64) {
-            const imgUri = `data:image/jpeg;base64,${result.assets[0].base64}`;
+        if (!result.canceled && result.assets[0].uri) {
+            const localUri = result.assets[0].uri;
             if (type === 'venue') {
-                setForm({ ...form, heroImage: imgUri });
+                setForm({ ...form, heroImage: localUri });
+                heroUploadRef.current = uploadImage(localUri);
             } else {
-                setCurator({ ...curator, profileImage: imgUri });
+                setCurator({ ...curator, profileImage: localUri });
+                curatorUploadRef.current = uploadImage(localUri);
             }
         }
     };
@@ -172,10 +177,18 @@ export default function HostVenueProfile() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            // Only update venue profile, not user profile
-            // Host profile is managed separately in host backend
+            let finalHeroImage = form.heroImage;
+            if (heroUploadRef.current) {
+                showToast('Uploading images...', 'info');
+                finalHeroImage = await heroUploadRef.current;
+                heroUploadRef.current = null;
+            } else if (finalHeroImage && !finalHeroImage.startsWith('http')) {
+                finalHeroImage = await uploadImage(finalHeroImage);
+            }
+
             const venueUpdate = await hostService.updateVenueProfile({
                 ...form,
+                heroImage: finalHeroImage,
                 capacity: parseInt(form.capacity) || 0
             });
 

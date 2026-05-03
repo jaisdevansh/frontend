@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../constants/design-system';
 import { useToast } from '../../context/ToastContext';
 import { hostService } from '../../services/hostService';
+import { uploadImage } from '../../services/cloudinaryService';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import dayjs from 'dayjs';
@@ -39,6 +40,11 @@ export default function HostCreateEvent() {
     const [endTime, setEndTime] = useState('');
     const [floorCount, setFloorCount] = useState('1');
     const [coverImage, setCoverImage] = useState('');
+    const [uploadingCover, setUploadingCover] = useState(false);
+    const [uploadingGallery, setUploadingGallery] = useState(false);
+    // Refs to track in-flight upload promises so save can await them
+    const coverUploadRef = React.useRef<Promise<string> | null>(null);
+    const galleryUploadRef = React.useRef<Promise<string[]> | null>(null);
     const [images, setImages] = useState<string[]>([]);
     const [bookingOpenDate, setBookingOpenDate] = useState(''); // when tickets go on sale
     const [freeRefreshments, setFreeRefreshments] = useState<{ title: string, description: string }[]>([]);
@@ -228,12 +234,24 @@ export default function HostCreateEvent() {
                 mediaTypes: ['images'],
                 allowsEditing: true,
                 aspect: [16, 9],
-                quality: 0.5,
-                base64: true,
+                quality: 0.7,
             });
 
-            if (!result.canceled && result.assets[0].base64) {
-                setCoverImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+            if (!result.canceled && result.assets[0].uri) {
+                const localUri = result.assets[0].uri;
+                // 🚀 Show preview INSTANTLY, upload in background
+                setCoverImage(localUri);
+                setUploadingCover(true);
+
+                const uploadPromise = uploadImage(localUri)
+                    .then(cloudUrl => {
+                        setCoverImage(cloudUrl);
+                        return cloudUrl;
+                    })
+                    .catch(() => localUri) // fallback to localUri on failure
+                    .finally(() => setUploadingCover(false));
+
+                coverUploadRef.current = uploadPromise;
             }
         } catch (error) {
             showToast('Failed to pick image', 'error');
@@ -245,18 +263,33 @@ export default function HostCreateEvent() {
             const result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ['images'],
                 allowsMultipleSelection: true,
-                selectionLimit: 10,
-                quality: 0.5,
-                base64: true,
+                selectionLimit: 5,
+                quality: 0.7,
             });
 
             if (!result.canceled && result.assets && result.assets.length > 0) {
-                const newImages = result.assets
-                    .filter(asset => asset.base64)
-                    .map(asset => `data:image/jpeg;base64,${asset.base64}`);
-                
-                setImages(prev => [...prev, ...newImages]);
-                showToast(`${newImages.length} image${newImages.length > 1 ? 's' : ''} added`, 'success');
+                const localUris = result.assets.map(a => a.uri);
+                // 🚀 Show previews INSTANTLY, upload in background
+                setImages(prev => [...prev, ...localUris]);
+                setUploadingGallery(true);
+
+                const galleryPromise = Promise.all(localUris.map(uri => uploadImage(uri)))
+                    .then(cloudUrls => {
+                        // Replace local URIs with cloud URLs in state
+                        setImages(prev => {
+                            const updated = [...prev];
+                            localUris.forEach((localUri, i) => {
+                                const idx = updated.indexOf(localUri);
+                                if (idx !== -1) updated[idx] = cloudUrls[i];
+                            });
+                            return updated;
+                        });
+                        return cloudUrls;
+                    })
+                    .catch(() => localUris)
+                    .finally(() => setUploadingGallery(false));
+
+                galleryUploadRef.current = galleryPromise;
             }
         } catch (error) {
             showToast('Failed to pick additional image', 'error');
@@ -265,14 +298,9 @@ export default function HostCreateEvent() {
 
     const eventMutation = useMutation({
         mutationFn: async ({ eventData, targetStatus }: any) => {
-            console.log('[MUTATION] Starting mutation, id:', id);
-            console.log('[MUTATION] Event data:', eventData);
-            
             const result = id
                 ? await hostService.updateEvent(id as string, eventData)
                 : await hostService.createEvent(eventData);
-            
-            console.log('[MUTATION] Result:', result);
             return result;
         },
         onSuccess: (response, variables) => {
@@ -287,13 +315,11 @@ export default function HostCreateEvent() {
             }
         },
         onError: (error: any) => {
-            console.log('[MUTATION ERROR]', error);
-            console.log('[MUTATION ERROR] Response:', error?.response?.data);
             showToast(error?.response?.data?.message || 'Something went wrong', 'error');
         }
     });
 
-    const handleSave = (targetStatus: 'DRAFT' | 'LIVE' = 'LIVE') => {
+    const handleSave = async (targetStatus: 'DRAFT' | 'LIVE' = 'LIVE') => {
         if (!title || !date || !startTime || tickets.length === 0 || !tickets[0].price || !tickets[0].capacity) {
             showToast('Please fill all required fields and at least one ticket', 'error');
             return;
@@ -305,12 +331,22 @@ export default function HostCreateEvent() {
             return;
         }
 
+        // ⏳ If background uploads are still in flight, wait for them before submitting
+        let finalCoverImage = coverImage;
+        let finalImages = images;
+        if (uploadingCover && coverUploadRef.current) {
+            showToast('Waiting for image upload...', 'info');
+            finalCoverImage = await coverUploadRef.current;
+        }
+        if (uploadingGallery && galleryUploadRef.current) {
+            finalImages = await galleryUploadRef.current;
+        }
+
         const houseRules = [];
         if (ruleDressCode) houseRules.push({ icon: 'shirt-outline', title: 'Dress Code: Smart Sophisticated', detail: 'No sportswear, trainers, or caps.' });
         if (ruleIdRequired) houseRules.push({ icon: 'person-outline', title: 'ID Required (21+ only)', detail: 'Valid government-issued photo ID is mandatory.' });
         if (ruleNoPhotos) houseRules.push({ icon: 'eye-off-outline', title: 'Strict No-Photo Policy', detail: 'Photography is strictly prohibited inside the venue.' });
 
-        // Resolve locationData: prioritize venueLocation if toggle is ON, else manual locationData
         let finalLocation = locationData;
         if (useVenueLocation && venueLocation) {
             finalLocation = venueLocation;
@@ -324,14 +360,14 @@ export default function HostCreateEvent() {
             startTime,
             endTime,
             floorCount: parseInt(floorCount) || 1,
-            coverImage,
-            images,
+            coverImage: finalCoverImage,
+            images: finalImages,
             houseRules,
             locationVisibility,
             revealTime: (locationVisibility === 'delayed' && revealTime) ? dayjs(revealTime, ['DD/MM/YYYY hh:mm A', 'DD/MM/YYYY HH:mm', 'YYYY-MM-DD HH:mm']).toISOString() : undefined,
             bookingOpenDate: bookingOpenDate ? dayjs(bookingOpenDate, ['DD/MM/YYYY hh:mm A', 'DD/MM/YYYY HH:mm', 'YYYY-MM-DD HH:mm']).toISOString() : undefined,
             tickets: tickets.map(t => ({
-                ...(t.id && t.id !== 'temp' ? { _id: t.id } : {}), // Only include _id if it's a real ID
+                ...(t.id && t.id !== 'temp' ? { _id: t.id } : {}),
                 type: t.type,
                 price: parseFloat(t.price) || 0,
                 capacity: parseInt(t.capacity) || 0
@@ -340,10 +376,6 @@ export default function HostCreateEvent() {
             locationData: finalLocation,
             status: targetStatus
         };
-
-        console.log('[UPDATE EVENT] Event ID:', id);
-        console.log('[UPDATE EVENT] Event Data:', JSON.stringify(eventData, null, 2));
-        console.log('[UPDATE EVENT] Target Status:', targetStatus);
 
         eventMutation.mutate({ eventData, targetStatus });
     };
@@ -379,8 +411,13 @@ export default function HostCreateEvent() {
             </View>
 
             <View style={styles.form}>
-                <TouchableOpacity style={styles.imageConfigPicker} onPress={pickImage}>
-                    {coverImage ? (
+                <TouchableOpacity style={styles.imageConfigPicker} onPress={pickImage} disabled={uploadingCover}>
+                    {uploadingCover ? (
+                        <View style={styles.imagePlaceholder}>
+                            <ActivityIndicator size="large" color={COLORS.primary} />
+                            <Text style={styles.uploadText}>Uploading...</Text>
+                        </View>
+                    ) : coverImage ? (
                         <Image source={{ uri: coverImage }} style={styles.previewImage} />
                     ) : (
                         <View style={styles.imagePlaceholder}>

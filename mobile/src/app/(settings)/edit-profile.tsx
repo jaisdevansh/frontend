@@ -85,10 +85,10 @@ export default function EditProfile() {
     const [phone, setPhone] = useState(authUser?.phone || '');
     const [profileImage, setProfileImage] = useState(authUser?.profileImage || '');
 
-    // No full-screen loading spinner — form is already seeded
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [locating, setLocating] = useState(false);
+    const profileUploadRef = React.useRef<Promise<string> | null>(null);
     
     // 🔍 DEBUG: Keyboard tracker — remove after testing
     useEffect(() => {
@@ -218,18 +218,13 @@ export default function EditProfile() {
                             mediaTypes: ['images'],
                             allowsEditing: true,
                             aspect: [1, 1],
-                            quality: 0.5,
-                            base64: true,
+                            quality: 0.7,
                         });
 
                         if (!result.canceled && result.assets && result.assets.length > 0) {
-                            const asset = result.assets[0];
-                            if (asset.base64) {
-                                const mimeType = asset.mimeType || 'image/jpeg';
-                                setProfileImage(`data:${mimeType};base64,${asset.base64}`);
-                            } else {
-                                setProfileImage(asset.uri);
-                            }
+                            const localUri = result.assets[0].uri;
+                            setProfileImage(localUri);
+                            profileUploadRef.current = uploadImage(localUri);
                         }
                     }
                 }
@@ -279,18 +274,13 @@ export default function EditProfile() {
         setSaving(true);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         try {
-            // ─── STAGE 1: Direct Cloudinary Upload (bypasses backend pipeline) ───
-            // Only upload if it's a local URI (base64 or file://), not an existing https URL
             let finalImageUrl = profileImage;
-            const isLocalImage = profileImage && !profileImage.startsWith('http');
-            
-            if (isLocalImage) {
-                try {
-                    finalImageUrl = await uploadImage(profileImage);
-                } catch (imgErr) {
-                    showToast('Image upload failed, saving other changes...', 'info');
-                    finalImageUrl = profileImage.startsWith('data:') ? '' : profileImage;
-                }
+            if (profileUploadRef.current) {
+                showToast('Uploading profile image...', 'info');
+                finalImageUrl = await profileUploadRef.current;
+                profileUploadRef.current = null;
+            } else if (finalImageUrl && !finalImageUrl.startsWith('http')) {
+                finalImageUrl = await uploadImage(finalImageUrl);
             }
 
             const payload: any = {

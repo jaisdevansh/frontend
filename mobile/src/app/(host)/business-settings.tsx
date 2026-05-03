@@ -10,6 +10,7 @@ import { Button } from '../../components/Button';
 import { hostService } from '../../services/hostService';
 import { useToast } from '../../context/ToastContext';
 import * as ImagePicker from 'expo-image-picker';
+import { uploadImage } from '../../services/cloudinaryService';
 
 const { width } = Dimensions.get('window');
 
@@ -30,6 +31,7 @@ export default function BusinessSettings() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [previewVisible, setPreviewVisible] = useState(false);
+    const imageUploadRef = React.useRef<Promise<string> | null>(null);
 
     useEffect(() => {
         fetchProfile();
@@ -59,10 +61,17 @@ export default function BusinessSettings() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            // Send field names that the backend updateHostProfile expects
+            let finalImage = form.profileImage;
+            if (imageUploadRef.current) {
+                finalImage = await imageUploadRef.current;
+                imageUploadRef.current = null;
+            } else if (finalImage && !finalImage.startsWith('http')) {
+                finalImage = await uploadImage(finalImage);
+            }
+
             const res = await hostService.updateProfile({
                 name:          form.name,
-                profileImage:  form.profileImage,
+                profileImage:  finalImage,
                 brandName:     form.brandName,
                 location:      form.location,
                 contactNumber: form.contactNumber,
@@ -83,12 +92,13 @@ export default function BusinessSettings() {
             mediaTypes: ['images'],
             allowsEditing: true,
             aspect: [1, 1],
-            quality: 0.5,
-            base64: true,
+            quality: 0.7,
         });
 
-        if (!result.canceled && result.assets[0].base64) {
-            setForm({ ...form, profileImage: `data:image/jpeg;base64,${result.assets[0].base64}` });
+        if (!result.canceled && result.assets[0].uri) {
+            const localUri = result.assets[0].uri;
+            setForm({ ...form, profileImage: localUri }); 
+            imageUploadRef.current = uploadImage(localUri);
         }
     };
 

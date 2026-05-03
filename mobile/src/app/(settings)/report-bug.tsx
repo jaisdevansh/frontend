@@ -18,6 +18,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../constants/design-system';
 import { useToast } from '../../context/ToastContext';
 import { userService } from '../../services/userService';
+import { uploadImage } from '../../services/cloudinaryService';
 
 export default function ReportBug() {
     const router = useRouter();
@@ -29,6 +30,7 @@ export default function ReportBug() {
     const [images, setImages] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+    const imageUploadsRef = React.useRef<Record<string, Promise<string>>>({});
 
     // Auto-populate name for 'Super Fast' UX
     React.useEffect(() => {
@@ -42,16 +44,15 @@ export default function ReportBug() {
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ['images'],
             allowsMultipleSelection: true,
-            quality: 0.5,
-            base64: true,
+            quality: 0.7,
         });
 
-        if (!result.canceled) {
-            const newImages = result.assets.map(asset => {
-                const mimeType = asset.mimeType || 'image/jpeg';
-                return `data:${mimeType};base64,${asset.base64}`;
+        if (!result.canceled && result.assets) {
+            const newUris = result.assets.map(asset => asset.uri);
+            newUris.forEach(uri => {
+                imageUploadsRef.current[uri] = uploadImage(uri);
             });
-            setImages(prev => [...prev, ...newImages]);
+            setImages(prev => [...prev, ...newUris]);
         }
     }, []);
 
@@ -76,9 +77,19 @@ export default function ReportBug() {
                 timestamp: new Date().toISOString()
             };
 
+            let finalImages: string[] = [];
+            if (images.length > 0) {
+                showToast('Uploading images...', 'info');
+                finalImages = await Promise.all(
+                    images.map(uri => 
+                        imageUploadsRef.current[uri] || (uri.startsWith('http') ? uri : uploadImage(uri))
+                    )
+                );
+            }
+
             const res = await userService.submitBugReport({
                 description,
-                images,
+                images: finalImages,
                 metadata
             });
 

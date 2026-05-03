@@ -47,6 +47,7 @@ export default function HostVenueMenu() {
     const [itemDescription, setItemDescription] = useState('');
     const [itemPrice, setItemPrice] = useState('');
     const [itemImage, setItemImage] = useState('');
+    const imageUploadRef = useRef<Promise<string> | null>(null);
 
     const [keyboardHeight, setKeyboardHeight] = useState(0);
     useEffect(() => {
@@ -77,15 +78,14 @@ export default function HostVenueMenu() {
             mediaTypes: ['images'],
             allowsEditing: true,
             aspect: [1, 1],
-            quality: 0.3,
-            base64: true,
+            quality: 0.7,
         });
 
-        if (!result.canceled) {
-            const asset = result.assets[0];
-            const imgUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+        if (!result.canceled && result.assets[0].uri) {
+            const imgUri = result.assets[0].uri;
             setImageUploading(true);
             setItemImage(imgUri);
+            imageUploadRef.current = uploadImage(imgUri);
             setImageUploading(false);
         }
     };
@@ -119,7 +119,11 @@ export default function HostVenueMenu() {
         setSaving(true);
         try {
             let imageUrl = itemImage;
-            if (itemImage && (itemImage.startsWith('file://') || itemImage.startsWith('data:image'))) {
+            if (imageUploadRef.current) {
+                showToast('Uploading image...', 'info');
+                imageUrl = await imageUploadRef.current;
+                imageUploadRef.current = null;
+            } else if (itemImage && !itemImage.startsWith('http')) {
                 try { imageUrl = await uploadImage(itemImage); } catch (_) {}
             }
 
