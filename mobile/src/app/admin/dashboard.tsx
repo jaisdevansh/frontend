@@ -246,7 +246,7 @@ export default function SaaSAdminDashboard() {
                         { title: 'Identity Registry', sub: 'Users & Permissions', icon: 'people-alt', path: '/admin/users', color: COLORS.primary },
                         { title: 'Host Registry', sub: 'Manage Partner Accounts', icon: 'business', path: '/admin/hosts', color: '#8b5cf6' },
                         { title: 'Host Verification', sub: `${stats?.pendingHosts || 0} applications pending`, icon: 'verified-user', path: '/admin/kyc-verification', color: COLORS.success },
-                        { title: 'Payout Requests', sub: 'Manage Host Withdrawals', icon: 'account-balance-wallet', path: '/admin/payouts', color: '#f59e0b' },
+                        { title: 'Payout Requests', sub: 'Pay hosts via GPay / PhonePe / Paytm', icon: 'payments', path: '/admin/payout-requests', color: '#10B981' },
                         { title: 'Global Staff', sub: 'Field personnel intel', icon: 'badge', path: '/admin/staff', color: COLORS.warning },
                         { title: 'Advanced Analytics', sub: 'Trends & Forecasting', icon: 'analytics', path: '/admin/analytics', color: '#06b6d4' },
                     ].map((tool, idx) => (

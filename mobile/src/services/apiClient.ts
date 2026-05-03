@@ -11,7 +11,7 @@ import { DeviceEventEmitter } from 'react-native';
  * For local dev, set LOCAL_IP to your machine's LAN IP (run `ipconfig`).
  */
 
-const LOCAL_IP = '192.168.29.86'; // ← Changed to your current Wi-Fi IP address
+const LOCAL_IP = '10.146.90.18'; // ← Changed to your current Wi-Fi IP address
 
 const getBaseUrl = () => {
     const env = Constants.expoConfig?.extra?.ENV || 'production';

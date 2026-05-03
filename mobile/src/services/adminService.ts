@@ -44,6 +44,7 @@ export interface AdminStaff {
     name: string;
     email?: string;
     phone?: string;
+    profileImage?: string;
     staffType?: string;
     role?: string;
     isActive: boolean;
@@ -128,6 +129,37 @@ export interface TopUser {
 
 
 export type AdminHost = PendingHost;
+
+export interface PayoutRequestItem {
+    _id: string;
+    hostId: {
+        _id: string;
+        name: string;
+        email?: string;
+        phone?: string;
+        profileImage?: string;
+        bankDetails?: {
+            name?: string;
+            upiId?: string;
+            accountNumber?: string;
+            bankName?: string;
+            ifsc?: string;
+        };
+    };
+    amount: number;
+    status: 'PENDING' | 'COMPLETED' | 'REJECTED';
+    bankDetails?: {
+        name?: string;
+        upiId?: string;
+        accountNumber?: string;
+        bankName?: string;
+        ifsc?: string;
+    };
+    transactionId?: string;
+    note?: string;
+    processedAt?: string;
+    createdAt: string;
+}
 
 const adminService = {
     // Analytics
@@ -280,13 +312,14 @@ const adminService = {
         return response.data;
     },
 
-    // 💰 Payout Management (NEW)
-    getPayoutRequests: async () => {
-        const response = await apiClient.get('/api/v1/admin/wallet/requests');
-        return response.data;
+    // Payout Requests
+    getPayoutRequests: async (status: 'PENDING' | 'COMPLETED' | 'REJECTED' | 'ALL' = 'PENDING'): Promise<PayoutRequestItem[]> => {
+        const response = await apiClient.get(`/admin/payout-requests?status=${status}`);
+        return response.data.data;
     },
-    processPayoutRequest: async (requestId: string, data: { status: 'PAID' | 'REJECTED', adminNote?: string, payoutId?: string }) => {
-        const response = await apiClient.put(`/api/v1/admin/wallet/requests/${requestId}`, data);
+
+    processPayoutRequest: async (id: string, data: { status: 'COMPLETED' | 'REJECTED', transactionId?: string, note?: string }) => {
+        const response = await apiClient.post(`/admin/payout-requests/${id}/process`, data);
         return response.data;
     },
 };
