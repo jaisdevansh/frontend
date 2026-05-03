@@ -83,35 +83,44 @@ export default function TablePass() {
     const numGuests   = useMemo(() => booking?.guests || (params.guestCount ? Number(params.guestCount) : 1), [booking?.guests, params.guestCount]);
     
     const tableId     = useMemo(() => booking?.tableId || (params.seatIds ? String(params.seatIds).split(',')[0] : ''), [booking?.tableId, params.seatIds]);
-    const seatIds     = useMemo(() => {
-        if (booking?.seatIds && booking.seatIds.length > 0) return booking.seatIds as string[];
-        if (params.seatIds) return String(params.seatIds).split(',').filter(Boolean);
-        if (tableId) return [tableId];
-        return [];
-    }, [booking?.seatIds, params.seatIds, tableId]);
 
-    // ── Seat label for the pass header ──────────────────────────────────────────
-    // Handles: general access, assigned seats (floor plan), group bookings
-    const seatLabel = useMemo(() => {
-        const isGeneralAccess = zone.toLowerCase().includes('general') ||
-                                zone.toLowerCase().includes('guest') ||
-                                zone.toLowerCase().includes('floor') ||
-                                zone.toLowerCase().includes('standing');
-
-        const formatted = seatIds.map(formatSeatId);
-        const unique    = [...new Set(formatted)]; // deduplicate
-
-        if (isGeneralAccess) {
-            // For general access, show zone + count, not individual seat numbers
-            return `${numGuests} × ${zone.toUpperCase()} PASS`;
+    // ── Resolve seat IDs — always produce a non-empty array ──────────────────────
+    // Priority: backend seatIds → params → extrapolate from tableId + numGuests
+    const seatIds = useMemo<string[]>(() => {
+        if (booking?.seatIds && booking.seatIds.length > 0) return booking.seatIds;
+        if (params.seatIds) {
+            const fromParams = String(params.seatIds).split(',').filter(Boolean);
+            if (fromParams.length > 0) return fromParams;
         }
+        // Extrapolate: parse the base from tableId (_s1 → base + generate _s1.._sN)
+        if (tableId) {
+            const match = tableId.match(/^(.+)_s(\d+)$/i);
+            if (match && numGuests > 1) {
+                const base = match[1];
+                return Array.from({ length: numGuests }, (_, i) => `${base}_s${i + 1}`);
+            }
+            if (numGuests > 1) {
+                // tableId doesn't follow _sN pattern — generate suffixed variants
+                return Array.from({ length: numGuests }, (_, i) => `${tableId}_s${i + 1}`);
+            }
+            return [tableId];
+        }
+        // Last resort: generate numbered passes
+        return Array.from({ length: numGuests }, (_, i) => `PASS_s${i + 1}`);
+    }, [booking?.seatIds, params.seatIds, tableId, numGuests]);
 
-        if (unique.length === 0) return 'PASS';
-        if (unique.length === 1) return `SEAT: ${unique[0]}`;
-        if (unique.length <= 3) return `SEATS: ${unique.join(' \u00b7 ')}`;
-        // For 4+ seats: show range
-        return `SEATS: ${unique[0]} \u2013 ${unique[unique.length - 1]} (${unique.length} total)`;
-    }, [seatIds, zone, numGuests]);
+    // ── Human-readable seat numbers (e.g. ["Seat 1","Seat 2",...]) ─────────────
+    const seatLabels = useMemo(() => [...new Set(seatIds.map(formatSeatId))], [seatIds]);
+
+    // ── Short header label (always fits on one line) ──────────────────────────
+    const headerSeatLabel = useMemo(() => {
+        if (seatLabels.length === 0) return `${numGuests} PASSES`;
+        if (seatLabels.length === 1) return `SEAT ${seatLabels[0].replace(/\D/g, '')}`;
+        // Show range: "SEATS 1 – 8"
+        const nums = seatLabels.map(s => parseInt(s.replace(/\D/g, ''), 10)).filter(n => !isNaN(n)).sort((a,b) => a-b);
+        if (nums.length > 1) return `SEATS ${nums[0]} – ${nums[nums.length - 1]}`;
+        return `${seatLabels.length} SEATS`;
+    }, [seatLabels, numGuests]);
     
     const displayBookingId = useMemo(() => bookingId ? 'STX-' + bookingId.substring(0, 6).toUpperCase() : (params.bookingRef ? String(params.bookingRef) : 'STX-000000'), [bookingId, params.bookingRef]);
     const pricePaid   = useMemo(() => booking?.pricePaid || 0, [booking?.pricePaid]);
@@ -210,7 +219,7 @@ export default function TablePass() {
                 <Text style={styles.confirmedTitle}>
                     {displayStatus === 'cancelled' ? 'Booking Cancelled' : displayStatus === 'expired' ? 'Booking Expired' : 'Reservation Confirmed'}
                 </Text>
-                <Text style={styles.tableIdLabel}>{seatLabel}</Text>
+                <Text style={styles.tableIdLabel}>{headerSeatLabel}</Text>
 
                 {/* Status badge */}
                 <View style={[styles.statusPill, { backgroundColor: statusColor + '20', borderColor: statusColor + '50' }]}>
@@ -247,11 +256,24 @@ export default function TablePass() {
                             <Text style={styles.detailCellLbl}>DATE</Text>
                             <Text style={styles.detailCellVal}>{eventDate}</Text>
                         </View>
-                        <View style={[styles.detailCell, { borderBottomWidth: 0 }]}>
+                        <View style={[styles.detailCell, styles.detailCellRight]}>
                             <Text style={styles.detailCellLbl}>GUEST LIST</Text>
                             <Text style={styles.detailCellVal}>{guestCount} Persons</Text>
                         </View>
-                        <View style={[styles.detailCell, styles.detailCellRight, { borderBottomWidth: 0 }]}>
+                        {/* Full-width SEATS row */}
+                        <View style={[styles.detailCell, { width: '100%', borderBottomWidth: 0 }]}>
+                            <Text style={styles.detailCellLbl}>ASSIGNED SEATS</Text>
+                            <View style={styles.seatChipsRow}>
+                                {seatLabels.map((label, idx) => (
+                                    <View key={idx} style={styles.seatChip}>
+                                        <Ionicons name="person" size={9} color="#a78bfa" />
+                                        <Text style={styles.seatChipTxt}>{label}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        </View>
+                        {/* STATUS — separate bottom row */}
+                        <View style={[styles.detailCell, { width: '100%', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingTop: 10, paddingBottom: 10 }]}>
                             <Text style={styles.detailCellLbl}>STATUS</Text>
                             <View style={styles.confirmedBadge}>
                                 <View style={[styles.confirmedDot, { backgroundColor: statusColor }]} />
@@ -397,6 +419,11 @@ const styles = StyleSheet.create({
     detailCellRight:    { borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.05)' },
     detailCellLbl:      { color: 'rgba(255,255,255,0.3)', fontSize: 9, fontWeight: '800', letterSpacing: 1.5, marginBottom: 5 },
     detailCellVal:      { color: '#fff', fontSize: 14, fontWeight: '700' },
+
+    // Seat chips
+    seatChipsRow:       { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 },
+    seatChip:           { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(124,77,255,0.15)', borderWidth: 1, borderColor: 'rgba(124,77,255,0.3)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
+    seatChipTxt:        { color: '#c4b5fd', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
 
     // Confirmed badge
     confirmedBadge:     { flexDirection: 'row', alignItems: 'center', gap: 5 },
