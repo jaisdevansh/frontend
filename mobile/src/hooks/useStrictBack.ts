@@ -2,12 +2,14 @@ import { useEffect, useCallback } from 'react';
 import { BackHandler } from 'react-native';
 import { useNavigation, useRouter } from 'expo-router';
 
-export function useStrictBack(fallbackRoute?: any) {
+export function useStrictBack(fallbackRoute?: any, forceFallback: boolean = false) {
     const navigation = useNavigation();
     const router = useRouter();
 
     const goBack = useCallback(() => {
-        if (navigation.canGoBack()) {
+        if (forceFallback && fallbackRoute) {
+            router.replace(fallbackRoute);
+        } else if (navigation.canGoBack()) {
             navigation.goBack();
         } else if (fallbackRoute) {
             router.replace(fallbackRoute);
@@ -16,7 +18,7 @@ export function useStrictBack(fallbackRoute?: any) {
         // Always return true to BackHandler to signify we've intercepted the system event
         // This prevents the default (sometimes buggy) OS behavior from triggering simultaneously
         return true;
-    }, [navigation, router, fallbackRoute]);
+    }, [navigation, router, fallbackRoute, forceFallback]);
 
     useEffect(() => {
         const subscription = BackHandler.addEventListener('hardwareBackPress', goBack);

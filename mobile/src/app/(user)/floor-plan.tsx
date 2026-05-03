@@ -55,7 +55,7 @@ export default function FloorPlan() {
     const [loading, setLoading] = useState(true);
     const [locking, setLocking] = useState(false);
 
-    const goBack = useStrictBack({ pathname: '/(user)/ticket-selection', params });
+    const goBack = useStrictBack({ pathname: '/(user)/ticket-selection', params }, true);
 
     // 🚀 Clean Start: Always clear selection when entering a new session or changing parameters
     useEffect(() => {

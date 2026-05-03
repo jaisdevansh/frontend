@@ -112,7 +112,7 @@ const TableSelection = () => {
     const [selectedTime, setSelectedTime] = useState('');
     const [dynamicTables, setDynamicTables] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const goBack = useStrictBack({ pathname: '/(user)/event-details', params: { eventId } });
+    const goBack = useStrictBack({ pathname: '/(user)/event-details', params: { eventId } }, true);
 
     const [isProceeding, setIsProceeding] = useState(false);
 
