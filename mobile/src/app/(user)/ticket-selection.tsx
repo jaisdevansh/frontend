@@ -339,8 +339,10 @@ const TableSelection = () => {
                                     
                                     <View style={styles.badgeRow}>
                                         {t.isAlmostFull && <View style={styles.smallBadgeFull}><Text style={styles.smallBadgeText}>ALMOST FULL</Text></View>}
-                                        <View style={styles.smallBadgeAvailability}>
-                                            <Text style={styles.smallBadgeText}>{Math.max(0, t.capacity - t.booked)} LEFT</Text>
+                                        <View style={[styles.smallBadgeAvailability, isUnavail && { backgroundColor: 'rgba(239,68,68,0.2)' }]}>
+                                            <Text style={[styles.smallBadgeText, isUnavail && { color: '#ef4444' }]}>
+                                                {isUnavail ? 'SOLD OUT' : `${Math.max(0, t.capacity - t.booked)} LEFT`}
+                                            </Text>
                                         </View>
                                     </View>
 

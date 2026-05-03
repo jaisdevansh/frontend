@@ -54,6 +54,11 @@ export default function SecurityPanel() {
     const [isScanning, setIsScanning] = useState(false);
     const [scannedTicket, setScannedTicket] = useState<any>(null);
     const [isVerifying, setIsVerifying] = useState(false);
+    const [entryCount, setEntryCount] = useState(1);
+
+    const remaining = scannedTicket
+        ? Math.max(0, (scannedTicket.guests || 1) - (scannedTicket.enteredCount || 0))
+        : 0;
 
     // ── React Query hooks ─────────────────────────────────────────────────────
     const { data: openIssues = [], isLoading: openLoading, refetch: refetchOpen, isRefetching: openRefreshing } = useOpenIssues();
@@ -120,6 +125,8 @@ export default function SecurityPanel() {
             if (res.success) {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
                 setScannedTicket(res.data);
+                const rem = Math.max(1, (res.data.guests || 1) - (res.data.enteredCount || 0));
+                setEntryCount(rem);
             }
         } catch (error: any) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -143,13 +150,14 @@ export default function SecurityPanel() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
         try {
-            const res = await securityService.confirmEntry(scannedTicket._id);
+            const res = await securityService.confirmEntry(scannedTicket._id, entryCount);
             if (res.success) {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                showToast('✅ ACCESS GRANTED', 'success');
+                showToast(`✅ ${entryCount} GUEST${entryCount > 1 ? 'S' : ''} — ACCESS GRANTED`, 'success');
                 setScannedTicket(null);
                 setIsScannerVisible(false);
                 setIsScanning(false);
+                setEntryCount(1);
                 // Trigger any history Refresh here
             }
         } catch (error: any) {
@@ -536,6 +544,38 @@ export default function SecurityPanel() {
                                     </View>
                                 </View>
 
+                                {/* Group entry stepper — only show if multiple guests remain */}
+                                {remaining > 1 && (
+                                    <View style={styles.stepperSection}>
+                                        <Text style={styles.stepperLbl}>HOW MANY ENTERING NOW?</Text>
+                                        <View style={styles.stepper}>
+                                            <TouchableOpacity
+                                                style={[styles.stepBtn, entryCount <= 1 && styles.stepBtnDim]}
+                                                onPress={() => { Haptics.selectionAsync(); setEntryCount(c => Math.max(1, c - 1)); }}
+                                                disabled={entryCount <= 1}
+                                            >
+                                                <Ionicons name="remove" size={24} color="#fff" />
+                                            </TouchableOpacity>
+                                            <View style={styles.stepCount}>
+                                                <Text style={styles.stepCountTxt}>{entryCount}</Text>
+                                                <Text style={styles.stepCountSub}>of {remaining}</Text>
+                                            </View>
+                                            <TouchableOpacity
+                                                style={[styles.stepBtn, styles.stepBtnPlus, entryCount >= remaining && styles.stepBtnDim]}
+                                                onPress={() => { Haptics.selectionAsync(); setEntryCount(c => Math.min(remaining, c + 1)); }}
+                                                disabled={entryCount >= remaining}
+                                            >
+                                                <Ionicons name="add" size={24} color="#fff" />
+                                            </TouchableOpacity>
+                                        </View>
+                                        {entryCount < remaining && (
+                                            <TouchableOpacity onPress={() => setEntryCount(remaining)} style={styles.allBtn}>
+                                                <Text style={styles.allBtnTxt}>LET ALL {remaining} IN</Text>
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
+                                )}
+
                                 <View style={styles.reviewActions}>
                                     <TouchableOpacity 
                                         style={styles.cancelBtn} 
@@ -548,12 +588,12 @@ export default function SecurityPanel() {
                                     </TouchableOpacity>
                                     
                                     <TouchableOpacity 
-                                        style={[styles.approveBtn, (isVerifying || scannedTicket.status === 'checked_in') && { opacity: 0.5 }]} 
+                                        style={[styles.approveBtn, (isVerifying || scannedTicket.status === 'checked_in' || remaining === 0) && { opacity: 0.5 }]} 
                                         onPress={handleConfirmEntry}
-                                        disabled={isVerifying || scannedTicket.status === 'checked_in'}
+                                        disabled={isVerifying || scannedTicket.status === 'checked_in' || remaining === 0}
                                     >
                                         <LinearGradient
-                                            colors={scannedTicket.status === 'checked_in' ? ['#333', '#222'] : [COLORS.primary, '#6366F1']}
+                                            colors={(scannedTicket.status === 'checked_in' || remaining === 0) ? ['#333', '#222'] : [COLORS.primary, '#6366F1']}
                                             style={styles.approveGrad}
                                             start={{ x: 0, y: 0 }}
                                             end={{ x: 1, y: 0 }}
@@ -563,7 +603,9 @@ export default function SecurityPanel() {
                                             ) : (
                                                 <>
                                                     <Text style={styles.approveText}>
-                                                        {scannedTicket.status === 'checked_in' ? 'ALREADY IN' : 'APPROVE ENTRY'}
+                                                        {(scannedTicket.status === 'checked_in' || remaining === 0) 
+                                                            ? 'ALREADY IN' 
+                                                            : remaining === 1 ? 'APPROVE 1 GUEST' : `APPROVE ${entryCount} GUESTS`}
                                                     </Text>
                                                     <Ionicons name="chevron-forward" size={18} color="white" />
                                                 </>
@@ -697,5 +739,18 @@ const styles = StyleSheet.create({
     approveBtn: { flex: 2, height: 52, borderRadius: 18, overflow: 'hidden' },
     approveGrad: { width: '100%', height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
     approveText: { color: 'white', fontSize: 14, fontWeight: '900', letterSpacing: 1 },
-    approveBtnText: { color: 'white', fontSize: 14, fontWeight: '900', letterSpacing: 1 }
+    approveBtnText: { color: 'white', fontSize: 14, fontWeight: '900', letterSpacing: 1 },
+
+    // Group entry stepper
+    stepperSection: { marginBottom: 16, backgroundColor: 'rgba(255,255,255,0.03)', padding: 16, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+    stepperLbl: { color: 'rgba(255,255,255,0.35)', fontSize: 10, fontWeight: '900', letterSpacing: 1.5, textAlign: 'center', marginBottom: 12 },
+    stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20, marginBottom: 12 },
+    stepBtn: { width: 52, height: 52, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    stepBtnPlus: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+    stepBtnDim: { opacity: 0.3 },
+    stepCount: { alignItems: 'center', minWidth: 70 },
+    stepCountTxt: { color: '#fff', fontSize: 40, fontWeight: '900', lineHeight: 44 },
+    stepCountSub: { color: 'rgba(255,255,255,0.3)', fontSize: 11, fontWeight: '700' },
+    allBtn: { backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    allBtnTxt: { color: '#a78bfa', fontSize: 12, fontWeight: '900', letterSpacing: 1 }
 });
