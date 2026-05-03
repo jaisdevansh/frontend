@@ -231,7 +231,7 @@ export default function SecureCheckout() {
                 {
                     eventId,
                     hostId,
-                    ticketType: `${zone} Zone`,
+                    ticketType: zone,
                     tableId: seatIds[0] || undefined,
                     pricePaid: total,
                     seatIds,
