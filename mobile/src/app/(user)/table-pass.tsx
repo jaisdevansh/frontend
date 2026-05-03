@@ -82,8 +82,36 @@ export default function TablePass() {
     const guestCount  = useMemo(() => String(booking?.guests || (params.guestCount ? Number(params.guestCount) : 1)), [booking?.guests, params.guestCount]);
     const numGuests   = useMemo(() => booking?.guests || (params.guestCount ? Number(params.guestCount) : 1), [booking?.guests, params.guestCount]);
     
-    const tableId     = useMemo(() => booking?.tableId || (params.seatIds ? String(params.seatIds).split(',')[0] : 'TABLE-01'), [booking?.tableId, params.seatIds]);
-    const seatIds     = useMemo(() => booking?.seatIds ? booking.seatIds : (params.seatIds ? String(params.seatIds).split(',') : [tableId]), [booking?.seatIds, params.seatIds, tableId]);
+    const tableId     = useMemo(() => booking?.tableId || (params.seatIds ? String(params.seatIds).split(',')[0] : ''), [booking?.tableId, params.seatIds]);
+    const seatIds     = useMemo(() => {
+        if (booking?.seatIds && booking.seatIds.length > 0) return booking.seatIds as string[];
+        if (params.seatIds) return String(params.seatIds).split(',').filter(Boolean);
+        if (tableId) return [tableId];
+        return [];
+    }, [booking?.seatIds, params.seatIds, tableId]);
+
+    // ── Seat label for the pass header ──────────────────────────────────────────
+    // Handles: general access, assigned seats (floor plan), group bookings
+    const seatLabel = useMemo(() => {
+        const isGeneralAccess = zone.toLowerCase().includes('general') ||
+                                zone.toLowerCase().includes('guest') ||
+                                zone.toLowerCase().includes('floor') ||
+                                zone.toLowerCase().includes('standing');
+
+        const formatted = seatIds.map(formatSeatId);
+        const unique    = [...new Set(formatted)]; // deduplicate
+
+        if (isGeneralAccess) {
+            // For general access, show zone + count, not individual seat numbers
+            return `${numGuests} × ${zone.toUpperCase()} PASS`;
+        }
+
+        if (unique.length === 0) return 'PASS';
+        if (unique.length === 1) return `SEAT: ${unique[0]}`;
+        if (unique.length <= 3) return `SEATS: ${unique.join(' \u00b7 ')}`;
+        // For 4+ seats: show range
+        return `SEATS: ${unique[0]} \u2013 ${unique[unique.length - 1]} (${unique.length} total)`;
+    }, [seatIds, zone, numGuests]);
     
     const displayBookingId = useMemo(() => bookingId ? 'STX-' + bookingId.substring(0, 6).toUpperCase() : (params.bookingRef ? String(params.bookingRef) : 'STX-000000'), [bookingId, params.bookingRef]);
     const pricePaid   = useMemo(() => booking?.pricePaid || 0, [booking?.pricePaid]);
@@ -182,43 +210,7 @@ export default function TablePass() {
                 <Text style={styles.confirmedTitle}>
                     {displayStatus === 'cancelled' ? 'Booking Cancelled' : displayStatus === 'expired' ? 'Booking Expired' : 'Reservation Confirmed'}
                 </Text>
-                <Text style={styles.tableIdLabel}>
-                    {(() => {
-                        const isGeneral = zone.toLowerCase().includes('general') || zone.toLowerCase().includes('guest') || zone.toLowerCase().includes('floor');
-                        const formattedTable = formatSeatId(tableId);
-                        
-                        if (isGeneral || formattedTable.toLowerCase().includes('floor')) {
-                            return `${zone.toUpperCase()} PASS`;
-                        }
-                        
-                        if (seatIds.length > 1) {
-                            if (seatIds.length > 3) {
-                                return `SEATS: ${seatIds.length} ASSIGNED`;
-                            }
-                            return `SEATS: ${seatIds.map(formatSeatId).join(' · ')}`;
-                        }
-                        
-                        // If they booked multiple people but only have 1 "Seat", extrapolate the sequence cleanly
-                        if (numGuests > 1 && formattedTable.toLowerCase().includes('seat')) {
-                            const match = formattedTable.match(/(\D+)(\d+)/);
-                            if (match) {
-                                const prefix = match[1].trim(); // e.g., "Seat"
-                                const startNum = parseInt(match[2], 10);
-                                
-                                // Prevent UI overflow for large groups
-                                if (numGuests > 2) {
-                                    return `SEATS: ${prefix} ${startNum} - ${startNum + numGuests - 1}`;
-                                }
-                                
-                                const generatedSeats = Array.from({ length: numGuests }, (_, i) => `${prefix} ${startNum + i}`);
-                                return `SEATS: ${generatedSeats.join(' · ')}`;
-                            }
-                            return `GROUP RESERVATION`;
-                        }
-                        
-                        return `TABLE: ${formattedTable}`;
-                    })()}
-                </Text>
+                <Text style={styles.tableIdLabel}>{seatLabel}</Text>
 
                 {/* Status badge */}
                 <View style={[styles.statusPill, { backgroundColor: statusColor + '20', borderColor: statusColor + '50' }]}>
@@ -381,7 +373,7 @@ const styles = StyleSheet.create({
 
     // Titles
     confirmedTitle:     { color: '#fff', fontSize: 26, fontWeight: '900', textAlign: 'center', marginBottom: 6 },
-    tableIdLabel:       { color: 'rgba(255,255,255,0.9)', fontSize: 14, fontWeight: '800', letterSpacing: 2, marginBottom: 10 },
+    tableIdLabel:       { color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: '800', letterSpacing: 1.5, marginBottom: 10, textAlign: 'center', paddingHorizontal: 16 },
 
     // Status pill
     statusPill:         { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, borderWidth: 1, marginBottom: 24 },
