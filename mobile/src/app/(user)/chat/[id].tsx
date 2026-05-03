@@ -193,14 +193,18 @@ const MessageBubble = React.memo(({
                             />
                         </View>
                     )}
-                    <Text style={[styles.msgText, isMe ? styles.myText : styles.theirText, isMe && { position: 'relative', zIndex: 2 },
+                    <Text style={[
+                        styles.msgText,
+                        isMe ? styles.myText : styles.theirText,
+                        isMe && { position: 'relative', zIndex: 2 },
                         msg.isDeleted && { fontStyle: 'italic' }
                     ]}>
                         {msg.text}
                     </Text>
+                    {/* Time row — always on its own line, right-aligned, never clips */}
                     <View style={[styles.msgFooter, isMe && { position: 'relative', zIndex: 2 }]}>
                         {(msg as any).isEdited && (
-                            <Text style={[styles.timeText, { color: 'rgba(255,255,255,0.35)', marginRight: 4 }]}>edited</Text>
+                            <Text style={styles.editedLabel}>edited</Text>
                         )}
                         <Text style={[styles.timeText, isMe ? styles.myTime : styles.theirTime]}>
                             {fmtTime(msg.createdAt)}
@@ -660,8 +664,12 @@ const styles = StyleSheet.create({
 
     // Bubbles
     bubble: {
-        maxWidth: '76%', paddingHorizontal: 14, paddingVertical: 10,
-        borderRadius: 18, overflow: 'hidden',
+        maxWidth: '78%',
+        paddingHorizontal: 12,
+        paddingTop: 8,
+        paddingBottom: 6,
+        borderRadius: 18,
+        // NO overflow:hidden — that clips content!
     },
     myBubble: {
         backgroundColor: C.myBub,
@@ -672,13 +680,20 @@ const styles = StyleSheet.create({
         borderBottomLeftRadius: 4,
         borderWidth: 1, borderColor: C.border,
     },
-    msgText:   { fontSize: 15, lineHeight: 21 },
-    myText:    { color: '#fff' },
-    theirText: { color: 'rgba(255,255,255,0.92)' },
-    msgFooter: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 4 },
-    timeText:  { fontSize: 10, fontWeight: '600' },
-    myTime:    { color: 'rgba(255,255,255,0.55)' },
-    theirTime: { color: 'rgba(255,255,255,0.28)' },
+    msgText:    { fontSize: 15, lineHeight: 22, flexShrink: 1, flexWrap: 'wrap' },
+    myText:     { color: '#fff' },
+    theirText:  { color: 'rgba(255,255,255,0.92)' },
+    msgFooter: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        marginTop: 3,
+        gap: 3,
+    },
+    editedLabel: { fontSize: 10, color: 'rgba(255,255,255,0.35)', fontWeight: '500' },
+    timeText:   { fontSize: 11, fontWeight: '500' },
+    myTime:     { color: 'rgba(255,255,255,0.55)' },
+    theirTime:  { color: 'rgba(255,255,255,0.28)' },
 
     // Date separator
     dateSepRow:  { flexDirection: 'row', alignItems: 'center', marginVertical: 16, paddingHorizontal: 8 },
