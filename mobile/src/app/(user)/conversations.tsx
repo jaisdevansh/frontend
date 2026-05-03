@@ -299,23 +299,25 @@ export default function ConversationsScreen() {
 
         Alert.alert(
             "Delete Chat",
-            `Are you sure you want to delete your conversation with ${name}?`,
+            `Delete your conversation with ${name}?`,
             [
                 { text: "Cancel", style: "cancel" },
                 { 
                     text: "Delete", 
                     style: "destructive",
                     onPress: async () => {
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
                         try {
-                            const res = await apiClient.delete(`/api/v1/chat/${peerId}`);
-                            if (res.data.success) {
-                                fetchPeers(); // Refresh the list from backend
-                            }
+                            await apiClient.delete(`/api/v1/chat/${peerId}`);
+                            // Refresh list from backend after deletion
+                            fetchPeers();
                         } catch (error: any) {
-                            console.error("Delete failed", error?.response?.status, error?.response?.data, error?.config?.url);
+                            const status = error?.response?.status;
                             const msg = error?.response?.data?.message || 'Server error';
-                            if (error?.response?.status === 404) {
-                                Alert.alert("Failed", "Delete route not found on server or invalid ID. Ensure backend is deployed.");
+                            console.error("Delete failed", status, msg);
+                            // Even on 404, still refresh — messages may already be gone
+                            if (status === 404) {
+                                fetchPeers();
                             } else {
                                 Alert.alert("Failed to delete", msg);
                             }
