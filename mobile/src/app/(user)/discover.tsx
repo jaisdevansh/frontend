@@ -461,10 +461,45 @@ await new Promise(resolve => setTimeout(resolve, delay));
                 console.log('🎁 [Discover] Received gift request:', request);
                 addGiftRequest(request);
             };
-            const handleGiftAccepted = ({ requestId }: any) => {
-                console.log('✅ [Discover] Gift request accepted:', requestId);
-                showToast('Your gift was accepted! 🎉', 'success');
+            const handleGiftAccepted = async ({ requestId, item, totalAmount }: any) => {
+                console.log('✅ [Discover] Gift request accepted, showing payment popup for:', requestId);
                 removeGiftRequest(requestId);
+
+                // ── Show payment popup immediately using data from socket event ──
+                // We already have requestId, so no API call needed to find the request.
+                // This avoids the ObjectId !== string comparison bug.
+                const amount = totalAmount || item?.price || 0;
+                const itemName = item?.name || 'your gift';
+
+                Alert.alert(
+                    "🎉 Gift Accepted!",
+                    `They accepted ${itemName}! Pay ₹${amount} to confirm the order.`,
+                    [
+                        { text: "Cancel", style: "cancel" },
+                        { 
+                            text: "Pay Now 💳", 
+                            style: "default",
+                            onPress: async () => {
+                                try {
+                                    const payRes = await apiClient.post('/api/v1/drink-requests/pay', { 
+                                        requestId, 
+                                        transactionId: 'tx_' + Date.now() 
+                                    });
+                                    if (payRes.data.success) {
+                                        showToast('Payment done! Waiter is preparing it 🍸', 'success');
+                                        refetchAll();
+                                        router.push('/(user)/my-orders');
+                                    } else {
+                                        Alert.alert("Error", payRes.data.message || "Payment failed");
+                                    }
+                                } catch(e: any) {
+                                    Alert.alert("Payment Failed", e.response?.data?.message || "Could not process payment. Please try again.");
+                                }
+                            } 
+                        }
+                    ],
+                    { cancelable: false }
+                );
             };
             const handleGiftRejected = ({ requestId }: any) => {
                 console.log('❌ [Discover] Gift request declined:', requestId);
@@ -1489,10 +1524,16 @@ await new Promise(resolve => setTimeout(resolve, delay));
                             {/* Accept Button */}
                             <TouchableOpacity
                                 style={{ borderRadius: 16, overflow: 'hidden' }}
+                                disabled={giftModal.processing}
                                 onPress={async () => {
+                                    if (giftModal.processing) return;
+                                    setGiftModal(p => ({ ...p, processing: true }));
                                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                                     
-                                    if (!giftRequestModal.request) return;
+                                    if (!giftRequestModal.request) {
+                                        setGiftModal(p => ({ ...p, processing: false }));
+                                        return;
+                                    }
                                     
                                     try {
                                         // Respond to the native DrinkRequest
@@ -1506,13 +1547,15 @@ await new Promise(resolve => setTimeout(resolve, delay));
                                         if (res.data.success) {
                                             showToast('Gift accepted! 🎉', 'success');
                                             
-                                            // Notify sender via socket
+                                            // Notify sender via socket — include item & amount so sender popup works instantly
                                             const currentSocket = useChatStore.getState().socket;
                                             if (currentSocket) {
                                                 currentSocket.emit('gift_request_accepted', {
                                                     requestId: giftRequestModal.request.requestId,
                                                     senderId: giftRequestModal.request.senderId,
-                                                    receiverId: currentUser?.id
+                                                    receiverId: currentUser?.id,
+                                                    item: giftRequestModal.request.item,
+                                                    totalAmount: giftRequestModal.request.item?.price || 0
                                                 });
                                             }
                                             
@@ -1527,6 +1570,8 @@ await new Promise(resolve => setTimeout(resolve, delay));
                                             title: 'Failed to Accept', 
                                             message: error.response?.data?.message || 'Failed to accept gift. Please try again.' 
                                         });
+                                    } finally {
+                                        setGiftModal(p => ({ ...p, processing: false }));
                                     }
                                 }}
                             >

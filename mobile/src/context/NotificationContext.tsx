@@ -175,10 +175,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         const playNotificationSound = async () => {
             try {
                 const { sound } = await Audio.Sound.createAsync(
-                    require('../assets/sounds/notify.ogg')
+                    require('../../assets/sounds/notify.mp3')
                 );
                 await sound.playAsync();
-                sound.setOnPlaybackStatusUpdate((status) => {
+                sound.setOnPlaybackStatusUpdate((status: any) => {
                     if (status.isLoaded && status.didJustFinish) {
                         sound.unloadAsync();
                     }

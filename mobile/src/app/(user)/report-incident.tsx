@@ -54,8 +54,9 @@ export default function ReportIncidentScreen() {
         const fetchActiveBooking = async () => {
             try {
                 const bookingRes = await apiClient.get('/user/bookings');
-                const activeBooking = bookingRes.data.data?.find((b: any) => 
-                    b.status === 'checked_in'
+                const bookingsArray = bookingRes.data.data?.bookings || bookingRes.data.data || [];
+                const activeBooking = bookingsArray.find((b: any) => 
+                    ['checked_in', 'active', 'approved'].includes(b.status)
                 );
                 
                 if (activeBooking && activeBooking.eventId) {

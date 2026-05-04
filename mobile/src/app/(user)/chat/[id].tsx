@@ -401,11 +401,11 @@ export default function ChatScreen() {
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
-                    text: '✏️  Edit',
+                    text: 'Edit',
                     onPress: () => startEdit(messageId, messageText),
                 },
                 {
-                    text: '🗑️  Delete for me',
+                    text: 'Delete for me',
                     onPress: () => removeMessage?.(peerId || convId, messageId),
                 },
                 {
@@ -665,6 +665,7 @@ const styles = StyleSheet.create({
     // Bubbles
     bubble: {
         maxWidth: '78%',
+        minWidth: 110,
         paddingHorizontal: 12,
         paddingTop: 8,
         paddingBottom: 6,
@@ -687,11 +688,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'flex-end',
         alignItems: 'center',
+        alignSelf: 'flex-end',
         marginTop: 3,
-        gap: 3,
+        gap: 4,
     },
-    editedLabel: { fontSize: 10, color: 'rgba(255,255,255,0.35)', fontWeight: '500' },
-    timeText:   { fontSize: 11, fontWeight: '500' },
+    editedLabel: { fontSize: 10, color: 'rgba(255,255,255,0.35)', fontWeight: '500', flexShrink: 0 },
+    timeText:   { fontSize: 11, fontWeight: '500', flexShrink: 0 },
     myTime:     { color: 'rgba(255,255,255,0.55)' },
     theirTime:  { color: 'rgba(255,255,255,0.28)' },
 

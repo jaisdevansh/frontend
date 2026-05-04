@@ -12,6 +12,7 @@ import {
     Platform,
     Switch
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -112,13 +113,12 @@ export default function ReportIncident() {
             }
 
             const res = await userService.submitIncident({
-                title,
-                category,
-                description,
-                location,
+                type: category, // Backend expects 'type'
+                message: `[${title}]\n\n${description}`, // Backend expects 'message'
+                zone: location || 'General', // Backend expects 'zone'
                 images: finalImages,
                 isAnonymous,
-                venueId: currentVenueId,
+                eventId: currentVenueId, // Ensure it's passed as eventId if mapped
                 metadata: {
                     os: Platform.OS,
                     osVersion: Platform.Version,
@@ -170,13 +170,14 @@ export default function ReportIncident() {
     );
 
     const renderStep2 = () => (
-        <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        <KeyboardAwareScrollView 
             style={{ flex: 1 }}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+            contentContainerStyle={styles.scrollContent}
+            enableOnAndroid={true}
+            extraScrollHeight={100}
+            keyboardShouldPersistTaps="handled"
         >
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-                <View style={styles.activeCategoryHeader}>
+            <View style={styles.activeCategoryHeader}>
                     <Text style={styles.activeCategoryLabel}>REPORTING FOR</Text>
                     <Text style={styles.activeCategoryName}>{category}</Text>
                 </View>
@@ -273,8 +274,7 @@ export default function ReportIncident() {
                         <Text style={styles.submitBtnText}>Submit Secure Report</Text>
                     )}
                 </TouchableOpacity>
-            </ScrollView>
-        </KeyboardAvoidingView>
+        </KeyboardAwareScrollView>
     );
 
     const renderStep3 = () => (

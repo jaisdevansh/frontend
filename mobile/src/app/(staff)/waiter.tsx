@@ -149,10 +149,20 @@ const OrderCard = memo(({ order, activeTab, onAccept, onReject, onUpdateStatus }
                     <Text style={styles.infoChipLabel}>TABLE</Text>
                     <Text style={[styles.infoChipValue, { color: cfg.color }]} numberOfLines={isExpanded ? undefined : 1}>
                         {(() => {
-                            const tid = order.tableId || '';
-                            if (tid.includes('_s')) return tid.split('_s')[1];
-                            if (tid.length > 10) return tid.substring(tid.length - 4).toUpperCase();
-                            return tid || '—';
+                            const tid = (order.tableId || '').trim();
+                            if (!tid) return '—';
+                            // Seat slug: "69dcf6d6_s69" → "SEAT 69"
+                            const seatMatch = tid.match(/_s(\d+)$/i);
+                            if (seatMatch) return `SEAT ${seatMatch[1]}`;
+                            // Default / general floor values
+                            const lower = tid.toLowerCase();
+                            if (['floor', 'general entry', 'generalentry', 'general', 'n/a', '--'].includes(lower)) return 'FLOOR';
+                            // Long hex ObjectId (24 chars) → show last 4
+                            if (tid.length === 24 && /^[a-f0-9]+$/i.test(tid)) return `#${tid.slice(-4).toUpperCase()}`;
+                            // Long composite id → show last 4 uppercased
+                            if (tid.length > 10) return `#${tid.slice(-4).toUpperCase()}`;
+                            // Short, clean ID (e.g. "VIP-01", "T-5")
+                            return tid.toUpperCase();
                         })()}
                     </Text>
                 </View>

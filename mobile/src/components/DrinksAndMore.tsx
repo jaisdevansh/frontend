@@ -45,6 +45,7 @@ export default function DrinksAndMore({ eventId, hostId, zone, tableId }: { even
     const displayZone = zone || 'Standard';
     const displayTableId = tableId || 'Floor';
     const [activeOrders, setActiveOrders] = useState<any[]>([]);
+    const [manualTable, setManualTable] = useState('');
 
     // ⚡ REACT QUERY: Use prefetched data for instant loading
     const [menuBlockMessage, setMenuBlockMessage] = useState<string>('');
@@ -164,6 +165,11 @@ export default function DrinksAndMore({ eventId, hostId, zone, tableId }: { even
             return;
         }
 
+        if (!tableId && !manualTable.trim()) {
+            showToast('Please enter your Table or Seat Number', 'error');
+            return;
+        }
+
         setProcessing(true);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
@@ -189,7 +195,7 @@ const result = await initiateFoodPayment(
             {
                 ...orderPayload,
                 zone: displayZone,
-                tableId: displayTableId
+                tableId: tableId || manualTable.trim()
             }
         );
 
@@ -378,6 +384,20 @@ setProcessing(false);
                                 </View>
                             </View>
                         ))}
+
+                        {/* Table / Delivery Location (If not pre-assigned) */}
+                        {!tableId && (
+                            <View style={styles.section}>
+                                <Text style={styles.sectionTitle}>Delivery Location</Text>
+                                <TextInput
+                                    style={[styles.tipInput, { borderColor: manualTable ? '#2563EB' : 'rgba(255,255,255,0.08)' }]}
+                                    placeholder="Enter Table or Seat No. (e.g. T-12)"
+                                    placeholderTextColor="rgba(255,255,255,0.25)"
+                                    value={manualTable}
+                                    onChangeText={setManualTable}
+                                />
+                            </View>
+                        )}
 
                         {/* Tip Section */}
                         <View style={styles.section}>
