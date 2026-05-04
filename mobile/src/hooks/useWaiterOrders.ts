@@ -93,9 +93,27 @@ export const useWaiterSocket = () => {
                 socketRef = await getSocket();
                 socketRef.emit('join_room', 'waiter_room');
 
-                // New order arrived → refresh available list
-                socketRef.on('new_order', () => {
+                // New order arrived → refresh available list and play sound
+                socketRef.on('new_order', async (payload: any) => {
                     qc.invalidateQueries({ queryKey: waiterKeys.available });
+                    
+                    try {
+                        const { Audio } = require('expo-av');
+                        const { sound } = await Audio.Sound.createAsync(
+                            require('../../assets/sounds/notify.mp3')
+                        );
+                        await sound.playAsync();
+                        sound.setOnPlaybackStatusUpdate((status: any) => {
+                            if (status.isLoaded && status.didJustFinish) sound.unloadAsync();
+                        });
+                    } catch (err) {
+                        console.log('Failed to play notify sound:', err);
+                    }
+
+                    try {
+                        const Haptics = require('expo-haptics');
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    } catch(e) {}
                 });
 
                 // Any order status change → refresh all lists

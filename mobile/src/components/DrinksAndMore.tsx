@@ -96,11 +96,31 @@ export default function DrinksAndMore({ eventId, hostId, zone, tableId }: { even
             console.log('🔄 Menu updated via socket, refetching...');
             // React Query will auto-refetch
         });
-        socket.on('order_status_update', ({ orderId, status }) => {
+        socket.on('order_status_update', async ({ orderId, status }) => {
+            try {
+                const { Audio } = require('expo-av');
+                const { sound } = await Audio.Sound.createAsync(
+                    require('../../assets/sounds/notify.mp3')
+                );
+                await sound.playAsync();
+                sound.setOnPlaybackStatusUpdate((s: any) => {
+                    if (s.isLoaded && s.didJustFinish) sound.unloadAsync();
+                });
+            } catch(e) {}
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             setActiveOrders(prev => prev.map((o: any) => o._id === orderId ? { ...o, status } : o));
         });
-        socket.on('notification', (payload) => {
+        socket.on('notification', async (payload) => {
+            try {
+                const { Audio } = require('expo-av');
+                const { sound } = await Audio.Sound.createAsync(
+                    require('../../assets/sounds/notify.mp3')
+                );
+                await sound.playAsync();
+                sound.setOnPlaybackStatusUpdate((s: any) => {
+                    if (s.isLoaded && s.didJustFinish) sound.unloadAsync();
+                });
+            } catch(e) {}
             if (payload.type === 'order') userService.getMyFoodOrders().then((r: any) => { if (r.success) setActiveOrders(r.data); }).catch(() => {});
         });
 
