@@ -19,7 +19,7 @@ const getBaseUrl = () => {
     if (env === 'development') {
         return `http://${LOCAL_IP}:3001`;   // Local dev fallback
     }
-    return 'https://stayin.in/api1';        // 🚀 Production (AWS Nginx)
+    return 'https://party.stayin.in/api1';   // 🚀 Production
 };
 
 const getAdminBaseUrl = () => {
@@ -28,7 +28,7 @@ const getAdminBaseUrl = () => {
     if (env === 'development') {
         return `http://${LOCAL_IP}:3002`;   // Local dev fallback
     }
-    return 'https://stayin.in/api2';        // 🚀 Production (AWS Nginx)
+    return 'https://party.stayin.in/api2';   // 🚀 Production
 };
 
 export const API_BASE_URL = getBaseUrl();

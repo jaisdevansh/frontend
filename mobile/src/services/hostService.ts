@@ -49,10 +49,30 @@ export const hostService = {
         return response.data;
     },
 
-    // 💰 Wallet & Withdrawals (NEW)
+    // 💰 Wallet & Withdrawals
     getWalletDetails: async () => {
-        const response = await apiClient.get('/api/v1/host/wallet/details');
-        return response.data;
+        // Fetch payouts summary + bank details together
+        const [payoutsRes, bankRes, pendingRes] = await Promise.all([
+            apiClient.get('/host/payouts'),
+            apiClient.get('/host/bank-details'),
+            apiClient.get('/host/payout-requests'),
+        ]);
+        const payouts = payoutsRes.data;
+        const bank = bankRes.data;
+        const pending = pendingRes.data;
+        return {
+            success: true,
+            data: {
+                wallet: {
+                    balance: payouts.data?.summary?.pendingPayout || 0,
+                    totalEarned: payouts.data?.summary?.totalEarnings || 0,
+                    pendingWithdrawal: payouts.data?.summary?.completedPayout || 0,
+                },
+                bankDetails: bank.data || {},
+                transactions: payouts.data?.history || [],
+                pendingWithdrawals: (pending.data || []).filter((r: any) => r.status === 'PENDING'),
+            }
+        };
     },
     updateBankDetails: async (data: {
         accountNumber: string;
@@ -61,11 +81,17 @@ export const hostService = {
         upiId: string;
         bankName: string;
     }) => {
-        const response = await apiClient.put('/api/v1/host/wallet/bank-details', data);
+        const response = await apiClient.put('/host/bank-details', {
+            name: data.accountHolderName,
+            upiId: data.upiId,
+            accountNumber: data.accountNumber,
+            bankName: data.bankName,
+            ifsc: data.ifscCode,
+        });
         return response.data;
     },
     requestWithdrawal: async (amount: number) => {
-        const response = await apiClient.post('/api/v1/host/wallet/withdraw', { amount });
+        const response = await apiClient.post('/host/payout-requests', { amount });
         return response.data;
     },
 
