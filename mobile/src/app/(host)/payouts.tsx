@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, ScrollView,
     ActivityIndicator, Dimensions, Modal, TextInput, Alert,
@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING } from '../../constants/design-system';
 import { hostService } from '../../services/hostService';
 import dayjs from 'dayjs';
+import Svg, { Circle, G } from 'react-native-svg';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -48,6 +49,7 @@ export default function HostWalletScreen() {
     });
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+    const [insights, setInsights] = useState<any[]>([]);
 
     const [showWithdrawModal, setShowWithdrawModal] = useState(false);
     const [showBankModal, setShowBankModal] = useState(false);
@@ -63,6 +65,7 @@ export default function HostWalletScreen() {
                 });
                 setTransactions(res.data.transactions || []);
                 setPendingRequests(res.data.pendingWithdrawals || []);
+                setInsights(res.data.insights || []);
             }
         } catch (error) {
             console.error('Wallet Fetch Error:', error);
@@ -118,6 +121,25 @@ export default function HostWalletScreen() {
     };
 
     const fmt = (n: number) => `₹${Math.abs(n).toLocaleString()}`;
+
+    const revenueSplit = useMemo(() => {
+        if (!insights || insights.length === 0) return null;
+        const totalTicketRev = insights.reduce((sum, i) => sum + (i.ticket_revenue || 0), 0);
+        const totalOrderRev = insights.reduce((sum, i) => sum + (i.order_revenue || 0), 0);
+        const overallRev = totalTicketRev + totalOrderRev;
+        if (overallRev === 0) return null;
+        
+        const ticketPct = (totalTicketRev / overallRev) * 100;
+        const orderPct = (totalOrderRev / overallRev) * 100;
+
+        const radius = 45;
+        const strokeWidth = 25;
+        const circumference = 2 * Math.PI * radius;
+        const ticketStroke = (ticketPct / 100) * circumference;
+        const orderStroke = (orderPct / 100) * circumference;
+
+        return { totalTicketRev, totalOrderRev, overallRev, ticketPct, orderPct, radius, strokeWidth, circumference, ticketStroke, orderStroke };
+    }, [insights]);
 
     if (loading) {
         return (
@@ -176,8 +198,101 @@ export default function HostWalletScreen() {
                     <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.3)" />
                 </TouchableOpacity>
 
+                {/* Event Insights & Graphs */}
+                <Text style={styles.sectionTitle}>Analytics & Insights</Text>
+                {insights.length === 0 ? (
+                    <View style={[styles.emptyContainer, { marginBottom: 24 }]}>
+                        <Ionicons name="bar-chart-outline" size={40} color="rgba(255,255,255,0.05)" />
+                        <Text style={styles.emptyText}>No revenue data yet</Text>
+                    </View>
+                ) : (
+                    <View style={{ marginBottom: 32, gap: 16 }}>
+                        {/* Overall Revenue Breakdown Graph */}
+                        {revenueSplit ? (
+                            <View style={styles.graphContainer}>
+                                <Text style={styles.graphTitle}>Overall Revenue Split</Text>
+                                
+                                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
+                                    <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+                                        <Svg width={120} height={120} viewBox="0 0 120 120">
+                                            <G rotation="-90" origin="60, 60">
+                                                <Circle cx="60" cy="60" r={revenueSplit.radius} stroke="rgba(255,255,255,0.05)" strokeWidth={revenueSplit.strokeWidth} fill="transparent" />
+                                                {revenueSplit.ticketPct > 0 && (
+                                                    <Circle cx="60" cy="60" r={revenueSplit.radius} stroke={COLORS.primary} strokeWidth={revenueSplit.strokeWidth} fill="transparent" strokeDasharray={`${revenueSplit.ticketStroke} ${revenueSplit.circumference}`} />
+                                                )}
+                                                {revenueSplit.orderPct > 0 && (
+                                                    <Circle cx="60" cy="60" r={revenueSplit.radius} stroke="#EC4899" strokeWidth={revenueSplit.strokeWidth} fill="transparent" strokeDasharray={`${revenueSplit.orderStroke} ${revenueSplit.circumference}`} strokeDashoffset={-revenueSplit.ticketStroke} />
+                                                )}
+                                            </G>
+                                        </Svg>
+                                        <View style={styles.pieCenterText}>
+                                            <Text style={styles.pieCenterLabel}>Total</Text>
+                                        </View>
+                                    </View>
+
+                                    <View style={styles.graphLegendVertical}>
+                                        <View style={styles.legendItemCard}>
+                                            <View style={styles.legendDotRow}>
+                                                <View style={[styles.legendDot, { backgroundColor: COLORS.primary }]} />
+                                                <Text style={styles.legendText}>Tickets ({revenueSplit.ticketPct.toFixed(0)}%)</Text>
+                                            </View>
+                                            <Text style={styles.legendAmt}>{fmt(revenueSplit.totalTicketRev)}</Text>
+                                        </View>
+                                        <View style={styles.legendItemCard}>
+                                            <View style={styles.legendDotRow}>
+                                                <View style={[styles.legendDot, { backgroundColor: '#EC4899' }]} />
+                                                <Text style={styles.legendText}>Orders ({revenueSplit.orderPct.toFixed(0)}%)</Text>
+                                            </View>
+                                            <Text style={styles.legendAmt}>{fmt(revenueSplit.totalOrderRev)}</Text>
+                                        </View>
+                                    </View>
+                                </View>
+                            </View>
+                        ) : null}
+
+                        <Text style={[styles.sectionTitle, { fontSize: 16, marginTop: 8 }]}>Event Performance</Text>
+                        
+                        {insights.map((item, idx) => {
+                            const maxRev = Math.max(...insights.map(i => i.total_revenue || 0));
+                            const revPct = maxRev > 0 ? ((item.total_revenue || 0) / maxRev) * 100 : 0;
+                            
+                            return (
+                                <View key={idx} style={styles.insightCard}>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
+                                        <View style={{ flex: 1, paddingRight: 10 }}>
+                                            <Text style={styles.insightTitle} numberOfLines={1}>{item.event_name}</Text>
+                                        </View>
+                                        <View style={{ alignItems: 'flex-end' }}>
+                                            <Text style={styles.insightTotal}>{fmt(item.total_revenue)}</Text>
+                                            <Text style={[styles.insightSub, { color: COLORS.primary }]}>Total</Text>
+                                        </View>
+                                    </View>
+
+                                    {/* Breakdown row */}
+                                    <View style={styles.eventBreakdownRow}>
+                                        <View style={styles.breakdownCol}>
+                                            <Text style={styles.breakdownLabel}>🎟 TICKETS ({item.total_tickets_sold})</Text>
+                                            <Text style={styles.breakdownVal}>{fmt(item.ticket_revenue || 0)}</Text>
+                                        </View>
+                                        <View style={styles.breakdownDivider} />
+                                        <View style={styles.breakdownCol}>
+                                            <Text style={styles.breakdownLabel}>🍽 ORDERS ({item.total_orders})</Text>
+                                            <Text style={styles.breakdownVal}>{fmt(item.order_revenue || 0)}</Text>
+                                        </View>
+                                    </View>
+                                    
+                                    {/* Mini Event Graph */}
+                                    <View style={styles.miniGraphBg}>
+                                        <View style={[styles.miniGraphFill, { width: `${revPct}%` }]} />
+                                    </View>
+                                </View>
+                            );
+                        })}
+                    </View>
+                )}
+
                 {/* Transactions Ledger */}
-                <Text style={styles.sectionTitle}>Recent History</Text>
+                <Text style={styles.sectionTitle}>Withdrawal History</Text>
                 {transactions.length === 0 ? (
                     <View style={styles.emptyContainer}>
                         <Ionicons name="receipt-outline" size={48} color="rgba(255,255,255,0.05)" />
@@ -355,6 +470,39 @@ const styles = StyleSheet.create({
     txAmount: { fontSize: 15, fontWeight: '800' },
     emptyContainer: { alignItems: 'center', paddingVertical: 40, opacity: 0.5 },
     emptyText: { color: 'white', fontSize: 14, marginTop: 12 },
+
+    // Insights & Graphs
+    graphContainer: {
+        backgroundColor: 'rgba(255,255,255,0.02)', padding: 20, borderRadius: 24,
+        borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', marginBottom: 8
+    },
+    graphTitle: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
+    pieCenterText: { position: 'absolute', alignItems: 'center', justifyContent: 'center', width: 120, height: 120 },
+    pieCenterLabel: { color: 'white', fontSize: 12, fontWeight: '800' },
+    
+    graphLegendVertical: { flex: 1, marginLeft: 20, gap: 12, justifyContent: 'center' },
+    legendItemCard: { backgroundColor: 'rgba(0,0,0,0.2)', padding: 12, borderRadius: 12 },
+    legendDotRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+    legendDot: { width: 10, height: 10, borderRadius: 5 },
+    legendText: { color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: '700' },
+    legendAmt: { color: 'white', fontSize: 15, fontWeight: '800', marginLeft: 16 },
+    
+    insightCard: {
+        backgroundColor: 'rgba(255,255,255,0.02)', padding: 18, borderRadius: 20,
+        borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)'
+    },
+    insightTitle: { color: 'white', fontSize: 16, fontWeight: '700', marginBottom: 2 },
+    insightSub: { color: 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: '600' },
+    insightTotal: { color: COLORS.emerald, fontSize: 18, fontWeight: '800' },
+    
+    eventBreakdownRow: { flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 12, padding: 12, marginBottom: 16 },
+    breakdownCol: { flex: 1 },
+    breakdownDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.1)', marginHorizontal: 12 },
+    breakdownLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 10, fontWeight: '700', marginBottom: 4 },
+    breakdownVal: { color: 'white', fontSize: 14, fontWeight: '700' },
+
+    miniGraphBg: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.05)', overflow: 'hidden', width: '100%' },
+    miniGraphFill: { height: '100%', backgroundColor: COLORS.primary, borderRadius: 3 },
 
     // Modals
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' },

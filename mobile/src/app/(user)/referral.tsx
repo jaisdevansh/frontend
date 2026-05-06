@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Platform, Share, Modal, Linking, Image, InteractionManager, KeyboardAvoidingView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Platform, Share, Modal, Linking, Image, InteractionManager, KeyboardAvoidingView, RefreshControl } from 'react-native';
 import * as Contacts from 'expo-contacts';
 import * as SMS from 'expo-sms';
 import { BlurView } from 'expo-blur';
@@ -83,8 +83,9 @@ export default function ReferralScreen() {
     
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [invitedContactName, setInvitedContactName] = useState('');
+    const [refreshing, setRefreshing] = useState(false);
 
-    const { data: wallet } = useWallet();
+    const { data: wallet, refetch: refetchWallet } = useWallet();
 
     const displayPoints = wallet?.points ?? points;
     
@@ -143,31 +144,45 @@ export default function ReferralScreen() {
         }
     };
 
-    const filteredContacts = contacts.filter(c => 
-        (c.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (c.phoneNumbers?.[0]?.number || '').includes(searchQuery)
-    ).slice(0, searchQuery.trim() ? 50 : 5);
+    const filteredContacts = React.useMemo(() => {
+        const query = searchQuery.toLowerCase();
+        return contacts.filter(c => 
+            (c.name || '').toLowerCase().includes(query) ||
+            (c.phoneNumbers?.[0]?.number || '').includes(query)
+        ).slice(0, searchQuery.trim() ? 50 : 5);
+    }, [contacts, searchQuery]);
+
+    const fetchReferralData = async () => {
+        try {
+            const res = await apiClient.get('/user/referral');
+            if (res.data.success) {
+                setReferralCode(res.data.data.referralCode);
+                setPoints(res.data.data.loyaltyPoints || 0);
+                setReferralCount(res.data.data.referralsCount || 0);
+            } else {
+                showToast('Backend returned success: false', 'error');
+            }
+        } catch (error: any) {
+            const errMsg = error.response?.data?.message || error.message || 'Unknown error';
+            showToast(`Error: ${errMsg}`, 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchReferralData = async () => {
-            try {
-                const res = await apiClient.get('/user/referral');
-                if (res.data.success) {
-                    setReferralCode(res.data.data.referralCode);
-                    setPoints(res.data.data.loyaltyPoints || 0);
-                    setReferralCount(res.data.data.referralsCount || 0);
-                } else {
-                    showToast('Backend returned success: false', 'error');
-                }
-            } catch (error: any) {
-                const errMsg = error.response?.data?.message || error.message || 'Unknown error';
-                showToast(`Error: ${errMsg}`, 'error');
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchReferralData();
     }, []);
+
+    const onRefresh = React.useCallback(async () => {
+        setRefreshing(true);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        await Promise.all([
+            refetchWallet(),
+            fetchReferralData()
+        ]);
+        setRefreshing(false);
+    }, [refetchWallet]);
 
     const handleShare = async () => {
         try {
@@ -240,6 +255,9 @@ export default function ReferralScreen() {
                     contentContainerStyle={styles.scrollContent} 
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
+                    refreshControl={
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
+                    }
                 >
                 
                 {/* Points Hero */}
@@ -577,42 +595,44 @@ const styles = StyleSheet.create({
     },
     redeemTitle: {
         color: '#FFFFFF',
-        fontSize: 16,
+        fontSize: 18,
         fontWeight: '700',
-        marginBottom: 4,
+        marginBottom: 6,
     },
     redeemSubtitle: {
         color: 'rgba(255, 255, 255, 0.5)',
-        fontSize: 13,
+        fontSize: 14,
         lineHeight: 20,
-        marginBottom: SPACING.lg,
+        marginBottom: 20,
     },
     inputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.2)',
-        borderRadius: BORDER_RADIUS.lg,
+        backgroundColor: 'rgba(255, 255, 255, 0.03)',
+        borderRadius: 100,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.15)',
-        paddingRight: 6,
-        paddingVertical: 6,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        padding: 4,
+        height: 56,
     },
     inputIcon: {
-        paddingHorizontal: 16,
+        width: 48,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     input: {
         flex: 1,
-        height: 44,
         color: '#FFFFFF',
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '600',
         letterSpacing: 1,
+        height: '100%',
     },
     applyBtn: {
         backgroundColor: COLORS.primary,
-        height: 44,
+        height: 48,
         paddingHorizontal: 24,
-        borderRadius: BORDER_RADIUS.default,
+        borderRadius: 100,
         justifyContent: 'center',
         alignItems: 'center',
     },

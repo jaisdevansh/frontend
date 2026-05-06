@@ -100,9 +100,9 @@ export default function RewardsScreen() {
                                             
                                             {/* Host Name - Show if coupon is host-specific */}
                                             {coupon.hostId && (
-                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, backgroundColor: 'rgba(245, 222, 179, 0.15)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(245, 222, 179, 0.4)' }}>
-                                                    <Ionicons name="business" size={14} color="#F5DEB3" />
-                                                    <Text style={styles.ticketHostName}>
+                                                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginBottom: 12, backgroundColor: 'rgba(245, 222, 179, 0.1)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(245, 222, 179, 0.25)' }}>
+                                                    <Ionicons name="business" size={12} color="#F5DEB3" style={{ marginTop: 1 }} />
+                                                    <Text style={[styles.ticketHostName, { flexShrink: 1 }]} numberOfLines={2}>
                                                         Events hosted by {coupon.hostId?.name || coupon.hostId?.businessName || 'Specific Venue'}
                                                     </Text>
                                                 </View>
@@ -171,9 +171,9 @@ export default function RewardsScreen() {
                                         
                                         {/* Host Name - Show if coupon is host-specific */}
                                         {c.hostId && (
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6, backgroundColor: 'rgba(245, 222, 179, 0.15)', paddingHorizontal: 8, paddingVertical: 5, borderRadius: 6, borderWidth: 1, borderColor: 'rgba(245, 222, 179, 0.4)', alignSelf: 'flex-start' }}>
-                                                <Ionicons name="business" size={13} color="#F5DEB3" />
-                                                <Text style={styles.hostName}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginBottom: 10, backgroundColor: 'rgba(245, 222, 179, 0.1)', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 6, borderWidth: 1, borderColor: 'rgba(245, 222, 179, 0.25)', alignSelf: 'flex-start' }}>
+                                                <Ionicons name="business" size={12} color="#F5DEB3" style={{ marginTop: 1 }} />
+                                                <Text style={[styles.hostName, { flexShrink: 1 }]} numberOfLines={2}>
                                                     Events hosted by {c.hostId?.name || c.hostId?.businessName || 'Specific Venue'}
                                                 </Text>
                                             </View>
@@ -252,14 +252,14 @@ const styles = StyleSheet.create({
     codeWrapper: { backgroundColor: 'rgba(0,0,0,0.3)', paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
     emptyContainer: { padding: 40, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 20, borderStyle: 'dashed', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
     emptyText: { color: 'rgba(255,255,255,0.4)', fontSize: 14, textAlign: 'center' },
-    storeCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 20, padding: 20, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
-    storeLeft: { flex: 1 },
-    storeTitle: { color: '#FFF', fontSize: 15, fontWeight: '800', marginBottom: 2 },
+    storeCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 20, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+    storeLeft: { flex: 1, paddingRight: 16 },
+    storeTitle: { color: '#FFF', fontSize: 16, fontWeight: '800', marginBottom: 6 },
     hostName: { 
         color: '#F5DEB3', 
-        fontSize: 11.5, 
-        fontWeight: '800',
-        letterSpacing: 0.2,
+        fontSize: 11, 
+        fontWeight: '700',
+        lineHeight: 16,
     },
     storeValue: { color: '#FFD700', fontSize: 14, fontWeight: '900', marginBottom: 4 },
     storeDesc: { color: 'rgba(255,255,255,0.4)', fontSize: 11 },
