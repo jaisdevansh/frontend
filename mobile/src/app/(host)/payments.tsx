@@ -61,6 +61,7 @@ interface Order {
 }
 interface UserTotal {
     name: string;
+    eventName: string;
     img: string | null;
     phone: string | null;
     ticket: number;
@@ -70,6 +71,7 @@ interface UserTotal {
     itemsHtml: string;
     foodStr: string;
     status: string;
+    latestDate: number;
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
@@ -258,6 +260,7 @@ const UserTotalRow = React.memo(({ u, isLast }: { u: UserTotal; isLast: boolean 
                 )}
                 <View style={styles.userTotalInfo}>
                     <Text style={styles.userTotalName}>{u.name}</Text>
+                    <Text style={[styles.userTotalSub, { color: C.primary, fontWeight: '800', marginBottom: 2, fontSize: 10, textTransform: 'uppercase' }]}>{u.eventName}</Text>
                     <Text style={styles.userTotalSub}>
                         Ticket: ₹{u.ticket.toLocaleString()}  |  Food: ₹{u.food.toLocaleString()}
                     </Text>
@@ -389,23 +392,31 @@ export default function PaymentsScreen() {
     const userTotals: UserTotal[] = useMemo(() => {
         const map = new Map<string, UserTotal>();
         payments.forEach(p => {
-            const key = p.memberName || p.userName || p.userId?.name || 'Guest';
-            if (!map.has(key)) map.set(key, { name: key, img: null, phone: null, ticket: 0, food: 0, total: 0, planText: '', itemsHtml: '', foodStr: '', status: 'COMPLETED' });
+            const evName = (p as any).eventId?.title || 'General / No Event';
+            const userName = p.memberName || p.userName || p.userId?.name || 'Guest';
+            const key = `${evName}::${userName}`;
+            if (!map.has(key)) map.set(key, { name: userName, eventName: evName, img: null, phone: null, ticket: 0, food: 0, total: 0, planText: '', itemsHtml: '', foodStr: '', status: 'COMPLETED', latestDate: 0 });
             const obj = map.get(key)!;
             obj.ticket += (p.amount || 0);
             obj.total += (p.amount || 0);
+            const pDate = new Date(p.date || (p as any).createdAt || 0).getTime();
+            if (pDate > obj.latestDate) obj.latestDate = pDate;
             if (p.plan) obj.planText = p.plan;
             if (!obj.img) obj.img = p.memberImage || p.userId?.profilePic || null;
             if (!obj.phone) obj.phone = p.memberPhone || p.userId?.phone || null;
             if (p.status) obj.status = p.status;
         });
         orders.forEach(o => {
-            const key = o.userName || o.userId?.name || 'Guest';
-            if (!map.has(key)) map.set(key, { name: key, img: null, phone: null, ticket: 0, food: 0, total: 0, planText: '', itemsHtml: '', foodStr: '', status: 'COMPLETED' });
+            const evName = (o as any).eventId?.title || 'General / No Event';
+            const userName = o.userName || o.userId?.name || 'Guest';
+            const key = `${evName}::${userName}`;
+            if (!map.has(key)) map.set(key, { name: userName, eventName: evName, img: null, phone: null, ticket: 0, food: 0, total: 0, planText: '', itemsHtml: '', foodStr: '', status: 'COMPLETED', latestDate: 0 });
             const obj = map.get(key)!;
             const oAmt = o.totalAmount || o.total || (o.items || []).reduce((a, it) => a + ((it.price || 0) * (it.qty || it.quantity || 1)), 0);
             obj.food += oAmt;
             obj.total += oAmt;
+            const oDate = new Date(o.createdAt || 0).getTime();
+            if (oDate > obj.latestDate) obj.latestDate = oDate;
             if (!obj.img) obj.img = o.userId?.profilePic || null;
             if (!obj.phone) obj.phone = o.userId?.phone || o.phone || null;
             if (o.items) {
@@ -416,7 +427,7 @@ export default function PaymentsScreen() {
                 });
             }
         });
-        return Array.from(map.values()).sort((a, b) => b.total - a.total);
+        return Array.from(map.values()).sort((a, b) => b.latestDate - a.latestDate);
     }, [payments, orders]);
 
     const userGrandTotal = useMemo(() => userTotals.reduce((s, u) => s + u.total, 0), [userTotals]);
@@ -424,11 +435,21 @@ export default function PaymentsScreen() {
     const consolidatedReceipt = useMemo(() => {
         if (!selectedBill) return null;
         const { type, data } = selectedBill;
+        
+        const targetEventName = (data as any).eventId?.title || 'General / No Event';
         const targetUser = type === 'payment'
             ? data.memberName || data.userName || data.userId?.name || 'Guest'
             : data.userName || data.userId?.name || 'Guest';
-        const userPmts = payments.filter(p => (p.memberName || p.userName || p.userId?.name) === targetUser);
-        const userOrders = orders.filter(o => (o.userName || o.userId?.name) === targetUser);
+
+        const userPmts = payments.filter(p => 
+            (p.memberName || p.userName || p.userId?.name) === targetUser &&
+            ((p as any).eventId?.title || 'General / No Event') === targetEventName
+        );
+        const userOrders = orders.filter(o => 
+            (o.userName || o.userId?.name) === targetUser &&
+            ((o as any).eventId?.title || 'General / No Event') === targetEventName
+        );
+
         const ticketAmt = userPmts.reduce((s, p) => s + (p.amount || 0), 0);
         const planText = userPmts.map(p => p.plan).filter(Boolean).join(', ');
         let totalFoodAmt = 0, foodStr = '', itemsHtml = '';
@@ -441,7 +462,7 @@ export default function PaymentsScreen() {
                 itemsHtml += `<div style="display:flex;justify-content:space-between;margin-bottom:8px"><span>${qty}x ${it.name || it.itemName}</span><span>&#8377;${((it.price || 0) * qty).toLocaleString()}</span></div>`;
             });
         });
-        return { targetUser, ticketAmt, planText, totalFoodAmt, foodStr, itemsHtml, grandTotal: ticketAmt + totalFoodAmt, status: data.status || 'COMPLETED' };
+        return { targetUser, eventName: targetEventName, ticketAmt, planText, totalFoodAmt, foodStr, itemsHtml, grandTotal: ticketAmt + totalFoodAmt, status: data.status || 'COMPLETED' };
     }, [selectedBill, payments, orders]);
 
     const handlePrintBill = useCallback(async () => {
@@ -674,6 +695,7 @@ export default function PaymentsScreen() {
                             {consolidatedReceipt && (
                                 <View style={styles.billInner}>
                                     <Text style={styles.billGuest}>Customer: {consolidatedReceipt.targetUser}</Text>
+                                    <Text style={[styles.billPlan, { color: C.primary, fontWeight: '800' }]}>{consolidatedReceipt.eventName}</Text>
                                     {consolidatedReceipt.ticketAmt > 0 && <Text style={styles.billPlan}>Plan: {consolidatedReceipt.planText}</Text>}
                                     <View style={styles.billDivider} />
 
