@@ -100,7 +100,7 @@ const RefreshBtn = ({ onPress, loading }: { onPress: () => void; loading: boolea
 
 // ─── SVG Line+Area Chart (Stock Market Style) ────────────────────────────────
 const LineAreaChart = ({ data }: { data: { value: number; label: string }[] }) => {
-    const W = width - 48;
+    const W = width - 92; // Accounts for ScrollView padding (48) + Card padding (44)
     const H = 150;
     const padL = 45, padR = 16, padT = 16, padB = 36;
     const chartW = W - padL - padR;
@@ -203,7 +203,7 @@ const LineAreaChart = ({ data }: { data: { value: number; label: string }[] }) =
 // ─── SVG Bar Chart ─────────────────────────────────────────────────────────────
 const BarChartSvg = ({ data }: { data: { value: number; label: string }[] }) => {
     const n = data.length || 1;
-    const availW = width - 40;
+    const availW = width - 92; // Accounts for ScrollView padding (48) + Card padding (44)
     const barW = Math.max(Math.floor((availW - 50 - 20) / n) - 4, 8);
     const gap = Math.max(Math.floor((availW - 50 - 20 - n * barW) / Math.max(n - 1, 1)), 2);
     const padL = 50, padR = 20, padT = 20, padB = 40;
