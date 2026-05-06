@@ -219,6 +219,7 @@ export default function ReferralScreen() {
                     setPoints((prev) => prev + 50);
                 }
                 setInputCode('');
+                refetchWallet(); // Sync the global wallet state so points update instantly
             }
         } catch (error: any) {
             showToast(error.response?.data?.message || 'Failed to apply code', 'error');
