@@ -195,6 +195,17 @@ export default function HostEvents() {
 
     const { data: events, isLoading, refetch, isRefetching } = useEvents();
 
+    // ── DEBUG LOGGING ──
+    React.useEffect(() => {
+        if (events) {
+            console.log('📋 [HostEvents] Events updated in UI:', {
+                count: events.length,
+                status: isRefetching ? 'Refetching...' : 'Stable',
+                timestamp: new Date().toLocaleTimeString()
+            });
+        }
+    }, [events, isRefetching]);
+
     const deleteMutation = useMutation({
         mutationFn: (eventId: string) => hostService.deleteEvent(eventId),
         onSuccess: () => {

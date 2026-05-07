@@ -246,6 +246,20 @@ export default function HomeScreen() {
     const venues = venuesData || [];
     const loading = isEventsLoading;
 
+    // ── DEBUG LOGGING ──
+    useEffect(() => {
+        if (eventsData) {
+            console.log('✅ [HomeScreen] Events loaded:', {
+                count: eventsData.length,
+                firstEvent: eventsData[0]?.title,
+                timestamp: new Date().toLocaleTimeString()
+            });
+        }
+        if (profileData) {
+            console.log('👤 [HomeScreen] Profile loaded:', profileData.name);
+        }
+    }, [eventsData, profileData]);
+
     // UI & Filter State
     const [cityName, setCityName] = useState('Fetching location...');
     const [filterVisible, setFilterVisible] = useState(false);
