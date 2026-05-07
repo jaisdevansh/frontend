@@ -19,6 +19,8 @@ export default function StaffLoginScreen() {
     const [step, setStep] = useState(0); // 0: Identifier, 1: OTP
     const [hint, setHint] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const [verificationId, setVerificationId] = useState<string | null>(null);
+    const [isFirebase, setIsFirebase] = useState(false);
 
     const insets = useSafeAreaInsets();
     const { login } = useAuth();
@@ -33,11 +35,33 @@ export default function StaffLoginScreen() {
 
         setLoading(true);
         try {
-            const res = await authService.sendOtp(identifier.trim().toLowerCase());
-            if (res.success) {
-                showToast(res.message, 'success');
-                if (res.data?.hint) setHint(res.data.hint);
-                setStep(1);
+            const raw = identifier.trim().toLowerCase();
+            const isEmail = raw.includes('@');
+            let finalIdentifier = raw;
+            if (!isEmail) {
+                const digits = raw.replace(/\D/g, '');
+                finalIdentifier = `+91${digits}`;
+            }
+
+            if (!isEmail) {
+                // ── BACKEND OTP ──
+                const res = await authService.sendOtp(finalIdentifier);
+                if (res.success) {
+                    setIsFirebase(false);
+                    if (res.data?.hint) setHint(res.data.hint);
+                    setStep(1);
+                    showToast('OTP sent! ✉️', 'success');
+                } else {
+                    showToast(res.message || 'Failed to send OTP', 'error');
+                }
+            } else {
+                const res = await authService.sendOtp(finalIdentifier);
+                if (res.success) {
+                    setIsFirebase(false);
+                    showToast(res.message, 'success');
+                    if (res.data?.hint) setHint(res.data.hint);
+                    setStep(1);
+                }
             }
         } catch (error: any) {
             const message = error.response?.data?.message || 'Failed to send OTP';
@@ -55,7 +79,18 @@ export default function StaffLoginScreen() {
 
         setLoading(true);
         try {
-            const res = await authService.verifyOtp(identifier.trim().toLowerCase(), otp);
+            const raw = identifier.trim().toLowerCase();
+            const isEmail = raw.includes('@');
+            let finalIdentifier = raw;
+            if (!isEmail) {
+                const digits = raw.replace(/\D/g, '');
+                finalIdentifier = `+91${digits}`;
+            }
+
+            // No Firebase OTP Verify in Expo Go
+            let idToken: string | undefined;
+
+            const res = await authService.verifyOtp(finalIdentifier, otp, idToken);
             if (res.success) {
                 const roleLower = (res.data.role || '').toLowerCase();
                 

@@ -14,8 +14,9 @@ import { useToast } from '../../context/ToastContext';
 import { Logo } from '../../components/Logo';
 
 export default function VerifyOtpScreen() {
-    const { identifier, hint } = useLocalSearchParams<{ identifier: string, hint?: string }>();
+    const { identifier, hint, verificationId, isFirebase } = useLocalSearchParams<{ identifier: string, hint?: string, verificationId?: string, isFirebase?: string }>();
     const [currentHint, setCurrentHint] = useState(hint);
+    const [currentVerificationId, setCurrentVerificationId] = useState<string | null | undefined>(verificationId);
     const [otp, setOtp] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -32,7 +33,23 @@ export default function VerifyOtpScreen() {
 
         setLoading(true);
         try {
-            const res = await authService.verifyOtp(identifier!, otp);
+            let idToken: string | undefined;
+
+            if (isFirebase === 'true' && currentVerificationId) {
+                // ── FIREBASE OTP CONFIRMATION ──
+                try {
+                    const credential = auth.PhoneAuthProvider.credential(currentVerificationId, otp);
+                    const userCredential = await auth().signInWithCredential(credential);
+                    idToken = await userCredential.user.getIdToken();
+                } catch (fbError: any) {
+                    console.error('[Firebase OTP Error]', fbError);
+                    showToast('Invalid Firebase OTP', 'error');
+                    setLoading(false);
+                    return;
+                }
+            }
+
+            const res = await authService.verifyOtp(identifier!, otp, idToken);
             if (res.success) {
                 await login({
                     token: res.data.accessToken,
@@ -53,12 +70,19 @@ export default function VerifyOtpScreen() {
 
     const handleResendOtp = async () => {
         try {
-            const res = await authService.sendOtp(identifier!);
-            if (res.success) {
-                if (res.data?.hint) setCurrentHint(res.data.hint);
-                showToast('OTP resent successfully', 'success');
+            if (isFirebase === 'true') {
+                const confirmation = await auth().signInWithPhoneNumber(identifier!);
+                setCurrentVerificationId(confirmation.verificationId);
+                showToast('OTP resent via Firebase', 'success');
+            } else {
+                const res = await authService.sendOtp(identifier!);
+                if (res.success) {
+                    if (res.data?.hint) setCurrentHint(res.data.hint);
+                    showToast('OTP resent successfully', 'success');
+                }
             }
         } catch (error: any) {
+            console.error('Resend Error:', error);
             showToast('Failed to resend OTP', 'error');
         }
     };

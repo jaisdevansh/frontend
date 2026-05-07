@@ -35,6 +35,12 @@ export default function LoginScreen() {
     const [inputType, setInputType] = useState<'phone' | 'email'>('phone');
 
     const isPhoneMode = inputType === 'phone';
+
+    // Format phone number as "XXXXX XXXXX" while typing
+    const formatPhone = (digits: string) => {
+        if (digits.length <= 5) return digits;
+        return `${digits.slice(0, 5)} ${digits.slice(5, 10)}`;
+    };
     const { login, logout } = useAuth();
     const router = useRouter();
     const goBack = useStrictBack('/(auth)/welcome');
@@ -102,6 +108,15 @@ export default function LoginScreen() {
             return;
         }
 
+        // ── Phone digit check ────────────────────────────────────────────────
+        if (isPhoneMode) {
+            const digits = identifier.replace(/\D/g, '');
+            if (digits.length !== 10) {
+                showToast('Please enter a valid 10-digit mobile number', 'error');
+                return;
+            }
+        }
+
         setLoading(true);
         try {
             if (identifier.trim().toLowerCase() === 'admin') {
@@ -118,13 +133,28 @@ export default function LoginScreen() {
                 finalIdentifier = `+91${digits}`;
             }
 
-            const res = await authService.sendOtp(finalIdentifier);
-            if (res.success) {
-                showToast(res.message, 'success');
-                router.push({
-                    pathname: '/(auth)/verify-otp' as any,
-                    params: { identifier: finalIdentifier, hint: res.data?.hint }
-                });
+            if (!isEmail) {
+                // ── BACKEND OTP (works in Expo Go + Production) ──
+                const res = await authService.sendOtp(finalIdentifier);
+                if (res.success) {
+                    showToast('OTP sent! ✉️', 'success');
+                    router.push({
+                        pathname: '/(auth)/verify-otp' as any,
+                        params: { identifier: finalIdentifier, hint: res.data?.hint }
+                    });
+                } else {
+                    showToast(res.message || 'Failed to send OTP', 'error');
+                }
+            } else {
+                // ── EMAIL OTP ──
+                const res = await authService.sendOtp(finalIdentifier);
+                if (res.success) {
+                    showToast(res.message, 'success');
+                    router.push({
+                        pathname: '/(auth)/verify-otp' as any,
+                        params: { identifier: finalIdentifier, hint: res.data?.hint }
+                    });
+                }
             }
         } catch (error: any) {
             const message = error.response?.data?.message || 'Failed to send OTP';
@@ -172,13 +202,19 @@ export default function LoginScreen() {
                                 <View style={styles.inputRow}>
                                     <TouchableOpacity 
                                         style={styles.dialCodePill}
-                                        onPress={() => setInputType(prev => prev === 'phone' ? 'email' : 'phone')}
+                                        onPress={() => {
+                                            setInputType(prev => prev === 'phone' ? 'email' : 'phone');
+                                            setIdentifier('');
+                                        }}
                                         activeOpacity={0.7}
                                     >
                                         {isPhoneMode ? <Text style={styles.flagEmoji}>🇮🇳</Text> : <Ionicons name="mail" size={20} color="rgba(255, 255, 255, 0.7)" />}
                                     </TouchableOpacity>
 
-                                    <View style={[styles.inputBox, isFocused && styles.inputBoxFocused]}>
+                                    <View style={[
+                                        styles.inputBox,
+                                        isFocused && styles.inputBoxFocused,
+                                    ]}>
                                         {isPhoneMode && (
                                             <>
                                                 <Text style={styles.dialPrefix}>+91</Text>
@@ -187,16 +223,22 @@ export default function LoginScreen() {
                                         )}
                                         <TextInput
                                             style={styles.textField}
-                                            placeholder={isPhoneMode ? '98765 43210' : 'phone or email'}
+                                            placeholder={isPhoneMode ? '98765 43210' : 'you@email.com'}
                                             placeholderTextColor="rgba(255,255,255,0.25)"
                                             value={identifier}
                                             onChangeText={(text) => {
-                                                setIdentifier(text);
-                                                if (text.includes('@') && inputType === 'phone') setInputType('email');
+                                                if (isPhoneMode) {
+                                                    const digits = text.replace(/\D/g, '').slice(0, 10);
+                                                    setIdentifier(formatPhone(digits));
+                                                } else {
+                                                    setIdentifier(text);
+                                                    if (text.includes('@')) setInputType('email');
+                                                }
                                             }}
                                             keyboardType={isPhoneMode ? 'phone-pad' : 'email-address'}
                                             autoCapitalize="none"
                                             autoCorrect={false}
+                                            maxLength={isPhoneMode ? 11 : 100}
                                             onFocus={() => setIsFocused(true)}
                                             onBlur={() => setIsFocused(false)}
                                         />
@@ -341,6 +383,33 @@ const styles = StyleSheet.create({
     inputBoxFocused: {
         borderColor: 'rgba(255, 255, 255, 0.35)',
         backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    },
+    inputBoxError: {
+        borderColor: 'rgba(244, 63, 94, 0.6)',
+        backgroundColor: 'rgba(244, 63, 94, 0.04)',
+    },
+    inputBoxSuccess: {
+        borderColor: 'rgba(16, 185, 129, 0.5)',
+        backgroundColor: 'rgba(16, 185, 129, 0.04)',
+    },
+    errorText: {
+        color: '#F43F5E',
+        fontSize: 12,
+        fontWeight: '600',
+        marginTop: -10,
+        marginBottom: 8,
+        marginLeft: 4,
+    },
+    successText: {
+        color: '#10B981',
+        fontSize: 12,
+        fontWeight: '600',
+        marginTop: -10,
+        marginBottom: 8,
+        marginLeft: 4,
+    },
+    loginButtonDisabled: {
+        opacity: 0.45,
     },
     textField: {
         flex: 1,

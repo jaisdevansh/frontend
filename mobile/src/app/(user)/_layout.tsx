@@ -124,7 +124,7 @@ export default function UserTabsLayout() {
             <Tabs.Screen name="app-rating" options={{ href: null, tabBarStyle: { display: 'none' } }} />
             <Tabs.Screen name="entry-denied" options={{ href: null, tabBarStyle: { display: 'none' } }} />
             <Tabs.Screen name="change-password" options={{ href: null, tabBarStyle: { display: 'none' } }} />
-            <Tabs.Screen name="notifications" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+            {/* notifications lives in (settings)/ — navigated via router.push('/(settings)/notifications') */}
             <Tabs.Screen name="referral" options={{ href: null, tabBarStyle: { display: 'none' } }} />
             <Tabs.Screen name="rewards" options={{ href: null, tabBarStyle: { display: 'none' } }} />
             <Tabs.Screen name="report-incident" options={{ href: null, tabBarStyle: { display: 'none' } }} />

@@ -68,6 +68,7 @@ export const hostService = {
                     totalEarned: payouts.data?.summary?.totalEarnings || 0,
                     pendingWithdrawal: payouts.data?.summary?.completedPayout || 0,
                 },
+                insights: payouts.data?.summary?.eventRevenue || [],
                 bankDetails: bank.data || {},
                 transactions: payouts.data?.history || [],
                 pendingWithdrawals: (pending.data || []).filter((r: any) => r.status === 'PENDING'),

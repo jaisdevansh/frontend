@@ -222,6 +222,8 @@ const EventDetails = () => {
         ? Math.min(...tickets.map((t: any) => Number(t?.price) || 0))
         : null;
 
+    const isTicketsLive = event.bookingOpenDate ? new Date() >= new Date(event.bookingOpenDate) : true;
+
     const houseRules = houseRulesRaw.length > 0 ? houseRulesRaw : [
         { icon: 'shirt-outline', title: 'Dress Code: Smart Sophisticated', detail: 'No sportswear, trainers, or caps. Smart attire is required.' },
         { icon: 'person-outline', title: 'ID Required (21+ only)', detail: 'Valid government-issued photo ID is mandatory.' },
@@ -469,15 +471,17 @@ const EventDetails = () => {
                         <Text style={styles.description}>{event?.description || ''}</Text>
 
                         {/* BOOK NOW */}
-                        <TouchableOpacity style={styles.bookBtn} activeOpacity={0.85} onPress={handleBookNow} disabled={bookingLoader}>
-                            <LinearGradient colors={['#6d28d9', '#4f46e5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.bookBtnInner}>
+                        <TouchableOpacity style={[styles.bookBtn, !isTicketsLive && { opacity: 0.5 }]} activeOpacity={0.85} onPress={handleBookNow} disabled={bookingLoader || !isTicketsLive}>
+                            <LinearGradient colors={!isTicketsLive ? ['#333', '#222'] : ['#6d28d9', '#4f46e5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.bookBtnInner}>
                                 {bookingLoader ? (
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                                         <ActivityIndicator size="small" color="#fff" />
                                         <Text style={styles.bookBtnText}>Processing...</Text>
                                     </View>
                                 ) : (
-                                    <Text style={styles.bookBtnText}>{lowestPrice ? 'Book Now  ·  ₹' + lowestPrice : 'Book Now'}</Text>
+                                    <Text style={styles.bookBtnText}>
+                                        {!isTicketsLive ? 'Tickets Not Live Yet' : (lowestPrice ? 'Book Now  ·  ₹' + lowestPrice : 'Book Now')}
+                                    </Text>
                                 )}
                             </LinearGradient>
                         </TouchableOpacity>
@@ -651,15 +655,15 @@ const EventDetails = () => {
                     <View style={{ flex: 1 }}>
                         {lowestPrice && <><Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: '600' }}>From</Text><Text style={{ color: '#fff', fontSize: 22, fontWeight: '900' }}>{'₹'}{lowestPrice}</Text></>}
                     </View>
-                    <TouchableOpacity style={styles.footerBtn} onPress={handleBookNow} activeOpacity={0.85} disabled={bookingLoader}>
-                        <LinearGradient colors={['#6d28d9', '#4f46e5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14 }}>
+                    <TouchableOpacity style={[styles.footerBtn, !isTicketsLive && { opacity: 0.5 }]} onPress={handleBookNow} activeOpacity={0.85} disabled={bookingLoader || !isTicketsLive}>
+                        <LinearGradient colors={!isTicketsLive ? ['#333', '#222'] : ['#6d28d9', '#4f46e5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14 }}>
                             {bookingLoader ? (
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, width: 100, justifyContent: 'center' }}>
                                     <ActivityIndicator size="small" color="#fff" />
                                     <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Wait...</Text>
                                 </View>
                             ) : (
-                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>Book Now</Text>
+                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>{!isTicketsLive ? 'Not Live' : 'Book Now'}</Text>
                             )}
                         </LinearGradient>
                     </TouchableOpacity>

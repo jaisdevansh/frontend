@@ -78,14 +78,16 @@ const StaffRow = React.memo(({ staff, isLast, onAction }: { staff: AdminStaff; i
                     </View>
                     <Text style={styles.staffName} numberOfLines={1}>{staff.name}</Text>
                 </View>
-                <View style={styles.staffMeta}>
+                <View style={[styles.staffMeta, { flexShrink: 1 }]}>
                     <View style={[styles.rolePill, { backgroundColor: rc.bg, borderColor: rc.color + '15' }]}>
                         <Text style={[styles.rolePillText, { color: rc.color }]}>
                             {(staff.staffType || staff.role || 'STAFF').toUpperCase()}
                         </Text>
                     </View>
                     {staff.phone && (
-                        <Text style={styles.staffPhone}>{staff.phone}</Text>
+                        <Text style={[styles.staffPhone, { flexShrink: 1 }]} numberOfLines={1} ellipsizeMode="tail">
+                            {staff.phone}
+                        </Text>
                     )}
                 </View>
             </View>
@@ -522,7 +524,7 @@ const styles = StyleSheet.create({
         fontSize: 15, fontWeight: '800',
         color: '#FFFFFF', flex: 1, letterSpacing: -0.2,
     },
-    staffMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    staffMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingRight: 4 },
     rolePill: {
         paddingHorizontal: 6, paddingVertical: 2,
         borderRadius: 6, borderWidth: 1,

@@ -12,6 +12,7 @@ import { useEvents } from '../../hooks/useEvents';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import dayjs from 'dayjs';
+import { hero } from '../../services/cloudinaryService';
 
 const parseTimeString = (timeStr: string, baseDate: dayjs.Dayjs, defaultHour: number) => {
     if (!timeStr) return baseDate.hour(defaultHour).minute(0).second(0);
@@ -82,7 +83,7 @@ const EventCardList = React.memo(({ event, handleDeleteEvent, handleForceReveal,
         >
             <View style={styles.cardImage}>
                 <Image 
-                    source={{ uri: event.coverImage || 'https://images.unsplash.com/photo-1514525253361-bee8a197c0c1?auto=format&fit=crop&q=80&w=800' }}
+                    source={{ uri: hero(event.coverImage) || 'https://images.unsplash.com/photo-1514525253361-bee8a197c0c1?auto=format&fit=crop&q=80&w=800' }}
                     style={{ position: 'absolute', width: '100%', height: '100%', borderRadius: 24 }}
                     contentFit="cover"
                     cachePolicy="memory-disk"

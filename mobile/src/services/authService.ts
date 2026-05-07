@@ -23,8 +23,8 @@ export const authService = {
         return response.data;
     },
 
-    verifyOtp: async (identifier: string, otp: string): Promise<LoginResponse> => {
-        const response = await apiClient.post<LoginResponse>('/auth/verify-otp', { identifier, otp });
+    verifyOtp: async (identifier: string, otp: string, idToken?: string): Promise<LoginResponse> => {
+        const response = await apiClient.post<LoginResponse>('/auth/verify-otp', { identifier, otp, idToken });
         return response.data;
     },
 
