@@ -95,7 +95,7 @@ export default function ReportBug() {
 
             if (res.success) {
                 setSubmitted(true);
-                showToast('Bug reported directly to devanshjais20@gmail.com', 'success');
+                showToast('Bug reported directly to info.zenbourg@gmail.com', 'success');
             }
         } catch (error: any) {
             showToast(error.response?.data?.message || 'Failed to send bug report', 'error');
@@ -110,7 +110,7 @@ export default function ReportBug() {
                 <View style={styles.successWrapper}>
                     <Ionicons name="checkmark-circle" size={80} color={COLORS.primary} />
                     <Text style={styles.successTitle}>Report Sent!</Text>
-                    <Text style={styles.successSub}>Thank you. Your feedback has been sent directly to our lead developer's email (devanshjais20@gmail.com).</Text>
+                    <Text style={styles.successSub}>Thank you. Your feedback has been sent directly to our lead developer's email (info.zenbourg@gmail.com).</Text>
                     <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
                         <Text style={styles.backBtnText}>Go Back</Text>
                     </TouchableOpacity>
@@ -169,7 +169,7 @@ export default function ReportBug() {
                             ))}
                         </ScrollView>
 
-                        <Text style={styles.notice}>This report will be sent directly to devanshjais20@gmail.com</Text>
+                        <Text style={styles.notice}>This report will be sent directly to info.zenbourg@gmail.com</Text>
                     </View>
 
                     <TouchableOpacity 

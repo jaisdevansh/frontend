@@ -187,7 +187,7 @@ export default function ReportIncident() {
                         <Ionicons name="code-working" size={16} color={COLORS.primary} />
                         <Text style={styles.techNoticeText}>
                             For faster resolution of technical issues, you can also email 
-                            <Text style={{ fontWeight: 'bold', color: COLORS.primary }}> devanshjais20@gmail.com</Text>
+                            <Text style={{ fontWeight: 'bold', color: COLORS.primary }}> info.zenbourg@gmail.com</Text>
                         </Text>
                     </View>
                 )}
@@ -298,7 +298,7 @@ export default function ReportIncident() {
                 </Text>
                 <Text style={styles.successSubtext}>
                     {category === 'Technical Bug' 
-                      ? 'Thank you for your feedback. Our development team (devanshjais20) has been notified and is looking into this bug.' 
+                      ? 'Thank you for your feedback. Our development team (info.zenbourg@gmail.com) has been notified and is looking into this bug.' 
                       : 'Thank you for keeping the nightlife safe. Your report is completely anonymous and our safety team is reviewing it now.'}
                 </Text>
 

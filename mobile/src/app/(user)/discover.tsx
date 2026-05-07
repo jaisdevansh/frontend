@@ -459,6 +459,7 @@ await new Promise(resolve => setTimeout(resolve, delay));
             };
             const handleGiftRequest = (request: any) => {
                 console.log('🎁 [Discover] Received gift request:', request);
+                if (request.senderId === currentUser?.id) return; // Prevent echo for sender
                 addGiftRequest(request);
             };
             const handleGiftAccepted = async ({ requestId, item, totalAmount }: any) => {
@@ -1218,7 +1219,7 @@ await new Promise(resolve => setTimeout(resolve, delay));
                                                 });
                                             }
                                         } catch (error: any) {
-                                            console.error('Gift send err:', error);
+                                            console.warn('Gift send err:', error?.message || 'Failed');
                                             setCustomAlert({ 
                                                 visible: true, 
                                                 title: 'Error', 
@@ -1564,7 +1565,7 @@ await new Promise(resolve => setTimeout(resolve, delay));
                                             refetchAll();
                                         }
                                     } catch (error: any) {
-                                        console.error('Gift accept error:', error);
+                                        console.warn('Gift accept error:', error?.message || 'Failed');
                                         setCustomAlert({ 
                                             visible: true, 
                                             title: 'Failed to Accept', 

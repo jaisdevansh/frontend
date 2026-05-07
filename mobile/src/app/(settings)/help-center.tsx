@@ -170,7 +170,7 @@ export default function HelpCenterScreen() {
                         <Ionicons name="code-working" size={18} color="rgba(255,255,255,0.4)" />
                         <Text style={styles.techSupportText}>
                             For critical technical bugs, contact our lead developer at: 
-                            <Text style={styles.techEmail}> devanshjais20@gmail.com</Text>
+                            <Text style={styles.techEmail}> info.zenbourg@gmail.com</Text>
                         </Text>
                     </View>
                 </View>

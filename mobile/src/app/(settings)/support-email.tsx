@@ -54,7 +54,7 @@ export default function SupportEmail() {
             if (res.success) {
                 console.log('✅ [Frontend] API Success Response Received! Moving to success screen.');
                 setSubmitted(true);
-                showToast('Support request sent to devanshjais20@gmail.com', 'success');
+                showToast('Support request sent to info.zenbourg@gmail.com', 'success');
             }
         } catch (error: any) {
             showToast(error.response?.data?.message || 'Failed to send support request', 'error');
@@ -69,7 +69,7 @@ export default function SupportEmail() {
                 <View style={styles.successWrapper}>
                     <Ionicons name="mail-unread-outline" size={80} color="#4ade80" />
                     <Text style={styles.successTitle}>Request Sent!</Text>
-                    <Text style={styles.successSub}>Thank you. Your inquiry has been sent to our support team at devanshjais20@gmail.com. We typically respond within 12 hours.</Text>
+                    <Text style={styles.successSub}>Thank you. Your inquiry has been sent to our support team at info.zenbourg@gmail.com. We typically respond within 12 hours.</Text>
                     <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
                         <Text style={styles.backBtnText}>Return to Help Center</Text>
                     </TouchableOpacity>
