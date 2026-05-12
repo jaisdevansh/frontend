@@ -36,11 +36,21 @@ function useDebounce<T>(value: T, delay: number): T {
 const HostRow = React.memo(({ item, onPress }: { item: PendingHost, onPress: (id: string) => void }) => {
     const getStatusColor = () => {
         switch (item.hostStatus) {
-            case 'ACTIVE': return COLORS.success;
-            case 'PENDING_VERIFICATION': return COLORS.warning;
-            case 'CREATED': return '#3b82f6';
-            case 'REJECTED': return COLORS.danger;
-            default: return COLORS.textDim;
+            case 'ACTIVE':      return COLORS.success;
+            case 'KYC_PENDING': return COLORS.warning;
+            case 'INVITED':     return '#3b82f6';
+            case 'REJECTED':    return COLORS.danger;
+            default:            return COLORS.textDim;
+        }
+    };
+
+    const getStatusLabel = () => {
+        switch (item.hostStatus) {
+            case 'ACTIVE':      return 'ACTIVE';
+            case 'KYC_PENDING': return 'PENDING REVIEW';
+            case 'INVITED':     return 'INVITED';
+            case 'REJECTED':    return 'REJECTED';
+            default:            return item.hostStatus || 'UNKNOWN';
         }
     };
 
@@ -68,7 +78,7 @@ const HostRow = React.memo(({ item, onPress }: { item: PendingHost, onPress: (id
                 <Text style={styles.hostEmail}>{item.email || item.phone}</Text>
                 <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor()}15` }]}>
                     <Text style={[styles.statusText, { color: getStatusColor() }]}>
-                        {item.hostStatus?.replace('_', ' ')}
+                        {getStatusLabel()}
                     </Text>
                 </View>
             </View>

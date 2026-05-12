@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
     View, Text, StyleSheet, TouchableOpacity,
     StatusBar, Dimensions, TextInput, Modal,
-    ImageBackground, Animated, ActivityIndicator,
-    Platform, FlatList, ScrollView, RefreshControl
+    Animated, ActivityIndicator,
+    Platform, FlatList, ScrollView, RefreshControl,
+    TouchableWithoutFeedback, Keyboard
 } from 'react-native';
+
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -324,26 +326,48 @@ export default function HomeScreen() {
     }, []);
 
     const searchResults = useMemo(() => {
-        if (!searchQuery.trim()) return [];
         const safeEvents = Array.isArray(events) ? events : [];
         const safeVenues = Array.isArray(venues) ? venues : [];
-        const query = searchQuery.toLowerCase();
+
+        // Helper: deduplicate by _id
+        const dedup = (arr: any[]) => {
+            const seen = new Set<string>();
+            return arr.filter(item => {
+                const id = item._id || item.id;
+                if (!id || seen.has(id)) return false;
+                seen.add(id);
+                return true;
+            });
+        };
+
+        if (!searchQuery.trim()) {
+            // Default: show only events (no venues) to avoid duplicates
+            return dedup(safeEvents).map(item => ({ ...item, isCity: false }));
+        }
+
+        const query = searchQuery.toLowerCase().trim();
         
-        return [...safeEvents, ...safeVenues].filter((item: any) => {
-            // Search by title/name
+        const allCities = new Set<string>();
+        [...safeEvents, ...safeVenues].forEach(item => {
+            const city = item.locationData?.city || item.location?.city;
+            if (city) allCities.add(city);
+        });
+        TOP_CITIES.forEach(c => { if (c !== 'All') allCities.add(c); });
+        
+        const matchedCities = Array.from(allCities)
+            .filter(c => c.toLowerCase().includes(query))
+            .map(c => ({ _id: `city_${c}`, isCity: true, name: c }));
+
+        const combined = dedup([...safeEvents, ...safeVenues]);
+        const matchedItems = combined.filter((item: any) => {
             const titleMatch = (item.name || item.title || '').toLowerCase().includes(query);
-            
-            // Search by city
             const cityMatch = (item.locationData?.city || item.location?.city || '').toLowerCase().includes(query);
-            
-            // Search by state
             const stateMatch = (item.locationData?.state || item.location?.state || '').toLowerCase().includes(query);
-            
-            // Search by address
             const addressMatch = (item.locationData?.address || item.location?.address || '').toLowerCase().includes(query);
-            
             return titleMatch || cityMatch || stateMatch || addressMatch;
-        }).slice(0, 10);
+        }).slice(0, 15).map((item: any) => ({ ...item, isCity: false }));
+
+        return [...matchedCities, ...matchedItems];
     }, [searchQuery, events, venues]);
 
     // Calculate Distance (Haversine formula approximation)
@@ -643,65 +667,191 @@ export default function HomeScreen() {
                 </View>
             </Modal>
 
-            {/* Search Modal */}
-            <Modal visible={searchVisible} animationType="fade" transparent>
-                <View style={[styles.searchOverlay, { paddingTop: insets.top }]}>
-                    <LinearGradient 
-                        colors={['#110B29', '#05020A', '#000000']} 
-                        start={{ x: 0, y: 0 }} 
-                        end={{ x: 1, y: 1 }} 
-                        style={StyleSheet.absoluteFillObject} 
-                    />
-                    <View style={styles.stickySearch}>
-                        <TouchableOpacity onPress={() => setSearchVisible(false)}><Ionicons name="arrow-back" size={24} color="#fff" /></TouchableOpacity>
-                        <TextInput autoFocus placeholder="Search by city, state or event..." placeholderTextColor="rgba(255,255,255,0.3)" style={styles.sInput} value={searchQuery} onChangeText={setSearchQuery} />
-                    </View>
-                    <FlashList 
-                        data={searchResults} 
-                        renderItem={({ item }: any) => {
-                            let distText = '';
-                            if (userLoc && item.location?.coordinates) {
-                                const d = getDistance(userLoc.lat, userLoc.lng, item.location.coordinates[1], item.location.coordinates[0]);
-                                distText = ` · ${d.toFixed(1)}km away`;
+            {/* ─── Production Search Modal ─── */}
+            <Modal
+                visible={searchVisible}
+                animationType="fade"
+                transparent
+                onRequestClose={() => { setSearchVisible(false); setSearchQuery(''); }}
+            >
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                    <View style={[styles.searchOverlay, { paddingTop: insets.top }]}>
+                        <LinearGradient
+                            colors={['#0D0923', '#05020A', '#000000']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={StyleSheet.absoluteFillObject}
+                        />
+
+                        {/* ── Search Bar ── */}
+                        <View style={styles.stickySearch}>
+                            <TouchableOpacity
+                                onPress={() => { setSearchVisible(false); setSearchQuery(''); }}
+                                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                            >
+                                <Ionicons name="arrow-back" size={24} color="#fff" />
+                            </TouchableOpacity>
+                            <View style={styles.searchInputWrapper}>
+                                <Ionicons name="search" size={16} color="rgba(255,255,255,0.3)" style={{ marginLeft: 12 }} />
+                                <TextInput
+                                    autoFocus
+                                    placeholder="Search events, cities..."
+                                    placeholderTextColor="rgba(255,255,255,0.3)"
+                                    style={styles.sInput}
+                                    value={searchQuery}
+                                    onChangeText={setSearchQuery}
+                                    returnKeyType="search"
+                                    autoCorrect={false}
+                                    autoCapitalize="none"
+                                />
+                                {searchQuery.length > 0 && (
+                                    <TouchableOpacity
+                                        onPress={() => setSearchQuery('')}
+                                        style={{ paddingHorizontal: 12 }}
+                                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                    >
+                                        <Ionicons name="close-circle" size={18} color="rgba(255,255,255,0.4)" />
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                        </View>
+
+                        {/* ── Results ── */}
+                        <FlatList
+                            data={searchResults}
+                            keyExtractor={(item: any) => String(item._id || item.id)}
+                            keyboardShouldPersistTaps="handled"
+                            contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 40, paddingTop: 8 }}
+                            ListHeaderComponent={
+                                !searchQuery.trim() ? (
+                                    <Text style={styles.srSectionLabel}>ALL EVENTS</Text>
+                                ) : searchResults.length > 0 ? (
+                                    <Text style={styles.srSectionLabel}>RESULTS</Text>
+                                ) : null
                             }
-                            
-                            // Get location display
-                            const locationText = item.locationData?.city || item.location?.city || item.locationData?.state || item.location?.state || '';
-                            
-                            return (
-                                <TouchableOpacity style={styles.searchResultItem} onPress={() => { setSearchVisible(false); router.push({ pathname: '/(user)/event-details', params: { eventId: item._id } }); }}>
-                                    <Image source={{ uri: item.coverImage }} style={styles.srThumb} cachePolicy="memory-disk" />
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.srTitle}>{item.title}</Text>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                                            {locationText && (
-                                                <>
-                                                    <Ionicons name="location" size={11} color="#2563EB" />
-                                                    <Text style={[styles.srSub, { color: '#2563EB' }]}>
-                                                        {locationText}
-                                                    </Text>
-                                                </>
-                                            )}
-                                            <Text style={styles.srSub}>
-                                                {locationText && ' · '}
-                                                {item.venueType || item.genre || 'Club Night'}
-                                                <Text style={{ color: '#2563EB' }}>{distText}</Text>
-                                            </Text>
-                                        </View>
-                                    </View>
-                                    <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
-                                        <Text style={{ color: '#3B82F6', fontWeight: '800', fontSize: 13 }}>
-                                            {item.displayPrice ? `₹${item.displayPrice.toLocaleString()}` : 'Free'}
-                                        </Text>
-                                        <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.3)" style={{ marginTop: 4 }} />
-                                    </View>
-                                </TouchableOpacity>
-                            )
-                        }}
-                        estimatedItemSize={80}
-                        contentContainerStyle={{ padding: 20 }}
-                    />
-                </View>
+                            ListEmptyComponent={
+                                <View style={styles.srEmpty}>
+                                    <Ionicons name="search" size={40} color="rgba(255,255,255,0.12)" />
+                                    <Text style={styles.srEmptyTitle}>No results found</Text>
+                                    <Text style={styles.srEmptySubtitle}>Try searching by event name or city</Text>
+                                </View>
+                            }
+                            renderItem={({ item, index }: any) => {
+                                // ── City Suggestion Row ──
+                                if (item.isCity) {
+                                    return (
+                                        <TouchableOpacity
+                                            style={styles.citySuggRow}
+                                            activeOpacity={0.7}
+                                            onPress={() => {
+                                                Haptics.selectionAsync();
+                                                setSearchVisible(false);
+                                                setSearchQuery('');
+                                                setSelectedCity(item.name);
+                                            }}
+                                        >
+                                            <View style={styles.cityIconBox}>
+                                                <Ionicons name="location" size={18} color="#3B82F6" />
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={styles.cityRowName}>{item.name}</Text>
+                                                <Text style={styles.cityRowSub}>Tap to explore events</Text>
+                                            </View>
+                                            <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.2)" />
+                                        </TouchableOpacity>
+                                    );
+                                }
+
+                                // ── First event after cities — add section label ──
+                                const isFirstEvent = searchQuery.trim() && index > 0 && searchResults[index - 1]?.isCity;
+
+                                // Distance
+                                let distText = '';
+                                if (userLoc && item.location?.coordinates) {
+                                    const d = getDistance(
+                                        userLoc.lat, userLoc.lng,
+                                        item.location.coordinates[1],
+                                        item.location.coordinates[0]
+                                    );
+                                    if (d < 100) distText = `${d.toFixed(1)} km away`;
+                                }
+
+                                const city = item.locationData?.city || item.location?.city || '';
+                                const state = item.locationData?.state || item.location?.state || '';
+                                const locationLine = [city, state].filter(Boolean).join(', ');
+
+                                const dateStr = item.date
+                                    ? new Date(item.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+                                    : null;
+
+                                const price = item.displayPrice
+                                    ? `₹${item.displayPrice.toLocaleString('en-IN')}`
+                                    : 'Free';
+
+                                const thumb = hero(item.coverImage)?.uri || null;
+
+                                return (
+                                    <>
+                                        {isFirstEvent && (
+                                            <Text style={[styles.srSectionLabel, { marginTop: 16 }]}>EVENTS</Text>
+                                        )}
+                                        <TouchableOpacity
+                                            style={styles.srRow}
+                                            activeOpacity={0.75}
+                                            onPress={() => {
+                                                Haptics.selectionAsync();
+                                                setSearchVisible(false);
+                                                setSearchQuery('');
+                                                router.push({ pathname: '/(user)/event-details', params: { eventId: item._id } });
+                                            }}
+                                        >
+                                            {/* Thumbnail */}
+                                            <View style={styles.srThumbBox}>
+                                                {thumb ? (
+                                                    <Image
+                                                        source={{ uri: thumb }}
+                                                        style={styles.srThumb}
+                                                        cachePolicy="memory-disk"
+                                                        contentFit="cover"
+                                                    />
+                                                ) : (
+                                                    <View style={[styles.srThumb, styles.srThumbPlaceholder]}>
+                                                        <Ionicons name="musical-notes" size={20} color="rgba(255,255,255,0.2)" />
+                                                    </View>
+                                                )}
+                                                {dateStr && (
+                                                    <View style={styles.srDateBadge}>
+                                                        <Text style={styles.srDateBadgeTxt}>{dateStr}</Text>
+                                                    </View>
+                                                )}
+                                            </View>
+
+                                            {/* Info */}
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={styles.srTitle} numberOfLines={1}>{item.title || item.name}</Text>
+                                                {locationLine ? (
+                                                    <View style={styles.srLocRow}>
+                                                        <Ionicons name="location" size={11} color="#3B82F6" />
+                                                        <Text style={styles.srLocText} numberOfLines={1}>{locationLine}</Text>
+                                                    </View>
+                                                ) : null}
+                                                {distText ? (
+                                                    <Text style={styles.srDistText}>{distText}</Text>
+                                                ) : null}
+                                            </View>
+
+                                            {/* Price */}
+                                            <View style={styles.srPriceBox}>
+                                                <Text style={styles.srPrice}>{price}</Text>
+                                                <Ionicons name="chevron-forward" size={13} color="rgba(255,255,255,0.2)" style={{ marginTop: 4 }} />
+                                            </View>
+                                        </TouchableOpacity>
+                                    </>
+                                );
+                            }}
+                        />
+                    </View>
+                </TouchableWithoutFeedback>
             </Modal>
         </View>
     );
@@ -762,11 +912,92 @@ const styles = StyleSheet.create({
     applyBtn: { borderRadius: 20, overflow: 'hidden', marginTop: 30 },
     applyBtnGrad: { paddingVertical: 18, alignItems: 'center' },
     applyBtnTxt: { color: '#fff', fontSize: 17, fontWeight: '900' },
-    searchOverlay: { flex: 1, backgroundColor: '#030303' },
-    stickySearch: { flexDirection: 'row', alignItems: 'center', gap: 15, paddingHorizontal: 20, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
-    sInput: { flex: 1, height: 44, color: '#fff', fontSize: 17 },
-    searchResultItem: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 15 },
-    srThumb: { width: 64, height: 64, borderRadius: 16 },
-    srTitle: { color: '#fff', fontSize: 16, fontWeight: '800' },
-    srSub: { color: 'rgba(255,255,255,0.4)', fontSize: 12 }
-});
+    searchOverlay: { flex: 1 },
+    stickySearch: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.06)',
+    },
+    searchInputWrapper: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+        height: 46,
+    },
+    sInput: { flex: 1, height: 46, color: '#fff', fontSize: 15, paddingHorizontal: 10 },
+    srSectionLabel: {
+        color: 'rgba(255,255,255,0.3)',
+        fontSize: 10,
+        fontWeight: '800',
+        letterSpacing: 1.5,
+        marginTop: 16,
+        marginBottom: 10,
+    },
+    citySuggRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.05)',
+        gap: 14,
+    },
+    cityIconBox: {
+        width: 42,
+        height: 42,
+        borderRadius: 21,
+        backgroundColor: 'rgba(37,99,235,0.15)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(37,99,235,0.3)',
+    },
+    cityRowName: { color: '#fff', fontSize: 15, fontWeight: '700' },
+    cityRowSub: { color: 'rgba(255,255,255,0.35)', fontSize: 12, marginTop: 2 },
+    srRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 13,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.05)',
+        gap: 14,
+    },
+    srThumbBox: { position: 'relative' },
+    srThumb: { width: 68, height: 68, borderRadius: 14 },
+    srThumbPlaceholder: {
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    srDateBadge: {
+        position: 'absolute',
+        bottom: 5,
+        left: 5,
+        backgroundColor: 'rgba(0,0,0,0.75)',
+        paddingHorizontal: 6,
+        paddingVertical: 3,
+        borderRadius: 6,
+    },
+    srDateBadgeTxt: { color: '#fff', fontSize: 9, fontWeight: '800' },
+    srTitle: { color: '#fff', fontSize: 15, fontWeight: '800', letterSpacing: 0.1 },
+    srLocRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+    srLocText: { color: '#3B82F6', fontSize: 12, fontWeight: '600', flex: 1 },
+    srDistText: { color: 'rgba(255,255,255,0.35)', fontSize: 11, marginTop: 3 },
+    srPriceBox: { alignItems: 'flex-end', justifyContent: 'center', minWidth: 52 },
+    srPrice: { color: '#3B82F6', fontWeight: '800', fontSize: 13 },
+    srEmpty: {
+        alignItems: 'center',
+        paddingTop: 80,
+        gap: 12,
+    },
+    srEmptyTitle: { color: 'rgba(255,255,255,0.5)', fontSize: 16, fontWeight: '700' },
+    srEmptySubtitle: { color: 'rgba(255,255,255,0.25)', fontSize: 13 },
+    srSub: { color: 'rgba(255,255,255,0.4)', fontSize: 12 },
+});
