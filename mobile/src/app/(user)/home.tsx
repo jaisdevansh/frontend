@@ -788,7 +788,7 @@ export default function HomeScreen() {
                                     ? `₹${item.displayPrice.toLocaleString('en-IN')}`
                                     : 'Free';
 
-                                const thumb = hero(item.coverImage)?.uri || null;
+                                const thumb = hero(item.coverImage) || null;
 
                                 return (
                                     <>
