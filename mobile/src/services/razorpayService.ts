@@ -24,6 +24,7 @@ export interface BookingData {
     zone?: string;
     guestCount?: number;
     userCouponId?: string;
+    bookingId?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

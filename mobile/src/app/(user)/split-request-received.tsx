@@ -34,6 +34,7 @@ export default function SplitRequestReceived() {
     const eventDate       = params.eventDate       ? String(params.eventDate)        : 'Friday, Oct 24th • 10:00 PM';
     const zone            = params.zone            ? String(params.zone)             : 'Lounge';
     const eventId         = params.eventId         ? String(params.eventId)          : '';
+    const bookingId       = params.bookingId       ? String(params.bookingId)        : '';
 
     const participantsRaw = params.participants ? String(params.participants) : '';
     const participants: string[] = participantsRaw ? participantsRaw.split(',') : [requesterName, 'You', 'Rohan', 'Ishani'];
@@ -75,6 +76,7 @@ export default function SplitRequestReceived() {
                 pricePaid: shareAmount,
                 zone,
                 guestCount: totalGuests,
+                bookingId, // Crucial for backend to link to existing booking
             }
         );
 

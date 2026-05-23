@@ -308,6 +308,11 @@ export default function TablePass() {
                                                     <Ionicons name="time-outline" size={40} color="rgba(255,255,255,0.4)" />
                                                     <Text style={styles.qrOverlayTxt}>EXPIRED</Text>
                                                 </View>
+                                            ) : booking?.isPaymentPending ? (
+                                                <View style={styles.qrOverlay}>
+                                                    <Ionicons name="lock-closed" size={40} color="#f59e0b" />
+                                                    <Text style={[styles.qrOverlayTxt, { color: '#f59e0b', fontSize: 13, textAlign: 'center' }]}>PAYMENT PENDING</Text>
+                                                </View>
                                             ) : displayStatus === 'checked_in' ? (
                                                 <View style={styles.qrOverlay}>
                                                     <Ionicons name="checkmark-done-circle" size={40} color="#3b82f6" />
@@ -334,6 +339,38 @@ export default function TablePass() {
                         )}
                     </View>
                 </View>
+
+                {/* CTA — Pay Pending Share */}
+                {booking?.isPaymentPending && !isExpired && (
+                    <View style={{ width: '100%', marginTop: 24 }}>
+                        <TouchableOpacity
+                            activeOpacity={0.85}
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                router.push({
+                                    pathname: '/(user)/split-request-received' as any,
+                                    params: { 
+                                        bookingId: booking._id,
+                                        eventId: booking.eventId?._id || booking.eventId,
+                                        hostId: booking.hostId?._id || booking.hostId,
+                                        zone: booking.ticketType || 'VIP',
+                                        shareAmount: String(Math.round(booking.pricePaid / (booking.guests || 1))), // estimate share
+                                        title: eventTitle,
+                                        venueName: venueName,
+                                        eventDate: eventDate,
+                                        totalGuests: String(booking.guests || 1)
+                                    }
+                                });
+                            }}
+                            style={styles.ctaBtn}
+                        >
+                            <LinearGradient colors={['#f59e0b', '#d97706']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.ctaBtnInner}>
+                                <Ionicons name="card" size={18} color="#fff" />
+                                <Text style={styles.ctaBtnTxt}>Pay to Unlock Ticket</Text>
+                            </LinearGradient>
+                        </TouchableOpacity>
+                    </View>
+                )}
 
                 {/* CTA — Order from Host Menu */}
                 {(booking?.hostIdRaw || booking?.hostId) && (() => {
