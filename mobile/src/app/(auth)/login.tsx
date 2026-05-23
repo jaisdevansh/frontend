@@ -136,25 +136,7 @@ export default function LoginScreen() {
             // ── BACKEND OTP (works in Expo Go + Production) ──
             const res = await authService.sendOtp(finalIdentifier);
             if (res.success) {
-                // ⚡ LOCAL BYPASS: Auto-login without OTP screen
-                if (__DEV__) {
-                    showToast('Local Bypass: Auto logging in', 'success');
-                    try {
-                        const verifyRes = await authService.verifyOtp(finalIdentifier, '123456');
-                        if (verifyRes.success) {
-                            await login({
-                                token: verifyRes.data.accessToken,
-                                role: verifyRes.data.role,
-                                hostId: verifyRes.data.hostId,
-                                user: verifyRes.data,
-                                onboardingCompleted: verifyRes.data.onboardingCompleted
-                            });
-                            return; // Stop here, no need to show OTP screen
-                        }
-                    } catch (e) {
-                        console.log("Auto-verify failed", e);
-                    }
-                }
+
 
                 showToast(isEmail ? res.message : 'OTP sent! ✉️', 'success');
                 router.push({
