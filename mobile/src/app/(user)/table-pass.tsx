@@ -364,7 +364,7 @@ export default function TablePass() {
                                         eventId: booking.eventId?._id || booking.eventId,
                                         hostId: booking.hostId?._id || booking.hostId,
                                         zone: booking.ticketType || 'VIP',
-                                        shareAmount: String(Math.round(booking.pricePaid / (booking.guests || 1))), // estimate share
+                                        shareAmount: String(Math.round(booking.pricePaid / Math.max(1, paidCount))), // calculate based on what others paid
                                         title: eventTitle,
                                         venueName: venueName,
                                         eventDate: eventDate,

@@ -133,28 +133,36 @@ export default function LoginScreen() {
                 finalIdentifier = `+91${digits}`;
             }
 
-            if (!isEmail) {
-                // ── BACKEND OTP (works in Expo Go + Production) ──
-                const res = await authService.sendOtp(finalIdentifier);
-                if (res.success) {
-                    showToast('OTP sent! ✉️', 'success');
-                    router.push({
-                        pathname: '/(auth)/verify-otp' as any,
-                        params: { identifier: finalIdentifier, hint: res.data?.hint }
-                    });
-                } else {
-                    showToast(res.message || 'Failed to send OTP', 'error');
+            // ── BACKEND OTP (works in Expo Go + Production) ──
+            const res = await authService.sendOtp(finalIdentifier);
+            if (res.success) {
+                // ⚡ LOCAL BYPASS: Auto-login without OTP screen
+                if (__DEV__) {
+                    showToast('Local Bypass: Auto logging in', 'success');
+                    try {
+                        const verifyRes = await authService.verifyOtp(finalIdentifier, '123456');
+                        if (verifyRes.success) {
+                            await login({
+                                token: verifyRes.data.accessToken,
+                                role: verifyRes.data.role,
+                                hostId: verifyRes.data.hostId,
+                                user: verifyRes.data,
+                                onboardingCompleted: verifyRes.data.onboardingCompleted
+                            });
+                            return; // Stop here, no need to show OTP screen
+                        }
+                    } catch (e) {
+                        console.log("Auto-verify failed", e);
+                    }
                 }
+
+                showToast(isEmail ? res.message : 'OTP sent! ✉️', 'success');
+                router.push({
+                    pathname: '/(auth)/verify-otp' as any,
+                    params: { identifier: finalIdentifier, hint: res.data?.hint }
+                });
             } else {
-                // ── EMAIL OTP ──
-                const res = await authService.sendOtp(finalIdentifier);
-                if (res.success) {
-                    showToast(res.message, 'success');
-                    router.push({
-                        pathname: '/(auth)/verify-otp' as any,
-                        params: { identifier: finalIdentifier, hint: res.data?.hint }
-                    });
-                }
+                showToast(res.message || 'Failed to send OTP', 'error');
             }
         } catch (error: any) {
             const message = error.response?.data?.message || 'Failed to send OTP';
