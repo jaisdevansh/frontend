@@ -47,6 +47,7 @@ export default function SplitPayScreen() {
     const [processing, setProcessing] = useState(false);
     const [loadingContacts, setLoadingContacts] = useState(false);
     const [showPicker, setShowPicker] = useState(false);
+    const [modalSearch, setModalSearch] = useState('');
 
     useEffect(() => {
         const fetchInitialData = async () => {
@@ -91,7 +92,11 @@ export default function SplitPayScreen() {
     };
 
     useEffect(() => {
-        if (showPicker) fetchRealContacts();
+        if (showPicker) {
+            fetchRealContacts();
+        } else {
+            setModalSearch('');
+        }
     }, [showPicker]);
 
     const activeSplits = guests > 0 ? guests : 1;
@@ -310,11 +315,27 @@ export default function SplitPayScreen() {
                             </View>
                         </View>
                         
+                        <View style={styles.modalSearchBar}>
+                            <Ionicons name="search" size={20} color="rgba(255,255,255,0.3)" />
+                            <TextInput 
+                                placeholder="Search contacts..." 
+                                placeholderTextColor="rgba(255,255,255,0.2)"
+                                style={styles.searchInput}
+                                value={modalSearch}
+                                onChangeText={setModalSearch}
+                            />
+                        </View>
+
                         {loadingContacts ? (
                             <ActivityIndicator size="large" color="#7c4dff" style={{ marginVertical: 40 }} />
                         ) : (
                             <ScrollView style={{ maxHeight: height * 0.7 }} showsVerticalScrollIndicator={false}>
-                                {contacts.map(f => {
+                                {contacts
+                                    .filter(f => 
+                                        f.name.toLowerCase().includes(modalSearch.toLowerCase()) || 
+                                        f.phone.replace(/[\s-]/g, '').includes(modalSearch.replace(/[\s-]/g, ''))
+                                    )
+                                    .map(f => {
                                     const isAdded = selectedFriends.find(sf => sf.id === f.id);
                                     return (
                                         <TouchableOpacity 
@@ -409,6 +430,7 @@ const styles = StyleSheet.create({
     mHandle:        { width: 40, height: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2, marginBottom: 16 },
     mTitle:          { color: '#fff', fontSize: 18, fontWeight: '800' },
     mSub:           { color: '#7c4dff', fontSize: 12, fontWeight: '600', marginTop: 4 },
+    modalSearchBar: { flexDirection: 'row', alignItems: 'center', height: 48, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, paddingHorizontal: 16, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
     pItem:          { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 16, gap: 14, marginBottom: 4 },
     pAvatar:        { width: 44, height: 44, borderRadius: 22 },
     pName:          { color: '#fff', fontSize: 15, fontWeight: '700' },

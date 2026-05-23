@@ -82,6 +82,14 @@ export default function TablePass() {
     const guestCount  = useMemo(() => String(booking?.guests || (params.guestCount ? Number(params.guestCount) : 1)), [booking?.guests, params.guestCount]);
     const numGuests   = useMemo(() => booking?.guests || (params.guestCount ? Number(params.guestCount) : 1), [booking?.guests, params.guestCount]);
     
+    const paidCount = useMemo(() => {
+        if (booking?.members && Array.isArray(booking.members)) {
+            const paidMembers = booking.members.filter((m: any) => m.paymentStatus === 'PAID');
+            if (paidMembers.length > 0) return paidMembers.length;
+        }
+        return booking?.isPaymentPending ? 0 : numGuests;
+    }, [booking, numGuests]);
+
     const tableId     = useMemo(() => booking?.tableId || (params.seatIds ? String(params.seatIds).split(',')[0] : ''), [booking?.tableId, params.seatIds]);
 
     // ── Resolve seat IDs — always produce a non-empty array ──────────────────────
@@ -295,6 +303,8 @@ export default function TablePass() {
                         <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
                             {[...Array(numGuests)].map((_, i) => {
                                 const qrData = `STITCH|${bookingId}|${zone}|${tableId}|Pass${i + 1}of${numGuests}`;
+                                const isThisPassPending = i >= paidCount;
+
                                 return (
                                     <View key={i} style={{ width: width - 40, alignItems: 'center' }}>
                                         <View style={styles.qrFrame}>
@@ -308,7 +318,7 @@ export default function TablePass() {
                                                     <Ionicons name="time-outline" size={40} color="rgba(255,255,255,0.4)" />
                                                     <Text style={styles.qrOverlayTxt}>EXPIRED</Text>
                                                 </View>
-                                            ) : booking?.isPaymentPending ? (
+                                            ) : isThisPassPending ? (
                                                 <View style={styles.qrOverlay}>
                                                     <Ionicons name="lock-closed" size={40} color="#f59e0b" />
                                                     <Text style={[styles.qrOverlayTxt, { color: '#f59e0b', fontSize: 13, textAlign: 'center' }]}>PAYMENT PENDING</Text>
@@ -341,7 +351,7 @@ export default function TablePass() {
                 </View>
 
                 {/* CTA — Pay Pending Share */}
-                {booking?.isPaymentPending && !isExpired && (
+                {paidCount < numGuests && !isExpired && (
                     <View style={{ width: '100%', marginTop: 24 }}>
                         <TouchableOpacity
                             activeOpacity={0.85}
