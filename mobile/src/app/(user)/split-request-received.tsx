@@ -37,7 +37,9 @@ export default function SplitRequestReceived() {
     const bookingId       = params.bookingId       ? String(params.bookingId)        : '';
 
     const participantsRaw = params.participants ? String(params.participants) : '';
-    const participants: string[] = participantsRaw ? participantsRaw.split(',') : [requesterName, 'You', 'Rohan', 'Ishani'];
+    const participants: string[] = participantsRaw 
+        ? participantsRaw.split(',') 
+        : Array.from({ length: Math.max(1, totalGuests) }, (_, i) => i === 0 ? requesterName : i === 1 ? 'You' : `Guest ${i+1}`);
 
     const handleAccept = async () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -164,7 +166,7 @@ export default function SplitRequestReceived() {
                         <Text style={styles.amountCurrency}>₹</Text>
                         <Text style={styles.amountValue}>{shareAmount.toLocaleString()}</Text>
                     </View>
-                    <Text style={styles.splitBreakdown}>1/{participants.length} of total booking</Text>
+                    <Text style={styles.splitBreakdown}>1/{totalGuests} of total booking</Text>
                 </View>
 
                 <View style={styles.divider} />

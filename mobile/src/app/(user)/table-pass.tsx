@@ -368,7 +368,9 @@ export default function TablePass() {
                                         title: eventTitle,
                                         venueName: venueName,
                                         eventDate: eventDate,
-                                        totalGuests: String(booking.guests || 1)
+                                        totalGuests: String(booking.guests || 1),
+                                        requesterName: booking.userId?.name || 'The Host',
+                                        requesterAvatar: booking.userId?.profileImage || ''
                                     }
                                 });
                             }}
