@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as Linking from 'expo-linking';
 import { userService } from '../../services/userService';
 import dayjs from 'dayjs';
 import QRCode from 'react-native-qrcode-svg';
@@ -172,12 +173,29 @@ export default function TablePass() {
     const handleShare = useCallback(async () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         try {
+            const splitAmount = Math.round(pricePaid / Math.max(1, paidCount));
+            const deepLink = Linking.createURL('/(user)/split-request-received', {
+                queryParams: {
+                    bookingId: booking?._id || '',
+                    eventId: booking?.eventId?._id || booking?.eventId || '',
+                    hostId: booking?.hostId?._id || booking?.hostId || '',
+                    zone: booking?.ticketType || 'VIP',
+                    shareAmount: String(splitAmount),
+                    title: eventTitle,
+                    venueName: venueName,
+                    eventDate: eventDate,
+                    totalGuests: String(numGuests),
+                    requesterName: booking?.userId?.name || booking?.userId?.phone || 'The Host',
+                    requesterAvatar: booking?.userId?.profileImage || ''
+                }
+            });
+
             await Share.share({
-                title: 'My Table Pass',
-                message: `🎟️ I'm going to ${eventTitle} at ${venueName}!\n📅 ${eventDate} • ${timeSlot}\n💜 Booking: ${displayBookingId}`,
+                title: 'Pay Your Share',
+                message: `🎟️ I booked tickets for ${eventTitle} at ${venueName}!\n📅 ${eventDate} • ${timeSlot}\n\nPay your share (₹${splitAmount}) to unlock your pass here:\n${deepLink}`,
             });
         } catch {}
-    }, [eventTitle, venueName, eventDate, timeSlot, displayBookingId]);
+    }, [booking, eventTitle, venueName, eventDate, timeSlot, pricePaid, paidCount, numGuests]);
 
     // Removed blocking loader to enable 0-latency perceived performance using params
 
