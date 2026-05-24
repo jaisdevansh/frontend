@@ -84,11 +84,13 @@ export default function TablePass() {
     const numGuests   = useMemo(() => booking?.guests || (params.guestCount ? Number(params.guestCount) : 1), [booking?.guests, params.guestCount]);
     
     const paidCount = useMemo(() => {
-        if (booking?.members && Array.isArray(booking.members)) {
+        const isSplit = booking?.ticketType?.toLowerCase().includes('split');
+        if (isSplit && booking?.members && Array.isArray(booking.members)) {
             const paidMembers = booking.members.filter((m: any) => m.paymentStatus === 'PAID');
             if (paidMembers.length > 0) return paidMembers.length;
         }
-        return booking?.isPaymentPending ? 0 : numGuests;
+        // If not a split booking, or no members array, assume full payment covers all guests
+        return booking?.status === 'pending' || booking?.paymentStatus === 'pending' ? 0 : numGuests;
     }, [booking, numGuests]);
 
     const tableId     = useMemo(() => booking?.tableId || (params.seatIds ? String(params.seatIds).split(',')[0] : ''), [booking?.tableId, params.seatIds]);
