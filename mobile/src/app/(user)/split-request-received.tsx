@@ -34,12 +34,18 @@ export default function SplitRequestReceived() {
     const eventDate       = params.eventDate       ? String(params.eventDate)        : 'Friday, Oct 24th • 10:00 PM';
     const zone            = params.zone            ? String(params.zone)             : 'Lounge';
     const eventId         = params.eventId         ? String(params.eventId)          : '';
-    const bookingId       = params.bookingId       ? String(params.bookingId)        : '';
+    const bookingId       = params.bookingId && params.bookingId !== 'undefined' ? String(params.bookingId) : '';
+    
+    console.log('[Split Request] Received params:', { eventId, hostId: params.hostId, bookingId });
+    
+    const passNumber      = params.passNumber      ? Number(params.passNumber)       : 1;
+
+    const remainingPasses = Math.max(1, totalGuests - (passNumber - 1));
 
     const participantsRaw = params.participants ? String(params.participants) : '';
     const participants: string[] = participantsRaw 
-        ? participantsRaw.split(',') 
-        : Array.from({ length: Math.max(1, totalGuests) }, (_, i) => i === 0 ? requesterName : i === 1 ? 'You' : `Guest ${i+1}`);
+        ? participantsRaw.split(',').slice(0, remainingPasses) 
+        : Array.from({ length: remainingPasses }, (_, i) => i === 0 ? 'You' : `Guest ${i+1}`);
 
     const handleAccept = async () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -79,6 +85,8 @@ export default function SplitRequestReceived() {
                 zone,
                 guestCount: totalGuests,
                 bookingId, // Crucial for backend to link to existing booking
+                seatIds: params.seatIds ? String(params.seatIds).split(',') : undefined,
+                tableId: params.tableId ? String(params.tableId) : undefined,
             }
         );
 
@@ -166,7 +174,7 @@ export default function SplitRequestReceived() {
                         <Text style={styles.amountCurrency}>₹</Text>
                         <Text style={styles.amountValue}>{shareAmount.toLocaleString()}</Text>
                     </View>
-                    <Text style={styles.splitBreakdown}>1/{totalGuests} of total booking</Text>
+                    <Text style={styles.splitBreakdown}>Unlocking Pass {passNumber} of {totalGuests}</Text>
                 </View>
 
                 <View style={styles.divider} />

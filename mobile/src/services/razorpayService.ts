@@ -167,7 +167,7 @@ export async function initiateRazorpayPayment(
             return { success: false, error: 'Payment cancelled' };
         }
         
-        return { success: false, error: error?.description || error?.message || 'Payment failed. Please try again.' };
+        return { success: false, error: error?.response?.data?.message || error?.description || error?.message || 'Payment failed. Please try again.' };
     }
 }
 

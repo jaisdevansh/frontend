@@ -7,7 +7,7 @@ import {
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as Linking from 'expo-linking';
@@ -25,10 +25,27 @@ const { width } = Dimensions.get('window');
 //      "TABLE-01" (already clean)     → "TABLE-01"
 const formatSeatId = (raw: string): string => {
     if (!raw) return 'N/A';
-    // Pattern: anything_s<number>  (case-insensitive)
-    const match = raw.match(/_s(\d+)$/i);
-    if (match) return `Seat ${match[1]}`;
-    return raw; // already human-readable
+    // Pattern: <prefix>_s<number>
+    const match = raw.match(/^(.+)_s(\d+)$/i);
+    if (match) {
+        const prefix = match[1];
+        const seatNum = match[2];
+        
+        // If it's a completely random generated base (8 uppercase chars),
+        // or a MongoDB ObjectId (24 hex chars),
+        // or a generic zone name like "vip", just return "Seat X" to keep it clean
+        const isMongoId = /^[a-f0-9]{24}$/i.test(prefix);
+        const isRandomBase = /^[A-Z0-9]{8}$/.test(prefix);
+        const isGenericZone = ['vip', 'lounge', 'general'].includes(prefix.toLowerCase());
+        
+        if (isMongoId || isRandomBase || isGenericZone) {
+            return `Seat ${seatNum}`;
+        }
+        
+        // Return the real table number along with the seat
+        return `${prefix} (Seat ${seatNum})`;
+    }
+    return raw;
 };
 
 
@@ -43,15 +60,18 @@ export default function TablePass() {
     const [booking, setBooking] = useState<any>(null);
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        if (bookingId) {
-            userService.getBookingById(bookingId).then(res => {
-                if (res?.success && res.data) {
-                    setBooking(res.data);
-                }
-            }).finally(() => setLoading(false));
-        }
-    }, [bookingId]);
+    useFocusEffect(
+        useCallback(() => {
+            if (bookingId) {
+                // Remove setLoading(true) to avoid flickering on back navigation
+                userService.getBookingById(bookingId).then(res => {
+                    if (res?.success && res.data) {
+                        setBooking(res.data);
+                    }
+                }).finally(() => setLoading(false));
+            }
+        }, [bookingId])
+    );
 
     // ── Animate in instantly ──
     useEffect(() => {
@@ -84,14 +104,18 @@ export default function TablePass() {
     const numGuests   = useMemo(() => booking?.guests || (params.guestCount ? Number(params.guestCount) : 1), [booking?.guests, params.guestCount]);
     
     const paidCount = useMemo(() => {
-        const isSplit = booking?.ticketType?.toLowerCase().includes('split');
-        if (isSplit && booking?.members && Array.isArray(booking.members)) {
-            const paidMembers = booking.members.filter((m: any) => m.paymentStatus === 'PAID');
-            if (paidMembers.length > 0) return paidMembers.length;
+        const isSplit = zone.toLowerCase().includes('split');
+        if (isSplit) {
+            if (booking?.members && Array.isArray(booking.members)) {
+                const paidMembers = booking.members.filter((m: any) => m.paymentStatus === 'PAID');
+                if (paidMembers.length > 0) return paidMembers.length;
+            }
+            // Default to 1 for split bookings while loading, to prevent flashing all tickets as unlocked
+            return 1; 
         }
         // If not a split booking, or no members array, assume full payment covers all guests
         return booking?.status === 'pending' || booking?.paymentStatus === 'pending' ? 0 : numGuests;
-    }, [booking, numGuests]);
+    }, [booking, numGuests, zone]);
 
     const tableId     = useMemo(() => booking?.tableId || (params.seatIds ? String(params.seatIds).split(',')[0] : ''), [booking?.tableId, params.seatIds]);
 
@@ -380,7 +404,7 @@ export default function TablePass() {
                                 router.push({
                                     pathname: '/(user)/split-request-received' as any,
                                     params: { 
-                                        bookingId: booking._id,
+                                        bookingId: String(booking?._id || booking?.id || params.bookingId || ''),
                                         eventId: booking.eventId?._id || booking.eventId,
                                         hostId: booking.hostId?._id || booking.hostId,
                                         zone: booking.ticketType || 'VIP',
@@ -389,6 +413,7 @@ export default function TablePass() {
                                         venueName: venueName,
                                         eventDate: eventDate,
                                         totalGuests: String(booking.guests || 1),
+                                        passNumber: String(paidCount + 1),
                                         requesterName: booking.userId?.name || booking.userId?.phone || 'The Host',
                                         requesterAvatar: booking.userId?.profileImage || ''
                                     }

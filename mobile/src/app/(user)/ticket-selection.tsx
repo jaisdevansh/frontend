@@ -202,6 +202,7 @@ const TableSelection = () => {
                     guests: String(guests),
                     zone: table.label || table.id,
                     timeSlot: selectedTime,
+                    commissionRate: String(eventBasic?.hostId?.commissionRate ?? 10),
                 },
             });
             setTimeout(() => setIsProceeding(false), 500);
@@ -320,6 +321,7 @@ const TableSelection = () => {
                                         coverImage,
                                         hostId,
                                         timeSlot: selectedTime,
+                                        commissionRate: String(eventBasic?.hostId?.commissionRate ?? 10),
                                     }
                                 });
                             }}>
@@ -370,18 +372,19 @@ const TableSelection = () => {
                 <View style={{ flex: 1 }}>
                     {table?.price ? (() => {
                         const base = table.price * guests;
-                        const serviceFee = Math.round(base * 0.10);
+                        const commissionRate = eventBasic?.hostId?.commissionRate ?? 10;
+                        const serviceFee = Math.round(base * (commissionRate / 100));
                         const totalWithFee = base + serviceFee;
                         return (
                             <>
                                 <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>
-                                    Base: {'\u20b9'}{base.toLocaleString()} + 10% fee
+                                    Base: {'\u20b9'}{base.toLocaleString()} + {commissionRate}% fee
                                 </Text>
                                 <Text style={{ color: '#fff', fontSize: 20, fontWeight: '900' }}>
                                     {'\u20b9'}{totalWithFee.toLocaleString()}
                                 </Text>
                                 <Text style={{ color: '#F59E0B', fontSize: 9, fontWeight: '800', marginTop: 1 }}>
-                                    INCL. ₹{serviceFee.toLocaleString()} SERVICE CHARGE
+                                    INCL. ₹{serviceFee.toLocaleString()} PLATFORM FEE
                                 </Text>
                             </>
                         );

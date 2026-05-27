@@ -60,10 +60,11 @@ export default function SecureCheckout() {
 
     // Price calcs
     // Prefer total from params if available (calculated in previous step), fallback to estimate
-    const passedTotal = params.total ? Number(params.total) : 0;
+    const commissionRate = params.commissionRate ? Number(params.commissionRate) : 10;
+    const passedTotal = params.baseTotal ? Number(params.baseTotal) : (params.total ? Number(params.total) : 0);
     const basePrice = passedTotal > 0 ? (passedTotal / guests) : (zone.includes('VIP') ? 3500 : zone.includes('Lounge') ? 2000 : 1200);
     const subtotal      = passedTotal > 0 ? passedTotal : (Math.max(1, guests) * basePrice);
-    const serviceCharge = 0;  // Service tax removed as requested
+    const serviceCharge = Math.round(subtotal * (commissionRate / 100));
     const totalDiscount = (isApplied ? appliedDiscount : 0) + (isPromoApplied ? promoDiscount : 0);
     const total         = Math.max(0, subtotal + serviceCharge - totalDiscount);
 
@@ -419,6 +420,12 @@ export default function SecureCheckout() {
                         <Text style={[styles.rowLbl, { flex: 1 }]} numberOfLines={1}>{zone} ({guests} Guests)</Text>
                         <Text style={styles.rowVal}>₹{subtotal.toFixed(2)}</Text>
                     </View>
+                    {serviceCharge > 0 && (
+                        <View style={styles.row}>
+                            <Text style={[styles.rowLbl, { flex: 1 }]}>Platform Fee ({commissionRate}%)</Text>
+                            <Text style={styles.rowVal}>₹{serviceCharge.toFixed(2)}</Text>
+                        </View>
+                    )}
                     {seatIds.length > 0 && (
                         <View style={styles.row}>
                             <Text style={[styles.rowLbl, { flex: 1 }]} numberOfLines={1}>
