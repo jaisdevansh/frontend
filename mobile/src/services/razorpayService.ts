@@ -1,9 +1,12 @@
 import RazorpayCheckout from 'react-native-razorpay';
 import apiClient from './apiClient';
 
-// ── Keys — rzp_test_* = test mode, no real charges ───────────────────────────
-const RAZORPAY_KEY_ID = 'rzp_live_Sjob3tTlrGrG0X';
+import Constants from 'expo-constants';
 
+// ── Keys — rzp_test_* = test mode, no real charges ───────────────────────────
+const env = Constants.expoConfig?.extra?.ENV || 'production';
+// If in dev, use the test key that matches your backend's .env file
+const RAZORPAY_KEY_ID = env === 'development' ? 'rzp_test_SZ2UV8QmCtqOFR' : 'rzp_live_Sjob3tTlrGrG0X';
 export interface PaymentOptions {
     amount: number;          // in INR (NOT paise – we convert internally)
     receipt: string;         // max 40 chars e.g. "rcpt_<eventId>_<timestamp>"
@@ -84,7 +87,7 @@ export async function initiateRazorpayPayment(
             description: paymentOptions.description,
             image:       'https://i.imgur.com/n5tjHFD.png',
             currency:    'INR',
-            key:         RAZORPAY_KEY_ID,
+            key:         orderRes.data.key_id || RAZORPAY_KEY_ID,
             amount:      String(order.amount),  // already in paise from backend
             name:        'Entry Club',
             order_id:    order.id,
@@ -205,7 +208,7 @@ export async function initiateFoodPayment(
             description: paymentOptions.description,
             image:       'https://i.imgur.com/n5tjHFD.png',
             currency:    'INR',
-            key:         RAZORPAY_KEY_ID,
+            key:         orderRes.data.key_id || RAZORPAY_KEY_ID,
             amount:      String(rzpOrder.amount),
             name:        'Entry Club',
             order_id:    rzpOrder.id,
