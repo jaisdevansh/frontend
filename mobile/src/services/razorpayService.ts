@@ -83,12 +83,10 @@ export async function initiateRazorpayPayment(
         backendOrderId = order.id;
 
         // 2. Open the Razorpay checkout sheet
-        const rzpOptions = {
+        const rzpOptions: any = {
             description: paymentOptions.description,
             image:       'https://i.imgur.com/n5tjHFD.png',
-            currency:    'INR',
             key:         orderRes.data.key_id || RAZORPAY_KEY_ID,
-            amount:      String(order.amount),  // already in paise from backend
             name:        'Entry Club',
             order_id:    order.id,
             prefill: {
@@ -99,6 +97,12 @@ export async function initiateRazorpayPayment(
             notes: paymentOptions.notes || {},
             theme: { color: '#7c4dff' },
         };
+
+        // Fallback for amount if order_id is somehow missing
+        if (!order.id) {
+            rzpOptions.amount = Number(order.amount);
+            rzpOptions.currency = 'INR';
+        }
 
         console.log('[Razorpay] Opening checkout with options:', {
             orderId: rzpOptions.order_id,
@@ -204,12 +208,10 @@ export async function initiateFoodPayment(
         backendFoodOrderId = foodOrderId;
 
         // 2. Open the Razorpay checkout sheet
-        const rzpOptions = {
+        const rzpOptions: any = {
             description: paymentOptions.description,
             image:       'https://i.imgur.com/n5tjHFD.png',
-            currency:    'INR',
             key:         orderRes.data.key_id || RAZORPAY_KEY_ID,
-            amount:      String(rzpOrder.amount),
             name:        'Entry Club',
             order_id:    rzpOrder.id,
             prefill: {
@@ -220,6 +222,11 @@ export async function initiateFoodPayment(
             notes: paymentOptions.notes || {},
             theme: { color: '#7c4dff' },
         };
+
+        if (!rzpOrder.id) {
+            rzpOptions.amount = Number(rzpOrder.amount);
+            rzpOptions.currency = 'INR';
+        }
 
         const paymentData: any = await RazorpayCheckout.open(rzpOptions);
 
