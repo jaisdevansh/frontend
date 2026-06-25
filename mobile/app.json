@@ -24,7 +24,7 @@
       "version": "1.0.7",
       "buildNumber": "1",
       "jsEngine": "hermes",
-      "googleServicesFile": "./GoogleService-Info.plist",
+      "googleServicesFile": "$GOOGLE_SERVICE_INFO_PLIST",
       "infoPlist": {
         "UIBackgroundModes": [
           "remote-notification",
