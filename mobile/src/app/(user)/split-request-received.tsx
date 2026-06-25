@@ -24,7 +24,7 @@ export default function SplitRequestReceived() {
     const [declining, setDeclining] = useState(false);
 
     // Pull data from params
-    const requesterName   = params.requesterName   ? String(params.requesterName)   : 'Ananya Sharma';
+    const requesterName   = params.requesterName   ? String(params.requesterName)   : 'The Host';
     const requesterAvatar = params.requesterAvatar ? String(params.requesterAvatar) : 'https://i.pravatar.cc/150?u=ananya';
     const eventTitle      = params.title           ? String(params.title)            : 'Midnight Rooftop Sessions';
     const venueName       = params.venueName       ? String(params.venueName)        : 'Karner Club, Indiranagar';
@@ -35,8 +35,14 @@ export default function SplitRequestReceived() {
     const zone            = params.zone            ? String(params.zone)             : 'Lounge';
     const eventId         = params.eventId         ? String(params.eventId)          : '';
 
+    const bookingId = params.bookingId && params.bookingId !== 'undefined' ? String(params.bookingId) : '';
+    const passNumber = params.passNumber ? Number(params.passNumber) : 1;
+    const remainingPasses = Math.max(1, totalGuests - (passNumber - 1));
+
     const participantsRaw = params.participants ? String(params.participants) : '';
-    const participants: string[] = participantsRaw ? participantsRaw.split(',') : [requesterName, 'You', 'Rohan', 'Ishani'];
+    const participants: string[] = participantsRaw 
+        ? participantsRaw.split(',').slice(0, remainingPasses) 
+        : Array.from({ length: remainingPasses }, (_, i) => i === 0 ? 'You' : `Guest ${i+1}`);
 
     const handleAccept = async () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -75,6 +81,9 @@ export default function SplitRequestReceived() {
                 pricePaid: shareAmount,
                 zone,
                 guestCount: totalGuests,
+                bookingId,
+                seatIds: params.seatIds ? String(params.seatIds).split(',') : undefined,
+                tableId: params.tableId ? String(params.tableId) : undefined,
             }
         );
 
@@ -146,7 +155,7 @@ export default function SplitRequestReceived() {
                     </View>
 
                     <Text style={styles.heroSub}>
-                        <Text style={styles.heroSubHighlight}>{requesterName}</Text> invited you to{'\n'}split the booking for
+                        <Text style={styles.heroSubHighlight}>{params.requesterName || 'The Host'}</Text> invited you to{'\n'}split the booking for
                     </Text>
                     <Text style={styles.heroTitle} numberOfLines={2}>{eventTitle}</Text>
                 </View>
@@ -162,7 +171,7 @@ export default function SplitRequestReceived() {
                         <Text style={styles.amountCurrency}>₹</Text>
                         <Text style={styles.amountValue}>{shareAmount.toLocaleString()}</Text>
                     </View>
-                    <Text style={styles.splitBreakdown}>1/{participants.length} of total booking</Text>
+                    <Text style={styles.splitBreakdown}>Unlocking Pass {passNumber} of {totalGuests}</Text>
                 </View>
 
                 <View style={styles.divider} />

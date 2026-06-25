@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
     View, 
     Text, 
@@ -12,6 +12,7 @@ import {
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { useRouter } from 'expo-router';
 import { useStrictBack } from '../../hooks/useStrictBack';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -24,9 +25,11 @@ import { useToast } from '../../context/ToastContext';
 import { Logo } from '../../components/Logo';
 import { API_BASE_URL } from '../../services/apiClient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import auth from '@react-native-firebase/auth';
+import { firebaseAuthHelper } from '../../services/firebaseAuthHelper';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 WebBrowser.maybeCompleteAuthSession();
-const GOOGLE_AUTH_URL = `${API_BASE_URL}/api/auth/google`;
 
 export default function LoginScreen() {
     const [identifier, setIdentifier] = useState('');
@@ -40,57 +43,118 @@ export default function LoginScreen() {
     const goBack = useStrictBack('/(auth)/welcome');
     const { showToast } = useToast();
 
+    useEffect(() => {
+        GoogleSignin.configure({
+            webClientId: '391097495705-omn4cf9jppfmjdc0n9c80l5qn8afse2b.apps.googleusercontent.com',
+            offlineAccess: true,
+        });
+    }, []);
+
+    const handleAppleLogin = async () => {
+        try {
+            setLoading(true);
+            const credential = await AppleAuthentication.signInAsync({
+                requestedScopes: [
+                    AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+                    AppleAuthentication.AppleAuthenticationScope.EMAIL,
+                ],
+            });
+
+            if (credential.identityToken) {
+                const res = await authService.appleLogin(credential.identityToken, credential.fullName);
+                if (res.success) {
+                    await login({
+                        token: res.data.accessToken,
+                        refreshToken: res.data.refreshToken,
+                        role: res.data.role,
+                        hostId: res.data.hostId || undefined,
+                        onboardingCompleted: res.data.onboardingCompleted,
+                        user: {
+                            id: res.data.id,
+                            _id: res.data.id,
+                            name: res.data.name,
+                            email: res.data.email,
+                            profileImage: res.data.profileImage,
+                        } as any
+                    });
+                    showToast('Welcome! 🍎', 'success');
+                } else {
+                    showToast(res.message || 'Apple login failed', 'error');
+                }
+            }
+        } catch (e: any) {
+            if (e.code !== 'ERR_REQUEST_CANCELED') {
+                showToast('Apple login failed', 'error');
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleGoogleLogin = async () => {
         try {
             setLoading(true);
             await logout();
             await new Promise(resolve => setTimeout(resolve, 100));
-            const redirectUri = Linking.createURL('auth');
-            const authUrl = `${GOOGLE_AUTH_URL}?redirectUri=${encodeURIComponent(redirectUri)}`;
-            const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
-            if (result.type === 'success' && result.url) {
-                const parsed = Linking.parse(result.url);
-                
-                const errorMsg = parsed.queryParams?.error as string | undefined;
-                if (errorMsg) {
-                    showToast(decodeURIComponent(errorMsg).replace(/_/g, ' '), 'error');
-                    return;
-                }
 
-                const token = parsed.queryParams?.token as string | undefined;
-                if (!token) {
-                    showToast('Google login failed. Please try again.', 'error');
-                    return;
-                }
-                const refreshToken = parsed.queryParams?.refreshToken as string | undefined;
-                const userRole = (parsed.queryParams?.role as string) || 'user';
-                const onboarded = parsed.queryParams?.onboardingCompleted === 'true';
-                const fullName = (parsed.queryParams?.name as string) || '';
-                const nameParts = fullName.trim().split(' ');
-                
+            // ── 1. TRIGGER NATIVE BOTTOM-SHEET OAUTH ───────────────────────
+            await GoogleSignin.hasPlayServices();
+            
+            try {
+                await GoogleSignin.signOut();
+            } catch (_) {}
+
+            const userInfo = await GoogleSignin.signIn();
+            
+            // ── 2. GET ACCESS TOKEN FROM NATIVE OAUTH SESSION ──────────────
+            const tokens = await GoogleSignin.getTokens();
+            const accessToken = tokens.accessToken;
+
+            if (!accessToken) {
+                showToast('Failed to retrieve Google access token', 'error');
+                return;
+            }
+
+            // ── 3. SEND ACCESS TOKEN TO BACKEND FOR JWT SESSION EXCHANGE ───
+            const res = await authService.googleLogin(accessToken);
+
+            if (res.success) {
+                const nameParts = (res.data.name || '').trim().split(' ');
                 await login({
-                    token,
-                    refreshToken,
-                    role: userRole,
-                    hostId: (parsed.queryParams?.hostId as string) || undefined,
-                    onboardingCompleted: onboarded,
+                    token: res.data.accessToken,
+                    refreshToken: res.data.refreshToken,
+                    role: res.data.role,
+                    hostId: res.data.hostId || undefined,
+                    onboardingCompleted: res.data.onboardingCompleted ?? false,
                     user: {
-                        id:           parsed.queryParams?.userId as string,
-                        _id:          parsed.queryParams?.userId as string,
-                        name:         fullName,
+                        id:           res.data.id,
+                        _id:          res.data.id,
+                        name:         res.data.name,
                         firstName:    nameParts[0] || '',
                         lastName:     nameParts.slice(1).join(' ') || '',
-                        email:        parsed.queryParams?.email as string,
-                        profileImage: parsed.queryParams?.profileImage as string,
-                        username:     parsed.queryParams?.username as string,
-                        phone:        parsed.queryParams?.phone as string,
-                        gender:       parsed.queryParams?.gender as string,
-                    }
+                        email:        res.data.email,
+                        profileImage: res.data.profileImage,
+                    } as any
                 });
                 showToast('Welcome! 🎉', 'success');
+            } else {
+                showToast(res.message || 'Google login failed', 'error');
             }
         } catch (error: any) {
-            showToast('Google login service error', 'error');
+            console.error('[Google Native Auth Error]', error.code, error.message);
+            const errorCode = String(error.code || '');
+            
+            let errorMsg = String(error.message || '');
+            if (error.response?.data) {
+                const data = error.response.data;
+                errorMsg = data.message || data.error || JSON.stringify(data);
+            }
+
+            if (errorCode === '7' || errorCode === '10' || errorMsg.includes('DEVELOPER_ERROR')) {
+                showToast('Google Auth misconfigured. Verify SHA fingerprints in Google Cloud Console.', 'error');
+            } else if (errorCode !== '12501' && errorCode !== 'ASYNC_OP_IN_PROGRESS') {
+                showToast(`Google Sign-In failed: ${errorMsg.slice(0, 100)}`, 'error');
+            }
         } finally {
             setLoading(false);
         }
@@ -118,16 +182,47 @@ export default function LoginScreen() {
                 finalIdentifier = `+91${digits}`;
             }
 
-            const res = await authService.sendOtp(finalIdentifier);
-            if (res.success) {
-                showToast(res.message, 'success');
-                router.push({
-                    pathname: '/(auth)/verify-otp' as any,
-                    params: { identifier: finalIdentifier, hint: res.data?.hint }
-                });
+            if (isEmail) {
+                // ── EMAIL PATH: Use existing backend logic ───────────────────
+                const res = await authService.sendOtp(finalIdentifier);
+                if (res.success) {
+                    showToast(res.message, 'success');
+                    router.push({
+                        pathname: '/(auth)/verify-otp' as any,
+                        params: { identifier: finalIdentifier, hint: res.data?.hint, type: 'email' }
+                    });
+                }
+            } else {
+                // ── PHONE PATH: Use Firebase Phone Auth ──────────────────────
+                try {
+                    // Firebase handles the SMS sending directly
+                    const confirmation = await auth().signInWithPhoneNumber(finalIdentifier);
+                    
+                    // Store confirmation result in helper (Router params can't hold objects)
+                    firebaseAuthHelper.setConfirmation(confirmation, finalIdentifier);
+                    
+                    showToast('Verification code sent to your phone', 'success');
+                    router.push({
+                        pathname: '/(auth)/verify-otp' as any,
+                        params: { identifier: finalIdentifier, type: 'phone' }
+                    });
+                } catch (firebaseErr: any) {
+                    console.error('[Firebase Auth Error]', firebaseErr.code, firebaseErr.message);
+                    let userFriendlyMessage = 'Failed to send SMS. Please try again.';
+                    
+                    if (firebaseErr.code === 'auth/invalid-phone-number') {
+                        userFriendlyMessage = 'The phone number is invalid.';
+                    } else if (firebaseErr.code === 'auth/too-many-requests') {
+                        userFriendlyMessage = 'Too many attempts. Please try again later.';
+                    } else if (firebaseErr.code === 'auth/network-request-failed') {
+                        userFriendlyMessage = 'Network error. Please check your connection.';
+                    }
+                    
+                    showToast(userFriendlyMessage, 'error');
+                }
             }
         } catch (error: any) {
-            const message = error.response?.data?.message || 'Failed to send OTP';
+            const message = error.response?.data?.message || 'Failed to initiate login';
             showToast(message, 'error');
         } finally {
             setLoading(false);
@@ -228,6 +323,16 @@ export default function LoginScreen() {
                                     icon={<FontAwesome name="google" size={20} color="#FFFFFF" />}
                                     style={styles.googleButton}
                                 />
+
+                                {Platform.OS === 'ios' && (
+                                    <Button
+                                        title="Continue with Apple"
+                                        onPress={handleAppleLogin}
+                                        variant="glass"
+                                        icon={<FontAwesome name="apple" size={20} color="#FFFFFF" />}
+                                        style={styles.appleButton}
+                                    />
+                                )}
                             </View>
                 </KeyboardAwareScrollView>
         </SafeAreaView>
@@ -282,6 +387,9 @@ const styles = StyleSheet.create({
         elevation: 5,
     },
     googleButton: {
+        marginTop: SPACING.sm,
+    },
+    appleButton: {
         marginTop: SPACING.sm,
     },
     divider: {

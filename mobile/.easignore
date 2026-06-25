@@ -33,6 +33,11 @@ dist/
 .metro-cache/
 .expo/
 
+# Gradle cache (built on EAS server, not needed locally)
+android/.gradle/
+android/build/
+android/app/build/
+
 # Misc
 .DS_Store
 *.pem

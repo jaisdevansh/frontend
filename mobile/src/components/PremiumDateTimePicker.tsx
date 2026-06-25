@@ -21,8 +21,11 @@ interface PremiumDateTimePickerProps {
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
 const MINUTES = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
+// Generate years from current year down to 1920
+const CURRENT_YEAR = new Date().getFullYear();
+const YEARS = Array.from({ length: CURRENT_YEAR - 1920 + 1 }, (_, i) => (CURRENT_YEAR - i).toString());
 
-// Height of a single time picker item
+// Height of a single time/year picker item
 const ITEM_HEIGHT = 50; 
 
 export const PremiumDateTimePicker: React.FC<PremiumDateTimePickerProps> = ({ 
@@ -35,14 +38,16 @@ export const PremiumDateTimePicker: React.FC<PremiumDateTimePickerProps> = ({
     minDate,
     maxDate
 }) => {
-    const [currentStep, setCurrentStep] = useState(mode === 'time' ? 'time' : 'date');
+    const [currentStep, setCurrentStep] = useState<'date' | 'time' | 'year'>(mode === 'time' ? 'time' : 'date');
     const [selectedDate, setSelectedDate] = useState<string>(dayjs(initialDate).format('YYYY-MM-DD'));
     
     const [selectedHour, setSelectedHour] = useState(dayjs(initialDate).format('HH'));
     const [selectedMinute, setSelectedMinute] = useState(dayjs(initialDate).format('mm'));
+    const [selectedYear, setSelectedYear] = useState(dayjs(initialDate).format('YYYY'));
 
     const hourListRef = useRef<FlatList>(null);
     const minuteListRef = useRef<FlatList>(null);
+    const yearListRef = useRef<FlatList>(null);
 
     useEffect(() => {
         if (visible) {
@@ -50,8 +55,9 @@ export const PremiumDateTimePicker: React.FC<PremiumDateTimePickerProps> = ({
             setSelectedDate(dayjs(initialDate).format('YYYY-MM-DD'));
             setSelectedHour(dayjs(initialDate).format('HH'));
             setSelectedMinute(dayjs(initialDate).format('mm'));
+            setSelectedYear(dayjs(initialDate).format('YYYY'));
             
-            // Scroll to initial time positions after slight delay
+            // Scroll to initial time positions
             if (mode === 'time' || mode === 'datetime') {
                 setTimeout(() => {
                     const hIndex = HOURS.indexOf(dayjs(initialDate).format('HH'));
@@ -65,6 +71,14 @@ export const PremiumDateTimePicker: React.FC<PremiumDateTimePickerProps> = ({
     }, [visible, initialDate, mode]);
 
     const handleConfirm = () => {
+        if (currentStep === 'year') {
+            // After selecting year, go back to date view with that year
+            const newDate = dayjs(selectedDate).year(parseInt(selectedYear, 10)).format('YYYY-MM-DD');
+            setSelectedDate(newDate);
+            setCurrentStep('date');
+            return;
+        }
+
         const datePart = currentStep === 'time' && mode === 'time' 
             ? dayjs().format('YYYY-MM-DD') 
             : selectedDate;
@@ -72,10 +86,8 @@ export const PremiumDateTimePicker: React.FC<PremiumDateTimePickerProps> = ({
         const hour24 = parseInt(selectedHour, 10);
         const finalDate = dayjs(`${datePart} ${hour24}:${selectedMinute}`, 'YYYY-MM-DD H:m').toDate();
         
-        // If mode is datetime and we are on date step, move to time step
         if (mode === 'datetime' && currentStep === 'date') {
             setCurrentStep('time');
-            // ensure scrolls are set
             setTimeout(() => {
                 const hIndex = HOURS.indexOf(selectedHour);
                 const mIndex = MINUTES.indexOf(selectedMinute);
@@ -89,7 +101,17 @@ export const PremiumDateTimePicker: React.FC<PremiumDateTimePickerProps> = ({
         onClose();
     };
 
-    const renderTimeScroller = (data: string[], selectedValue: string, onSelect: (val: string) => void, ref: React.RefObject<any>) => {
+    const handleYearPress = () => {
+        setCurrentStep('year');
+        setTimeout(() => {
+            const yIndex = YEARS.indexOf(selectedYear);
+            if (yIndex !== -1) {
+                yearListRef.current?.scrollToOffset({ offset: yIndex * ITEM_HEIGHT, animated: false });
+            }
+        }, 100);
+    };
+
+    const renderScroller = (data: string[], selectedValue: string, onSelect: (val: string) => void, ref: React.RefObject<any>) => {
         return (
             <View style={styles.scrollerCol}>
                 <FlatList
@@ -132,7 +154,15 @@ export const PremiumDateTimePicker: React.FC<PremiumDateTimePickerProps> = ({
                 <Animated.View style={styles.modalContent}>
                     {/* Header */}
                     <View style={styles.header}>
-                        <Text style={styles.title}>{title}</Text>
+                        <View>
+                            <Text style={styles.title}>{title}</Text>
+                            {currentStep === 'date' && (
+                                <TouchableOpacity onPress={handleYearPress} style={styles.yearBadge}>
+                                    <Text style={styles.yearBadgeText}>{dayjs(selectedDate).format('YYYY')}</Text>
+                                    <Ionicons name="caret-down" size={12} color={COLORS.primary} />
+                                </TouchableOpacity>
+                            )}
+                        </View>
                         <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
                             <Ionicons name="close" size={24} color="#FFF" />
                         </TouchableOpacity>
@@ -160,6 +190,7 @@ export const PremiumDateTimePicker: React.FC<PremiumDateTimePickerProps> = ({
                                     textMonthFontWeight: 'bold',
                                     textDayHeaderFontWeight: 'bold',
                                 }}
+                                key={selectedDate} // Re-render when year changes
                                 current={selectedDate}
                                 minDate={minDate ? dayjs(minDate).format('YYYY-MM-DD') : undefined}
                                 maxDate={maxDate ? dayjs(maxDate).format('YYYY-MM-DD') : undefined}
@@ -170,13 +201,23 @@ export const PremiumDateTimePicker: React.FC<PremiumDateTimePickerProps> = ({
                             />
                         )}
 
+                        {currentStep === 'year' && (
+                            <View style={styles.pickerContainer}>
+                                <Text style={styles.pickerHint}>Scroll to select year</Text>
+                                <View style={styles.pickerBox}>
+                                    <View style={styles.selectionHighlight} pointerEvents="none" />
+                                    {renderScroller(YEARS, selectedYear, setSelectedYear, yearListRef)}
+                                </View>
+                            </View>
+                        )}
+
                         {currentStep === 'time' && (
-                            <View style={styles.timePickerContainer}>
-                                <View style={styles.timePickerBox}>
-                                    <View style={styles.masterSelectionHighlight} pointerEvents="none" />
-                                    {renderTimeScroller(HOURS, selectedHour, setSelectedHour, hourListRef)}
+                            <View style={styles.pickerContainer}>
+                                <View style={styles.pickerBox}>
+                                    <View style={styles.selectionHighlight} pointerEvents="none" />
+                                    {renderScroller(HOURS, selectedHour, setSelectedHour, hourListRef)}
                                     <Text style={styles.colon}>:</Text>
-                                    {renderTimeScroller(MINUTES, selectedMinute, setSelectedMinute, minuteListRef)}
+                                    {renderScroller(MINUTES, selectedMinute, setSelectedMinute, minuteListRef)}
                                 </View>
                             </View>
                         )}
@@ -184,14 +225,15 @@ export const PremiumDateTimePicker: React.FC<PremiumDateTimePickerProps> = ({
 
                     {/* Footer buttons */}
                     <View style={styles.footer}>
-                        {(mode === 'datetime' && currentStep === 'time') && (
+                        {currentStep !== 'date' && (
                             <TouchableOpacity style={styles.secondaryBtn} onPress={() => setCurrentStep('date')}>
-                                <Text style={styles.secondaryBtnText}>Back to Date</Text>
+                                <Text style={styles.secondaryBtnText}>Back</Text>
                             </TouchableOpacity>
                         )}
                         <TouchableOpacity style={styles.primaryBtn} onPress={handleConfirm}>
                             <Text style={styles.primaryBtnText}>
-                                {mode === 'datetime' && currentStep === 'date' ? 'Next: Select Time' : 'Confirm'}
+                                {currentStep === 'year' ? 'Apply Year' : 
+                                 (mode === 'datetime' && currentStep === 'date' ? 'Next: Select Time' : 'Confirm')}
                             </Text>
                         </TouchableOpacity>
                     </View>
@@ -232,6 +274,22 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: '800',
     },
+    yearBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(99, 102, 241, 0.15)',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 8,
+        marginTop: 4,
+        alignSelf: 'flex-start',
+    },
+    yearBadgeText: {
+        color: COLORS.primary,
+        fontSize: 14,
+        fontWeight: 'bold',
+        marginRight: 4,
+    },
     closeBtn: {
         width: 40,
         height: 40,
@@ -241,7 +299,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     body: {
-        minHeight: 300,
+        minHeight: 320,
         justifyContent: 'center',
     },
     calendarTheme: {
@@ -250,13 +308,19 @@ const styles = StyleSheet.create({
         borderColor: 'rgba(255,255,255,0.05)',
         overflow: 'hidden',
     },
-    // Time Picker Styles
-    timePickerContainer: {
+    // Picker Styles
+    pickerContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    timePickerBox: {
+    pickerHint: {
+        color: 'rgba(255,255,255,0.4)',
+        fontSize: 14,
+        marginBottom: 15,
+        fontWeight: '600',
+    },
+    pickerBox: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
@@ -270,11 +334,11 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     scrollerCol: {
-        width: 60,
+        width: 100,
         height: '100%',
         alignItems: 'center',
     },
-    masterSelectionHighlight: {
+    selectionHighlight: {
         position: 'absolute',
         top: ITEM_HEIGHT * 2,
         left: 10,
@@ -348,3 +412,4 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
 });
+

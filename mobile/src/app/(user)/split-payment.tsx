@@ -38,6 +38,7 @@ export default function SplitPayScreen() {
     const seatIds    = params.seatIds ? String(params.seatIds).split(',') : [];
     const eventId    = params.eventId ? String(params.eventId) : '';
     const hostId     = params.hostId ? String(params.hostId) : '';
+    const tableId    = params.tableId ? String(params.tableId) : '';
 
     // Local state
     const [profile, setProfile] = useState<any>(null);
@@ -173,6 +174,8 @@ export default function SplitPayScreen() {
                     participants:   allParticipants,
                     eventId,
                     hostId:         hostId, // MANDATORY for backend verify
+                    seatIds:        seatIds.join(','),
+                    tableId:        tableId,
                 }
             });
         }, 1200);

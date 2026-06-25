@@ -1,20 +1,20 @@
 {
   "project_info": {
-    "project_number": "899653174180",
-    "project_id": "entry-club-84af7",
-    "storage_bucket": "entry-club-84af7.firebasestorage.app"
+    "project_number": "391097495705",
+    "project_id": "zenbourg-b5a5b",
+    "storage_bucket": "zenbourg-b5a5b.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:899653174180:android:24c1db065afd319b29b731",
+        "mobilesdk_app_id": "1:391097495705:android:4f43b31d3b3b8228764808",
         "android_client_info": {
           "package_name": "com.entryclub.app"
         }
       },
       "oauth_client": [
         {
-          "client_id": "899653174180-2l8cako7dmdv7bu32ki5lr8ejr2a7rui.apps.googleusercontent.com",
+          "client_id": "391097495705-54go0vjigredq8qmrsgka75h0tovtaet.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.entryclub.app",
@@ -22,31 +22,7 @@
           }
         },
         {
-          "client_id": "899653174180-3bvah7ae5ik6rca2k9aul079a95jfnvt.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.entryclub.app",
-            "certificate_hash": "328f345abd7b81f305739381c89df60529bb6111"
-          }
-        },
-        {
-          "client_id": "899653174180-hq8nl77lg8v783meqbitbkj3st6rrp50.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.entryclub.app",
-            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
-          }
-        },
-        {
-          "client_id": "899653174180-qe3ekjt859u9c26p8vbfsmnvqjd29gui.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.entryclub.app",
-            "certificate_hash": "f142aa0fec6ab5ba32250ad3c042db42cabed4ff"
-          }
-        },
-        {
-          "client_id": "899653174180-v62ki1l0c5c5kr4toa11k0glg4p5c5os.apps.googleusercontent.com",
+          "client_id": "391097495705-9gmtf0sl8nouftur4emsjbc3rfbdk9dm.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.entryclub.app",
@@ -54,28 +30,21 @@
           }
         },
         {
-          "client_id": "899653174180-b5bahsoumdn26ilc76pddfo3vqgfsm21.apps.googleusercontent.com",
+          "client_id": "391097495705-omn4cf9jppfmjdc0n9c80l5qn8afse2b.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyBSDB3Yql_cgmpFJOzDVt026vOEwWC397Y"
+          "current_key": "AIzaSyDXjtd31u9wWBiWj9X0IJdPZIvM4q-uZrY"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "899653174180-b5bahsoumdn26ilc76pddfo3vqgfsm21.apps.googleusercontent.com",
+              "client_id": "391097495705-d86bei44a7demkk7c2vvp0bo19gq1i8h.apps.googleusercontent.com",
               "client_type": 3
-            },
-            {
-              "client_id": "899653174180-5fgiqee2s4v9581514i809rm6r4s2hfl.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.entryclub.iosapp"
-              }
             }
           ]
         }

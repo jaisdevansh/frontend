@@ -7,7 +7,7 @@ import {
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { userService } from '../../services/userService';
@@ -24,9 +24,13 @@ const { width } = Dimensions.get('window');
 //      "TABLE-01" (already clean)     → "TABLE-01"
 const formatSeatId = (raw: string): string => {
     if (!raw) return 'N/A';
-    // Pattern: anything_s<number>  (case-insensitive)
-    const match = raw.match(/_s(\d+)$/i);
+    // Match MongoDB hex ID or short hash followed by _s<number>, or just _s<number> at the end
+    const match = raw.match(/(?:[a-f\d]{24}|[a-f\d]{8})_s(\d+)/i) || raw.match(/_s(\d+)$/i);
     if (match) return `Seat ${match[1]}`;
+    
+    // If it's a raw 24-character MongoDB hex ID, hide it
+    if (/^[a-f\d]{24}$/i.test(raw)) return 'Seat';
+    
     return raw; // already human-readable
 };
 
@@ -42,15 +46,17 @@ export default function TablePass() {
     const [booking, setBooking] = useState<any>(null);
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        if (bookingId) {
-            userService.getBookingById(bookingId).then(res => {
-                if (res?.success && res.data) {
-                    setBooking(res.data);
-                }
-            }).finally(() => setLoading(false));
-        }
-    }, [bookingId]);
+    useFocusEffect(
+        useCallback(() => {
+            if (bookingId) {
+                userService.getBookingById(bookingId).then(res => {
+                    if (res?.success && res.data) {
+                        setBooking(res.data);
+                    }
+                }).finally(() => setLoading(false));
+            }
+        }, [bookingId])
+    );
 
     // ── Animate in instantly ──
     useEffect(() => {

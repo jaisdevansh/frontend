@@ -45,6 +45,7 @@ export default function FloorPlan() {
     const eventId    = params.eventId ? String(params.eventId) : '';
     const guests     = params.guests ? Number(params.guests) : 2;
     const targetZone = params.zone ? String(params.zone) : '';
+    const commissionRate = params.commissionRate ? Number(params.commissionRate) : 10; // ✅ CommissionRate fetch karna
 
     // Store Logic
     const { selectedSeats, toggleSeat, clearSelection } = useBookingStore();
@@ -122,15 +123,16 @@ export default function FloorPlan() {
         }
 
         const selectedIds = Array.from(selectedSeats);
-        const totalCost = (seats[0]?.price || activeZoneMeta?.price || 0) * guests;
+        const baseCost = (seats[0]?.price || activeZoneMeta?.price || 0) * guests;
 
         // INSTANT NAVIGATION
         router.replace({
-            pathname: '/(user)/payment',
+            pathname: '/(user)/payment' as any,
             params: {
                 ...params,
                 seatIds: selectedIds.join(','),
-                total: totalCost,
+                baseTotal: baseCost,         // ✅ baseTotal bheja
+                commissionRate,              // ✅ commissionRate bheja
                 lockId: `lock_${Date.now()}`
             }
         });
@@ -227,7 +229,11 @@ export default function FloorPlan() {
                 <View style={{ flex: 1 }}>
                     <Text style={styles.footLbl}>{selectedSeats.size} seated</Text>
                     <Text style={styles.footPrice}>
-                        ₹{((activeZoneMeta?.price || seats?.[0]?.price || 0) * guests).toLocaleString()}
+                        ₹{(() => {
+                            const baseCost = (activeZoneMeta?.price || seats?.[0]?.price || 0) * guests;
+                            const fee = Math.round(baseCost * (commissionRate / 100));
+                            return (baseCost + fee).toLocaleString(); // ✅ Base cost mein dynamic fee add karke dikhana
+                        })()}
                     </Text>
                 </View>
                 <TouchableOpacity 

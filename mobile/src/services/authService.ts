@@ -23,8 +23,13 @@ export const authService = {
         return response.data;
     },
 
-    verifyOtp: async (identifier: string, otp: string): Promise<LoginResponse> => {
-        const response = await apiClient.post<LoginResponse>('/auth/verify-otp', { identifier, otp });
+    verifyOtp: async (identifier: string, otp?: string, idToken?: string): Promise<LoginResponse> => {
+        const response = await apiClient.post<LoginResponse>('/auth/verify-otp', { identifier, otp, idToken });
+        return response.data;
+    },
+
+    verifyFirebaseToken: async (identifier: string, idToken: string): Promise<LoginResponse> => {
+        const response = await apiClient.post<LoginResponse>('/auth/verify-otp', { identifier, idToken });
         return response.data;
     },
 
@@ -50,6 +55,11 @@ export const authService = {
 
     googleLogin: async (accessToken: string): Promise<LoginResponse> => {
         const response = await apiClient.post<LoginResponse>('/auth/google', { access_token: accessToken });
+        return response.data;
+    },
+
+    appleLogin: async (identityToken: string, fullName?: any): Promise<LoginResponse> => {
+        const response = await apiClient.post<LoginResponse>('/auth/apple', { identityToken, fullName });
         return response.data;
     },
 };

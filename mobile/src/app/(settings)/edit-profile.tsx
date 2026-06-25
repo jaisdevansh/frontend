@@ -15,7 +15,7 @@ import {
     Modal,
     Dimensions
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { PremiumDateTimePicker } from '../../components/PremiumDateTimePicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStrictBack } from '../../hooks/useStrictBack';
@@ -127,11 +127,8 @@ export default function EditProfile() {
     // Calendar Picker State
     const [showDatePicker, setShowDatePicker] = useState(false);
 
-    const handleDateChange = (event: any, selectedDate?: Date) => {
-        if (Platform.OS === 'android') {
-            setShowDatePicker(false);
-        }
-        
+    const onDateChange = (selectedDate: Date) => {
+        setShowDatePicker(false);
         if (selectedDate) {
             setDob(selectedDate.toISOString().split('T')[0]);
         }
@@ -485,39 +482,15 @@ export default function EditProfile() {
                                     </View>
                                 </TouchableOpacity>
 
-                                {/* iOS Date Picker Modal */}
-                                {Platform.OS === 'ios' && showDatePicker && (
-                                    <Modal transparent animationType="slide">
-                                        <View style={styles.datePickerOverlay}>
-                                            <View style={styles.datePickerContainer}>
-                                                <View style={styles.datePickerHeader}>
-                                                    <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                                                        <Text style={styles.datePickerDone}>Done</Text>
-                                                    </TouchableOpacity>
-                                                </View>
-                                                <DateTimePicker
-                                                    value={dob ? new Date(dob) : new Date(2000, 0, 1)}
-                                                    mode="date"
-                                                    display="spinner"
-                                                    textColor="white"
-                                                    maximumDate={new Date()}
-                                                    onChange={handleDateChange}
-                                                />
-                                            </View>
-                                        </View>
-                                    </Modal>
-                                )}
-                                
-                                {/* Android Date Picker */}
-                                {Platform.OS === 'android' && showDatePicker && (
-                                    <DateTimePicker
-                                        value={dob ? new Date(dob) : new Date(2000, 0, 1)}
-                                        mode="date"
-                                        display="default"
-                                        maximumDate={new Date()}
-                                        onChange={handleDateChange}
-                                    />
-                                )}
+                                <PremiumDateTimePicker
+                                    visible={showDatePicker}
+                                    mode="date"
+                                    initialDate={dob ? new Date(dob) : new Date(2000, 0, 1)}
+                                    title="Select Date of Birth"
+                                    onClose={() => setShowDatePicker(false)}
+                                    onSelect={onDateChange}
+                                    maxDate={new Date()}
+                                />
 
                                 <PremiumInput 
                                     label="LOCATION" 

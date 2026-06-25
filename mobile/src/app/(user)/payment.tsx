@@ -60,10 +60,11 @@ export default function SecureCheckout() {
 
     // Price calcs
     // Prefer total from params if available (calculated in previous step), fallback to estimate
-    const passedTotal = params.total ? Number(params.total) : 0;
+    const commissionRate = params.commissionRate ? Number(params.commissionRate) : 10;
+    const passedTotal = params.baseTotal ? Number(params.baseTotal) : (params.total ? Number(params.total) : 0);
     const basePrice = passedTotal > 0 ? (passedTotal / guests) : (zone.includes('VIP') ? 3500 : zone.includes('Lounge') ? 2000 : 1200);
     const subtotal      = passedTotal > 0 ? passedTotal : (Math.max(1, guests) * basePrice);
-    const serviceCharge = 0;  // Service tax removed as requested
+    const serviceCharge = Math.round(subtotal * (commissionRate / 100)); // ✅ Service charge directly % se calculate kiya gaya hai
     const totalDiscount = (isApplied ? appliedDiscount : 0) + (isPromoApplied ? promoDiscount : 0);
     const total         = Math.max(0, subtotal + serviceCharge - totalDiscount);
 
@@ -75,14 +76,15 @@ export default function SecureCheckout() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         // Always force-replace to floor-plan — router.back() in tab layout goes to Home tab
         router.replace({
-            pathname: '/(user)/floor-plan',
+            pathname: '/(user)/floor-plan' as any,
             params: {
                 eventId, hostId, title, venueName, coverImage: cover,
                 guests: String(guests), zone, timeSlot,
-                seatIds: seatIds.join(',')
+                seatIds: seatIds.join(','),
+                commissionRate: String(commissionRate)
             }
         });
-    }, [router, eventId, hostId, title, venueName, cover, guests, zone, timeSlot, seatIds]);
+    }, [router, eventId, hostId, title, venueName, cover, guests, zone, timeSlot, seatIds, commissionRate]);
 
     useEffect(() => {
         const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -438,6 +440,12 @@ export default function SecureCheckout() {
                         <View style={styles.row}>
                             <Text style={[styles.rowLbl, { color: '#22c55e', flex: 1 }]}>Promo Discount</Text>
                             <Text style={[styles.rowVal, { color: '#22c55e' }]}>- ₹{promoDiscount.toFixed(2)}</Text>
+                        </View>
+                    )}
+                    {serviceCharge > 0 && (
+                        <View style={styles.row}>
+                            <Text style={[styles.rowLbl, { flex: 1 }]}>Platform Fee ({commissionRate}%)</Text>
+                            <Text style={styles.rowVal}>₹{serviceCharge.toFixed(2)}</Text>
                         </View>
                     )}
                     <View style={styles.dash} />

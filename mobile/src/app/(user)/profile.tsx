@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,6 +11,7 @@ import { userService } from '../../services/userService';
 import { COLORS } from '../../constants/design-system';
 import { useToast } from '../../context/ToastContext';
 import { avatar } from '../../services/cloudinaryService';
+import auth from '@react-native-firebase/auth';
 
 // ─── Feature-colour palette ───────────────────────────────────────────────────
 const MENU_ITEMS = [
@@ -74,6 +75,7 @@ export default function UserProfile() {
     const { showToast } = useToast();
     const [isImageVisible, setImageVisible] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // 🚀 SENIOR FIX: Use TanStack Query with userId in the key for TOTAL data isolation.
     // User1 has ID 'a' -> key ['user-profile', 'a']
@@ -102,6 +104,35 @@ export default function UserProfile() {
         try { await authService.logout(); await logout(true); }
         catch { await logout(true); }
         finally { setIsLoggingOut(false); }
+    };
+
+    const handleDeleteAccount = () => {
+        if (isDeleting) return;
+
+        Alert.alert(
+            "Delete Account",
+            "This will permanently delete your account, bookings, referrals, and all personal data. This cannot be undone.",
+            [
+                { text: "Cancel", style: "cancel" },
+                { 
+                    text: "Delete My Account", 
+                    style: "destructive",
+                    onPress: async () => {
+                        setIsDeleting(true);
+                        try {
+                            await userService.deleteAccount();
+                            showToast('Your account has been deleted.', 'success');
+                            try { await auth().signOut(); } catch(e) {}
+                            await logout(true);
+                        } catch (error: any) {
+                            setIsDeleting(false);
+                            const msg = error.response?.data?.message || 'Failed to delete account. Please try again.';
+                            Alert.alert('Cannot Delete Account', msg);
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     // ── BLOCK OLD DATA RENDER ──
@@ -190,13 +221,21 @@ export default function UserProfile() {
                 </View>
 
                 {/* ── Logout ── */}
-                <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} disabled={isLoggingOut} activeOpacity={0.8}>
+                <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} disabled={isLoggingOut || isDeleting} activeOpacity={0.8}>
                     {isLoggingOut
                         ? <ActivityIndicator size="small" color="#FF4D4F" />
                         : <>
                             <Ionicons name="log-out-outline" size={20} color="#FF4D4F" />
                             <Text style={styles.logoutText}>Sign Out</Text>
                           </>
+                    }
+                </TouchableOpacity>
+
+                {/* ── Delete Account ── */}
+                <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteAccount} disabled={isLoggingOut || isDeleting} activeOpacity={0.8}>
+                    {isDeleting
+                        ? <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" />
+                        : <Text style={styles.deleteText}>Delete Account</Text>
                     }
                 </TouchableOpacity>
 
@@ -285,9 +324,17 @@ const styles = StyleSheet.create({
         paddingVertical: 16, borderRadius: 18, gap: 10,
         backgroundColor: 'rgba(255,77,79,0.08)',
         borderWidth: 1, borderColor: 'rgba(255,77,79,0.2)',
-        marginBottom: 20,
+        marginBottom: 12,
     },
     logoutText: { color: '#FF4D4F', fontSize: 15, fontWeight: '700', letterSpacing: 0.3 },
+    
+    deleteBtn: {
+        alignItems: 'center', justifyContent: 'center',
+        paddingVertical: 14,
+        marginBottom: 20,
+    },
+    deleteText: { color: 'rgba(255,255,255,0.4)', fontSize: 13, fontWeight: '600' },
+    
     versionText: { color: 'rgba(255,255,255,0.15)', fontSize: 11, textAlign: 'center', fontWeight: '600' },
 
     // Modal

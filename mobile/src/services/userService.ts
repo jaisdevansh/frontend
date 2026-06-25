@@ -6,6 +6,11 @@ export const userService = {
         return response.data;
     },
 
+    deleteAccount: async () => {
+        const response = await apiClient.delete('/user/account');
+        return response.data;
+    },
+
     updateProfile: async (data: any) => {
         const response = await apiClient.put('/user/profile', data);
         return response.data;

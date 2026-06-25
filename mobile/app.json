@@ -2,7 +2,7 @@
   "expo": {
     "name": "Entry Club",
     "slug": "entry-club",
-    "version": "1.0.0",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./src/assets/images/icon.png",
     "scheme": "entry-club",
@@ -21,13 +21,17 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.entryclub.app",
+      "version": "1.0.7",
       "buildNumber": "1",
       "jsEngine": "hermes",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "UIBackgroundModes": [
+          "remote-notification",
           "remote-notification"
         ],
-        "NSUserNotificationsUsageDescription": "Entry Club sends you real-time updates about your bookings, orders, and events."
+        "NSUserNotificationsUsageDescription": "Entry Club sends you real-time updates about your bookings, orders, and events.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -48,7 +52,7 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.entryclub.app",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 3,
+      "versionCode": 9,
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
@@ -107,7 +111,7 @@
             "targetSdkVersion": 35,
             "buildToolsVersion": "35.0.0",
             "minSdkVersion": 24,
-            "usesCleartextTraffic": false,
+            "usesCleartextTraffic": true,
             "useLegacyPackaging": false,
             "enableMinifyInReleaseBuilds": true
           },
@@ -115,7 +119,10 @@
             "deploymentTarget": "15.1"
           }
         }
-      ]
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
+      "./plugins/withAdiRegistration"
     ],
     "experiments": {
       "typedRoutes": true
@@ -124,7 +131,7 @@
       "ENV": "production",
       "router": {},
       "eas": {
-        "projectId": "a0d31b8e-4d62-4772-b973-d9cf7375ad00"
+        "projectId": "573a1f1e-795f-477d-8ca4-d6873d15e36a"
       }
     },
     "assetBundlePatterns": [
