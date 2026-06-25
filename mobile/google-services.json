@@ -1,0 +1,86 @@
+{
+  "project_info": {
+    "project_number": "899653174180",
+    "project_id": "entry-club-84af7",
+    "storage_bucket": "entry-club-84af7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:899653174180:android:24c1db065afd319b29b731",
+        "android_client_info": {
+          "package_name": "com.entryclub.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "899653174180-2l8cako7dmdv7bu32ki5lr8ejr2a7rui.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.entryclub.app",
+            "certificate_hash": "f796174e6965f3e20b526f4145ac1334441ef1e3"
+          }
+        },
+        {
+          "client_id": "899653174180-3bvah7ae5ik6rca2k9aul079a95jfnvt.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.entryclub.app",
+            "certificate_hash": "328f345abd7b81f305739381c89df60529bb6111"
+          }
+        },
+        {
+          "client_id": "899653174180-hq8nl77lg8v783meqbitbkj3st6rrp50.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.entryclub.app",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "899653174180-qe3ekjt859u9c26p8vbfsmnvqjd29gui.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.entryclub.app",
+            "certificate_hash": "f142aa0fec6ab5ba32250ad3c042db42cabed4ff"
+          }
+        },
+        {
+          "client_id": "899653174180-v62ki1l0c5c5kr4toa11k0glg4p5c5os.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.entryclub.app",
+            "certificate_hash": "dbb242939f18d89ad43dd857dceb374b4b0dd7fa"
+          }
+        },
+        {
+          "client_id": "899653174180-b5bahsoumdn26ilc76pddfo3vqgfsm21.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBSDB3Yql_cgmpFJOzDVt026vOEwWC397Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "899653174180-b5bahsoumdn26ilc76pddfo3vqgfsm21.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "899653174180-5fgiqee2s4v9581514i809rm6r4s2hfl.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.entryclub.iosapp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
